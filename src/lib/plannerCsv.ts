@@ -27,6 +27,7 @@ export function plannerCsv(
     "Post-payroll expenses (USD)",
     "Cash surplus or shortfall (USD)",
     "401(k) contribution (USD)",
+    "Employer match (USD)",
     "HSA contribution (USD)",
     "Stock proceeds invested (USD)",
     "Equity retained at vest (USD)",
@@ -54,11 +55,11 @@ export function plannerCsv(
     const initial: (string | number)[] = Array(header.length).fill("");
     initial[0] = name;
     initial[1] = "Starting balances";
-    initial[22] = p.starting.taxable;
-    initial[23] = p.starting.employerStock;
-    initial[24] = p.starting.retirement;
-    initial[25] = p.starting.hsa;
-    initial[26] = p.startingTotal;
+    initial[23] = p.starting.taxable;
+    initial[24] = p.starting.employerStock;
+    initial[25] = p.starting.retirement;
+    initial[26] = p.starting.hsa;
+    initial[27] = p.startingTotal;
     records.push(initial);
     if (monthly)
       for (const r of p.months)
@@ -81,6 +82,7 @@ export function plannerCsv(
           r.expenses,
           r.surplus,
           r.retirementContribution,
+          r.employerMatch,
           r.hsaContribution,
           r.stockContribution,
           r.heldContribution,
@@ -129,6 +131,7 @@ export function plannerCsv(
           r.expenses,
           r.surplus,
           r.retirementContribution,
+          r.employerMatch,
           r.hsaContribution,
           r.stockContribution,
           r.heldContribution,

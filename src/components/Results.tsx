@@ -370,6 +370,17 @@ export function Results({
           </div>
           <div className="metric-row">
             <span>
+              Employer match
+              <small>Annual · deposited in the traditional 401(k)</small>
+            </span>
+            {series.map((s) => (
+              <strong key={s.index}>
+                {money(s.projection.rows[activeYear].employerMatch)}
+              </strong>
+            ))}
+          </div>
+          <div className="metric-row">
+            <span>
               401(k) + HSA contributions
               <small>Annual · transferred into their accounts</small>
             </span>
@@ -501,6 +512,7 @@ export function Results({
                           "Expenses",
                           "Cash surplus",
                           "401(k)",
+                          "Employer match",
                           "HSA",
                           "Stock invested",
                           "Equity retained",
@@ -520,7 +532,7 @@ export function Results({
                     <tbody>
                       <tr>
                         <th scope="row">Start</th>
-                        <td colSpan={14}>Starting owned assets</td>
+                        <td colSpan={15}>Starting owned assets</td>
                         <td>{money(s.projection.starting.taxable)}</td>
                         <td>{money(s.projection.starting.employerStock)}</td>
                         <td>{money(s.projection.starting.retirement)}</td>
@@ -544,6 +556,7 @@ export function Results({
                             r.expenses,
                             r.surplus,
                             r.retirementContribution,
+                            r.employerMatch,
                             r.hsaContribution,
                             r.stockContribution,
                             r.heldContribution,

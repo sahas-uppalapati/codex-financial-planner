@@ -238,6 +238,8 @@ export function BenefitsEditor({
   onChange: (s: ScenarioV2) => void;
 }) {
   const errors = plannerScenarioErrors(s, a);
+  const setMatch = (key: "rate" | "payPercent" | "cap", value: string) =>
+    onChange({ ...s, employerMatch: { ...s.employerMatch, [key]: value } });
   return (
     <AutoDetails
       className="advanced-section"
@@ -254,9 +256,44 @@ export function BenefitsEditor({
         <p className="hint">
           Annual targets, spread monthly and capped at cash pay and contribution
           limits across all employers. 401(k) and HSA assets are tracked
-          separately. No employer match, catch-up contributions, withdrawals or
-          reimbursements are modeled.
+          separately. Employer match estimates use the initial employer's base
+          salary and actual modeled traditional 401(k) contributions. Catch-up
+          contributions, withdrawals and reimbursements are not modeled.
         </p>
+        <fieldset className="benefits-group">
+          <legend>Your employer match</legend>
+          <SelectField
+            label="Match formula"
+            value={s.employerMatch.type}
+            onChange={(value) => onChange({ ...s, employerMatch: { ...s.employerMatch, type: value as ScenarioV2["employerMatch"]["type"] } })}
+            hint="Unsure adds no assumed match. Check your plan document for the exact formula."
+          >
+            <option value="unsure">Unsure · assume no match</option>
+            <option value="none">No match</option>
+            <option value="simple">Simple match</option>
+            <option value="tiered">Tiered match</option>
+          </SelectField>
+          {s.employerMatch.type === "simple" && (
+            <div className="two-cols">
+              <NumberField label="Employer match rate" unit="% of your contribution" max={100} value={s.employerMatch.rate} onChange={(v) => setMatch("rate", v)} />
+              <NumberField label="On the first percent of eligible pay" unit="%" max={100} value={s.employerMatch.payPercent} onChange={(v) => setMatch("payPercent", v)} />
+            </div>
+          )}
+          {s.employerMatch.type === "tiered" && (
+            <>
+              {s.employerMatch.tiers.map((tier, index) => (
+                <div className="two-cols" key={index}>
+                  <NumberField label={`Tier ${index + 1}: match rate`} unit="% of your contribution" max={100} value={tier.rate} onChange={(v) => onChange({ ...s, employerMatch: { ...s.employerMatch, tiers: s.employerMatch.tiers.map((row, i) => i === index ? { ...row, rate: v } : row) } })} />
+                  <NumberField label={`Tier ${index + 1}: next eligible pay`} unit="%" max={100} value={tier.payPercent} onChange={(v) => onChange({ ...s, employerMatch: { ...s.employerMatch, tiers: s.employerMatch.tiers.map((row, i) => i === index ? { ...row, payPercent: v } : row) } })} />
+                </div>
+              ))}
+              <button type="button" className="secondary small" disabled={s.employerMatch.tiers.length >= 20} onClick={() => onChange({ ...s, employerMatch: { ...s.employerMatch, tiers: [...s.employerMatch.tiers, { rate: "50", payPercent: "1" }] } })}>Add match tier</button>
+            </>
+          )}
+          <NumberField label="Optional annual employer match cap" value={s.employerMatch.cap} onChange={(v) => setMatch("cap", v)} hint="Enter 0 when there is no separate dollar cap. The cap applies to the whole formula." />
+          <p className="hint">Example: at $100,000 eligible pay, a 50% match on the first 6% can add up to $3,000 when you contribute $6,000. Current model uses base salary and monthly matching at the initial employer; it does not model exact payroll dates, true-ups, catch-ups, or total annual-additions limits.</p>
+          {errors.employerMatch && <p className="error">{errors.employerMatch}</p>}
+        </fieldset>
         <SelectField
           label="HSA eligible coverage (full year)"
           value={s.taxProfile.hsaCoverage}

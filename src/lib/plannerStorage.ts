@@ -20,6 +20,14 @@ export function loadPlanner(storage: StorageLike): {
     const saved = storage.getItem(PLANNER_KEY);
     if (saved) {
       const state = JSON.parse(saved) as PlannerV2;
+      // Pre-match v2 saves are retained and receive the conservative zero-match default.
+      if (Array.isArray(state?.scenarios)) {
+        const defaults = defaultPlanner();
+        state.scenarios = state.scenarios.map((scenario, index) => ({
+          ...scenario,
+          employerMatch: scenario.employerMatch ?? defaults.scenarios[index].employerMatch,
+        })) as PlannerV2["scenarios"];
+      }
       if (
         state?.version !== 2 ||
         typeof state.comparison !== "boolean" ||

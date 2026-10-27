@@ -19,6 +19,17 @@ export interface Benefits {
   health: string;
   hsa: string;
 }
+export interface MatchTier {
+  rate: string;
+  payPercent: string;
+}
+export interface EmployerMatch {
+  type: "unsure" | "none" | "simple" | "tiered";
+  rate: string;
+  payPercent: string;
+  cap: string;
+  tiers: MatchTier[];
+}
 export interface TaxProfile {
   mode: "calculated" | "manual";
   location: TaxLocation;
@@ -106,6 +117,7 @@ export interface ScenarioV2 extends Scenario {
   grants: Grant[];
   refreshers: RefresherRule[];
   events: CareerEvent[];
+  employerMatch: EmployerMatch;
 }
 export interface AssumptionsV2 extends Assumptions {
   startYear: string;
@@ -172,6 +184,16 @@ export function upgradeScenario(
     grants: [],
     refreshers: [],
     events: [],
+    employerMatch: {
+      type: "unsure",
+      rate: "50",
+      payPercent: "6",
+      cap: "0",
+      tiers: [
+        { rate: "100", payPercent: "3" },
+        { rate: "50", payPercent: "2" },
+      ],
+    },
   };
 }
 export function defaultPlanner(): PlannerV2 {
@@ -320,6 +342,25 @@ export function plannerScenarioErrors(
     )
       errors[`${who}.retirement`] =
         "Exceeds the projected annual 401(k) employee limit (under age 50).";
+  }
+  const match = s.employerMatch;
+  if (!match || !["unsure", "none", "simple", "tiered"].includes(match.type)) {
+    errors.employerMatch = "Choose a valid employer match setting.";
+  } else {
+    check("employerMatch.rate", match.rate, 0, 100);
+    check("employerMatch.payPercent", match.payPercent, 0, 100);
+    check("employerMatch.cap", match.cap, 0, 10_000_000);
+    if (!Array.isArray(match.tiers) || match.tiers.length > 20)
+      errors.employerMatch = "Use at most 20 employer match tiers.";
+    else {
+      let previous = 0;
+      match.tiers.forEach((tier, index) => {
+        check(`employerMatch.tiers.${index}.rate`, tier.rate, 0, 100);
+        check(`employerMatch.tiers.${index}.payPercent`, tier.payPercent, 0, 100);
+        previous += Number(tier.payPercent);
+      });
+      if (previous > 100) errors.employerMatch = "Match tiers cannot exceed 100% of eligible pay.";
+    }
   }
   const spouse = s.taxProfile.filing === "joint";
   if (s.taxProfile.hsaCoverage === "self")

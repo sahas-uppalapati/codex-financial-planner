@@ -44,10 +44,12 @@ The planner opens in **Quick estimate** mode. Enter annual salary, monthly livin
 
 Choose **Add more detail** to use the full planner. It retains the quick estimate inputs and reveals comparison scenarios, company presets, compensation, taxes, budgets, benefits, career progression, equity grants and account assumptions. Detailed result tables and tax/vesting breakdowns are also collapsed by default in Quick estimate mode and can be opened with **Explore detailed results**.
 
+Starting taxable investments, traditional 401(k), and HSA balances are entered in the visible **Starting balances** section and shared between scenarios. Existing retirement/HSA balances grow even if new contributions are zero. Employer shares remain in the equity issuer editor and are counted once.
+
 Advanced sections stay collapsed until needed:
 
 - **Taxes:** calculated annual liability or a manual total effective rate; single or married filing jointly; spouse wages/growth; signed annual federal/state/local tax adjustments; employee-premium and exemption switches.
-- **Pretax benefits:** traditional 401(k), qualifying cafeteria-plan health premiums and payroll HSA contributions for each worker. HSA coverage confirms full-year eligibility and the household contribution limit.
+- **Pretax benefits:** traditional 401(k), a configurable simple or tiered employer match, qualifying cafeteria-plan health premiums and payroll HSA contributions. Match settings default to Unsure, which assumes zero; the formula applies to base salary at the initial employer and does not model payroll dates or true-ups.
 - **Career progression:** promotions and employer changes by calendar month or months after projection start, expected role/level, base, bonus and growth, optional new equity award and future refresher policy.
 - **Equity grants:** individual/historical grants in dollars plus grant-date price, or explicit shares; common/custom vesting schedules; recurring refresher rules; selling at vest or retaining shares after estimated tax coverage; employer price/appreciation assumptions and starting vested holdings.
 - **Assumptions:** projection start year, investment return, expense inflation, tax-threshold inflation, and starting retirement/HSA balances.
@@ -64,7 +66,7 @@ The monthly investment rate is `(1 + annualReturn / 100)^(1/12) - 1`. Nonnegativ
 
 Benefits reduce cash once. Retirement and HSA contributions enter their respective asset accounts; health premiums are spending, not assets. Healthcare budget categories **include** payroll premiums, so premiums already deducted from cash income are removed once from budgeted healthcare expenses. Post-payroll healthcare expenses cannot go below zero. If premiums exceed the medical budget, a notice explains that all premiums still reduce take-home.
 
-Annual benefit targets are spread over months and capped at available cash compensation and per-person/household legal limits. Job changes do not reset Social Security or contribution limits. Actual contributions may fall short of targets when cash wages are insufficient; results show actual funded amounts. Employer matches, catch-ups, reimbursements and withdrawals are excluded.
+Annual benefit targets are spread over months and capped at available cash compensation and per-person/household legal limits. Job changes do not reset Social Security or contribution limits. Actual contributions may fall short of targets when cash wages are insufficient; results show actual funded amounts. Employer match estimates are added to the traditional 401(k) balance and are not employee contributions. Match settings apply only to the initial employer; no match is assumed after a job change. Catch-ups, reimbursements and withdrawals are excluded.
 
 ## Grant and career semantics
 

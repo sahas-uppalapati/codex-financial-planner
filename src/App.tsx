@@ -14,6 +14,7 @@ import { AutoDetails, NumberField } from "./components/EditorFields";
 import { Results } from "./components/Results";
 import { QuickEstimate } from "./components/QuickEstimate";
 import { locationPresets } from "./data/presets";
+import { RetirementGuide } from "./components/RetirementGuide";
 function initial() {
   try {
     return loadPlanner(window.localStorage);
@@ -324,6 +325,25 @@ export default function App() {
                   integer
                 />
               </div>
+              <div className="section-label">
+                <h3>Starting balances</h3>
+                {state.comparison && <span className="status-tag">Shared</span>}
+              </div>
+              <div className="two-cols">
+                <NumberField
+                  label="Starting traditional 401(k) balance"
+                  value={state.shared.startingRetirement}
+                  onChange={(v) => shared("startingRetirement", v)}
+                  error={errors.startingRetirement}
+                />
+                <NumberField
+                  label="Starting HSA balance"
+                  value={state.shared.startingHsa}
+                  onChange={(v) => shared("startingHsa", v)}
+                  error={errors.startingHsa}
+                />
+              </div>
+              <p className="hint">Include balances from old employers. These household starting assets grow even when new contributions are zero. <a href="#starting-employer-shares">Edit starting employer shares</a> in the equity section; shares are counted once.</p>
               <AutoDetails
                 hasErrors={
                   !!(
@@ -371,18 +391,6 @@ export default function App() {
                     value={state.shared.taxInflation}
                     onChange={(v) => shared("taxInflation", v)}
                     hint="Projects only indexed parameters of 2026 law. Fixed thresholds remain fixed; future legislation is not predicted."
-                  />
-                  <NumberField
-                    label="Starting traditional 401(k) balance"
-                    unit="USD"
-                    value={state.shared.startingRetirement}
-                    onChange={(v) => shared("startingRetirement", v)}
-                  />
-                  <NumberField
-                    label="Starting HSA balance"
-                    unit="USD"
-                    value={state.shared.startingHsa}
-                    onChange={(v) => shared("startingHsa", v)}
                   />
                   <p className="hint">
                     The investment return applies to taxable investments, 401(k)
@@ -440,7 +448,7 @@ export default function App() {
                     Each nonnegative opening investment balance earns the
                     monthly equivalent of your annual return assumption. Cash
                     surplus, sold-equity proceeds, and retirement/HSA
-                    contributions enter at month-end. Unfunded cash shortfalls
+                    contributions and estimated employer matching enter at month-end. Unfunded cash shortfalls
                     earn no return and are not modeled loans. Held shares and
                     retirement assets are never automatically liquidated to fund
                     living costs.
@@ -485,7 +493,7 @@ export default function App() {
                     Balances are nominal future dollars before future sale or
                     withdrawal taxes. The model excludes options, later stock
                     sales, investment dividends/realized gains, HSA
-                    reimbursements, retirement withdrawals/matches/catch-ups,
+                    reimbursements, retirement withdrawals/catch-ups,
                     itemized or family/earned-income credits, self-employment,
                     interstate income allocation, other assets/liabilities and
                     Monte Carlo simulation. Returns, share appreciation and
@@ -582,6 +590,7 @@ export default function App() {
             </div>
           </div>
         </div>
+        <RetirementGuide />
         <footer>
           <p>
             ◈ Your inputs stay in this browser. No accounts, analytics, or data

@@ -37,6 +37,7 @@ export interface MonthlyRow {
   expenses: number;
   surplus: number;
   retirementContribution: number;
+  employerMatch: number;
   hsaContribution: number;
   stockContribution: number;
   heldContribution: number;
@@ -58,6 +59,7 @@ export interface AnnualRow extends ProjectionRow {
   budgetExpenses: number;
   heldContribution: number;
   retirementContribution: number;
+  employerMatch: number;
   hsaContribution: number;
   forfeitedEquity: number;
   unrealizedGain: number;
@@ -85,6 +87,7 @@ interface CashMonth {
   spouse: WorkerTaxInput;
   health: number;
   retirement: number;
+  employerMatch: number;
   hsa: number;
 }
 const sum = (items: number[]) => items.reduce((a, b) => a + b, 0);
@@ -169,12 +172,17 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
     warnings.add(
       "California personal-credit phaseout starts are derived from announced 2026 indexing pending the complete published booklet.",
     );
+  if (s.events.some((event) => event.kind === "job"))
+    warnings.add(
+      "Employer match settings apply only to the initial employer. No match is assumed after a job change until plan settings can be entered for that employer.",
+    );
   let role = s.role,
     issuerId = s.employerId,
     annualBase = Number(s.base),
     annualBonus = Number(s.bonus),
     growth = Number(s.growth),
-    roleStart = 0;
+    roleStart = 0,
+    initialEmployerActive = true;
   for (let year = 0; year < years; year++) {
     const calendarYear = startYear + year,
       scale = (1 + Number(a.taxInflation) / 100) ** (calendarYear - 2026);
@@ -189,10 +197,12 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       usedSpouse = { retirement: 0, hsa: 0 };
     const cashMonths: CashMonth[] = [];
     let accruedBonus = 0;
+    let annualMatchUsed = 0;
     for (let within = 0; within < 12; within++) {
       const month = year * 12 + within,
         e = events.find((e) => monthIndex(e.month, startYear) === month);
       if (e) {
+        if (e.kind === "job") initialEmployerActive = false;
         role = e.role;
         issuerId = e.issuerId;
         annualBase = Number(e.base);
@@ -232,6 +242,24 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
           ? 4400 * scale
           : Math.max(0, hsaCap - usedPrimary.hsa),
       );
+      const match = s.employerMatch;
+      const eligiblePay = base;
+      const employeeRate = eligiblePay > 0 ? (primary.retirement / eligiblePay) * 100 : 0;
+      let matchAmount = 0;
+      if (initialEmployerActive && match.type === "simple") {
+        matchAmount = Math.min(employeeRate, Number(match.payPercent)) * Number(match.rate) / 100 * eligiblePay / 100;
+      } else if (initialEmployerActive && match.type === "tiered") {
+        let bandStart = 0;
+        for (const tier of match.tiers) {
+          const bandEnd = bandStart + Number(tier.payPercent);
+          const covered = Math.max(0, Math.min(employeeRate, bandEnd) - bandStart);
+          matchAmount += covered * Number(tier.rate) / 100 * eligiblePay / 100;
+          bandStart = bandEnd;
+        }
+      }
+      if (!initialEmployerActive || match.type === "unsure" || match.type === "none") matchAmount = 0;
+      if (Number(match.cap) > 0) matchAmount = Math.min(matchAmount, Math.max(0, Number(match.cap) - annualMatchUsed));
+      annualMatchUsed += matchAmount;
       cashMonths.push({
         base,
         bonus,
@@ -246,6 +274,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         spouse,
         health: primary.health + spouse.health,
         retirement: primary.retirement + spouse.retirement,
+        employerMatch: matchAmount,
         hsa: primary.hsa + spouse.hsa,
       });
     }
@@ -339,7 +368,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         surplus +
         stockContribution;
       balances.retirement =
-        balances.retirement * (1 + monthlyReturn) + c.retirement;
+        balances.retirement * (1 + monthlyReturn) + c.retirement + c.employerMatch;
       balances.hsa = balances.hsa * (1 + monthlyReturn) + c.hsa;
       balances.employerStock = sum(
         s.issuers.map(
@@ -371,6 +400,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         expenses,
         surplus,
         retirementContribution: c.retirement,
+        employerMatch: c.employerMatch,
         hsaContribution: c.hsa,
         stockContribution,
         heldContribution,
@@ -426,6 +456,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       budgetExpenses: sumField("budgetExpenses"),
       heldContribution: sumField("heldContribution"),
       retirementContribution: sumField("retirementContribution"),
+      employerMatch: sumField("employerMatch"),
       hsaContribution: sumField("hsaContribution"),
       forfeitedEquity: sumField("forfeitedEquity"),
       unrealizedGain: last.unrealizedGain,
