@@ -47,6 +47,38 @@ export function Results({
   }));
   return (
     <div className="results-content">
+      <section className="quick-read" aria-labelledby="quick-read-heading">
+        <div className="quick-read-heading">
+          <div>
+            <p className="eyebrow">AT A GLANCE</p>
+            <h2 id="quick-read-heading">Your monthly picture</h2>
+          </div>
+          <span className="period-tag">
+            {series[0].projection.rows[activeYear].calendarYear}
+          </span>
+        </div>
+        <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
+          {series.map((s, i) => {
+            const row = s.projection.rows[activeYear];
+            return (
+              <article className="quick-read-card" key={s.index}>
+                <h3>
+                  {series.length > 1 && <i className={`dot series-${s.index}`} />}
+                  {s.name}
+                </h3>
+                <p className={`quick-surplus ${row.surplus < 0 ? "negative" : "positive"}`}>
+                  {money(row.surplus / 12)}<span> / month</span>
+                </p>
+                <div className="quick-read-details">
+                  <span>Take-home <strong>{money(row.takeHome / 12)}</strong></span>
+                  <span>Living costs <strong>{money(row.expenses / 12)}</strong></span>
+                </div>
+              </article>
+            );
+          })}
+        </div>
+        <p className="hint">Cash savings after modeled taxes, payroll benefits and living costs. Equity and retirement contributions are tracked separately.</p>
+      </section>
       <section
         className="projection-panel"
         aria-labelledby="projection-heading"
