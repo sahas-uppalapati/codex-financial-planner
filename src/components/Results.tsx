@@ -58,7 +58,7 @@ export function Results({
           </span>
         </div>
         <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
-          {series.map((s, i) => {
+          {series.map((s) => {
             const row = s.projection.rows[activeYear];
             return (
               <article className="quick-read-card" key={s.index}>

@@ -16,6 +16,12 @@ npm run preview
 
 Open [http://localhost:5180](http://localhost:5180). On WSL use the Linux Node/npm installation (`nvm use 24`), not Windows npm. The development server binds to `0.0.0.0` for WSL localhost forwarding. Dependencies are pinned and a lockfile is included.
 
+## CI and deployment
+
+GitHub Actions runs `npm ci`, the unit and browser test suites, and the production build for every pull request and every push to `master`. It installs Chromium for the Playwright desktop and mobile browser projects. To make CI a merge gate, require the **CI / verify** check in the repository's branch protection or ruleset settings.
+
+Connect this GitHub repository to Vercel and set `master` as the production branch. Vercel then builds pull requests as Preview deployments and deploys pushes to `master` to Production. The Vercel Git integration handles deployment; no Vercel token or project secrets are needed in GitHub Actions.
+
 Browser tests:
 
 ```bash
