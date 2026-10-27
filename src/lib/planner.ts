@@ -60,6 +60,7 @@ export interface Grant {
   template: string;
   treatment: SaleTreatment;
   keepOnDeparture: boolean;
+  presetCompensation?: string;
 }
 export interface RefresherRule {
   id: string;
@@ -91,6 +92,7 @@ export interface CareerEvent {
   refresherEvery: string;
   refresherTemplate: string;
   refresherTreatment: SaleTreatment;
+  presetProgression?: string;
 }
 export interface ScenarioV2 extends Scenario {
   taxProfile: TaxProfile;

@@ -9,6 +9,7 @@ import {
   companies,
   stages,
   compensationPresets,
+  compensationRegions,
   locationPresets,
 } from "../data/presets";
 export const STORAGE_KEY = "careerworth:v1";
@@ -37,7 +38,7 @@ function isScenario(value: unknown): value is Scenario {
     categoryKeys.every((k) => typeof s.expenses[k] === "string") &&
     companies.includes(s.company as (typeof companies)[number]) &&
     stages.some((p) => p.id === s.stage) &&
-    s.compensationLocation === "United States" &&
+    compensationRegions.includes(s.compensationLocation as (typeof compensationRegions)[number]) &&
     (s.location === "" || locationPresets.some((p) => p.id === s.location)) &&
     (s.appliedCompensation === null ||
       compensationPresets.some((p) => p.id === s.appliedCompensation)) &&
