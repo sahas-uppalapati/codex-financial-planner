@@ -124,6 +124,8 @@ export interface AssumptionsV2 extends Assumptions {
   taxInflation: string;
   startingRetirement: string;
   startingHsa: string;
+  startingSpouseRetirement: string;
+  startingSpouseHsa: string;
 }
 export interface PlannerV2 {
   version: 2;
@@ -210,6 +212,8 @@ export function defaultPlanner(): PlannerV2 {
       taxInflation: "2.5",
       startingRetirement: "0",
       startingHsa: "0",
+      startingSpouseRetirement: "0",
+      startingSpouseHsa: "0",
     },
   };
 }
@@ -518,6 +522,8 @@ export function plannerSharedErrors(s: AssumptionsV2): Record<string, string> {
     ["taxInflation", 0, 10, false],
     ["startingRetirement", 0, 1e7, false],
     ["startingHsa", 0, 1e7, false],
+    ["startingSpouseRetirement", 0, 1e7, false],
+    ["startingSpouseHsa", 0, 1e7, false],
   ] as const) {
     const e = numberError(s[k], min, max, integer);
     if (e) errors[k] = e;

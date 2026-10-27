@@ -331,18 +331,38 @@ export default function App() {
               </div>
               <div className="two-cols">
                 <NumberField
-                  label="Starting traditional 401(k) balance"
+                  label="Your starting traditional 401(k) balance"
                   value={state.shared.startingRetirement}
                   onChange={(v) => shared("startingRetirement", v)}
                   error={errors.startingRetirement}
                 />
                 <NumberField
-                  label="Starting HSA balance"
+                  label="Your starting HSA balance"
                   value={state.shared.startingHsa}
                   onChange={(v) => shared("startingHsa", v)}
                   error={errors.startingHsa}
                 />
               </div>
+              <details>
+                <summary>Spouse starting balances <span className="optional">Optional</span></summary>
+                <div className="details-body">
+                  <div className="two-cols">
+                    <NumberField
+                      label="Spouse traditional 401(k) balance"
+                      value={state.shared.startingSpouseRetirement}
+                      onChange={(v) => shared("startingSpouseRetirement", v)}
+                      error={errors.startingSpouseRetirement}
+                    />
+                    <NumberField
+                      label="Spouse HSA balance"
+                      value={state.shared.startingSpouseHsa}
+                      onChange={(v) => shared("startingSpouseHsa", v)}
+                      error={errors.startingSpouseHsa}
+                    />
+                  </div>
+                  <p className="hint">Spouse starting assets remain in the household total even in a scenario set to single filing.</p>
+                </div>
+              </details>
               <p className="hint">Include balances from old employers. These household starting assets grow even when new contributions are zero. <a href="#starting-employer-shares">Edit starting employer shares</a> in the equity section; shares are counted once.</p>
               <AutoDetails
                 hasErrors={
@@ -351,6 +371,8 @@ export default function App() {
                     errors.taxInflation ||
                     errors.startingRetirement ||
                     errors.startingHsa ||
+                    errors.startingSpouseRetirement ||
+                    errors.startingSpouseHsa ||
                     errors.returns ||
                     errors.inflation
                   )

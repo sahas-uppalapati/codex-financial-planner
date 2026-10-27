@@ -23,6 +23,12 @@ export function loadPlanner(storage: StorageLike): {
       // Pre-match v2 saves are retained and receive the conservative zero-match default.
       if (Array.isArray(state?.scenarios)) {
         const defaults = defaultPlanner();
+        state.shared = {
+          ...defaults.shared,
+          ...state.shared,
+          startingSpouseRetirement: state.shared?.startingSpouseRetirement ?? "0",
+          startingSpouseHsa: state.shared?.startingSpouseHsa ?? "0",
+        };
         state.scenarios = state.scenarios.map((scenario, index) => ({
           ...scenario,
           employerMatch: scenario.employerMatch ?? defaults.scenarios[index].employerMatch,
@@ -57,6 +63,8 @@ export function loadPlanner(storage: StorageLike): {
           taxInflation: "2.5",
           startingRetirement: "0",
           startingHsa: "0",
+          startingSpouseRetirement: "0",
+          startingSpouseHsa: "0",
         },
       };
       return {

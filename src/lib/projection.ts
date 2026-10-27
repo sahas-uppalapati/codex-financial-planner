@@ -148,8 +148,8 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
     employerStock: sum(
       s.issuers.map((i) => Number(i.startingShares) * Number(i.price)),
     ),
-    retirement: Number(a.startingRetirement),
-    hsa: Number(a.startingHsa),
+    retirement: Number(a.startingRetirement) + Number(a.startingSpouseRetirement),
+    hsa: Number(a.startingHsa) + Number(a.startingSpouseHsa),
   };
   const balances: AccountBalances = { ...starting };
   const held = new Map(

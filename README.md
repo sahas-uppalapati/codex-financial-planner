@@ -44,7 +44,7 @@ The planner opens in **Quick estimate** mode. Enter annual salary, monthly livin
 
 Choose **Add more detail** to use the full planner. It retains the quick estimate inputs and reveals comparison scenarios, company presets, compensation, taxes, budgets, benefits, career progression, equity grants and account assumptions. Detailed result tables and tax/vesting breakdowns are also collapsed by default in Quick estimate mode and can be opened with **Explore detailed results**.
 
-Starting taxable investments, traditional 401(k), and HSA balances are entered in the visible **Starting balances** section and shared between scenarios. Existing retirement/HSA balances grow even if new contributions are zero. Employer shares remain in the equity issuer editor and are counted once.
+Starting taxable investments, primary-owner traditional 401(k), and HSA balances are entered in the visible **Starting balances** section and shared between scenarios. Optional spouse 401(k)/HSA balances are included in household assets even in a single-filing scenario. Existing retirement/HSA balances grow even if new contributions are zero. Existing saved balances are kept with the primary owner when spouse fields are added. Employer shares remain in the equity issuer editor and are counted once.
 
 Advanced sections stay collapsed until needed:
 
