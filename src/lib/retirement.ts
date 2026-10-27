@@ -11,6 +11,16 @@ export type RetirementAccountType =
   | "sep-ira"
   | "simple-ira";
 
+export const retirementAccountLabels: Record<RetirementAccountType, string> = {
+  "traditional-401k": "Traditional 401(k)",
+  "roth-401k": "Roth 401(k)",
+  "traditional-ira": "Traditional / rollover IRA",
+  "roth-ira": "Roth IRA",
+  hsa: "HSA",
+  "sep-ira": "SEP IRA (balance only)",
+  "simple-ira": "SIMPLE IRA (balance only)",
+};
+
 export interface StartingAccountBalance {
   id: string;
   owner: RetirementOwner;
@@ -21,6 +31,7 @@ export interface StartingAccountBalance {
 export interface PersonRetirementProfile {
   ageAtFirstYearEnd: string;
   ageConfirmed: boolean;
+  allowsCatchUp: boolean | "unsure";
   workplacePlanCoverage: boolean | "unsure";
   priorYearFicaWages: string;
   medicareMonth: string;

@@ -970,8 +970,25 @@ tbody tr:hover {
   font-size: 11px;
   font-weight: 600;
 }
+.starting-total {
+  margin: 8px 0 14px;
+  padding: 12px 14px;
+  border-radius: 10px;
+  background: #f1f4ee;
+}
+.starting-account-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr) minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+}
 @media (max-width: 560px) {
   .guide-list {
+    grid-template-columns: 1fr;
+  }
+  .starting-account-row {
     grid-template-columns: 1fr;
   }
 }

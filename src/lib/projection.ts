@@ -1,5 +1,5 @@
 import type { ProjectionRow } from "./model";
-import type { AssumptionsV2, Benefits, ScenarioV2 } from "./planner";
+import type { AssumptionsV2, Benefits, RetirementTargets, ScenarioV2 } from "./planner";
 import {
   monthIndex,
   monthLabel,
@@ -11,6 +11,10 @@ import { buildEquity, issuerPrice } from "./equity";
 import type { EquityPlan, EquityVest } from "./equity";
 import { calculateTaxes } from "./tax";
 import type { TaxBreakdown, WorkerTaxInput } from "./tax";
+import type { RetirementAccountType } from "./retirement";
+import { retirementAccountLabels } from "./retirement";
+import { annualAge, annualRetirementLimits, employeeDeferralLimit } from "./retirement";
+export type RetirementAccountBalances = Record<RetirementAccountType, number>;
 export interface AccountBalances {
   taxable: number;
   employerStock: number;
@@ -37,6 +41,7 @@ export interface MonthlyRow {
   expenses: number;
   surplus: number;
   retirementContribution: number;
+  roth401kContribution: number;
   employerMatch: number;
   hsaContribution: number;
   stockContribution: number;
@@ -45,6 +50,7 @@ export interface MonthlyRow {
   investmentGain: number;
   unrealizedGain: number;
   balances: AccountBalances;
+  accountBalances: RetirementAccountBalances;
   endingBalance: number;
   vests: EquityVest[];
   event: string;
@@ -59,11 +65,13 @@ export interface AnnualRow extends ProjectionRow {
   budgetExpenses: number;
   heldContribution: number;
   retirementContribution: number;
+  roth401kContribution: number;
   employerMatch: number;
   hsaContribution: number;
   forfeitedEquity: number;
   unrealizedGain: number;
   balances: AccountBalances;
+  accountBalances: RetirementAccountBalances;
   taxBreakdown: TaxBreakdown;
   months: MonthlyRow[];
 }
@@ -72,6 +80,7 @@ export interface Projection {
   months: MonthlyRow[];
   equity: EquityPlan;
   starting: AccountBalances;
+  startingAccountBalances: RetirementAccountBalances;
   startingTotal: number;
   warnings: string[];
 }
@@ -87,18 +96,32 @@ interface CashMonth {
   spouse: WorkerTaxInput;
   health: number;
   retirement: number;
+  roth401k: number;
   employerMatch: number;
   hsa: number;
 }
 const sum = (items: number[]) => items.reduce((a, b) => a + b, 0);
 const accountTotal = (a: AccountBalances) =>
   a.taxable + a.employerStock + a.retirement + a.hsa;
+const accountTypes = Object.keys(retirementAccountLabels) as RetirementAccountType[];
+const sumAccountBalances = (accounts: RetirementAccountBalances, includeHsa: boolean) =>
+  accountTypes.reduce((total, type) => total + (includeHsa || type !== "hsa" ? accounts[type] : 0), 0);
+function monthlyRetirementTarget(target: RetirementTargets, eligiblePay: number) {
+  const total = target.workplace401k.mode === "percent"
+    ? eligiblePay * Number(target.workplace401k.amount) / 100
+    : Number(target.workplace401k.amount) / 12;
+  return {
+    traditional: total * Number(target.workplace401k.traditionalSharePercent) / 100,
+    roth: total * Number(target.workplace401k.rothSharePercent) / 100,
+  };
+}
 function allocateBenefits(
   cash: number,
   b: Benefits,
   used: { retirement: number; hsa: number },
   retirementCap: number,
   hsaCap: number,
+  retirementTargets: { traditional: number; roth: number },
 ): WorkerTaxInput {
   let remaining = cash;
   const health = Math.min(Number(b.health) / 12, remaining);
@@ -111,12 +134,19 @@ function allocateBenefits(
   remaining -= hsa;
   used.hsa += hsa;
   const retirement = Math.min(
-    Number(b.retirement) / 12,
+    retirementTargets.traditional,
     remaining,
     Math.max(0, retirementCap - used.retirement),
   );
   used.retirement += retirement;
-  return { cash, stock: 0, health, hsa, retirement };
+  remaining -= retirement;
+  const roth401k = Math.min(
+    retirementTargets.roth,
+    remaining,
+    Math.max(0, retirementCap - used.retirement),
+  );
+  used.retirement += roth401k;
+  return { cash, stock: 0, health, hsa, retirement, roth401k };
 }
 function combineWorkers(
   months: CashMonth[],
@@ -128,6 +158,7 @@ function combineWorkers(
     stock,
     health: sum(months.map((m) => m[who].health)),
     retirement: sum(months.map((m) => m[who].retirement)),
+    roth401k: sum(months.map((m) => m[who].roth401k ?? 0)),
     hsa: sum(months.map((m) => m[who].hsa)),
   };
 }
@@ -143,15 +174,22 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       : { grants: [], vests: [], forfeitures: [], employment: [] };
   const events = [...s.events].sort((x, y) => x.month.localeCompare(y.month));
   const monthlyReturn = Math.expm1(Math.log1p(Number(a.returns) / 100) / 12);
+  const startingAccountBalances = Object.fromEntries(accountTypes.map((type) => [type, 0])) as RetirementAccountBalances;
+  for (const account of a.startingAccounts) {
+    startingAccountBalances[account.type] += Number(account.balance);
+  }
+  startingAccountBalances["traditional-401k"] += Number(a.startingRetirement) + Number(a.startingSpouseRetirement);
+  startingAccountBalances.hsa += Number(a.startingHsa) + Number(a.startingSpouseHsa);
   const starting: AccountBalances = {
     taxable: Number(a.starting),
     employerStock: sum(
       s.issuers.map((i) => Number(i.startingShares) * Number(i.price)),
     ),
-    retirement: Number(a.startingRetirement) + Number(a.startingSpouseRetirement),
-    hsa: Number(a.startingHsa) + Number(a.startingSpouseHsa),
+    retirement: sumAccountBalances(startingAccountBalances, false),
+    hsa: startingAccountBalances.hsa,
   };
   const balances: AccountBalances = { ...starting };
+  const accountBalances: RetirementAccountBalances = { ...startingAccountBalances };
   const held = new Map(
     s.issuers.map((i) => [
       i.id,
@@ -185,8 +223,12 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
     initialEmployerActive = true;
   for (let year = 0; year < years; year++) {
     const calendarYear = startYear + year,
-      scale = (1 + Number(a.taxInflation) / 100) ** (calendarYear - 2026);
-    const retirementCap = 24500 * scale,
+      scale = (1 + Number(a.taxInflation) / 100) ** (calendarYear - 2026),
+      retirementLimits = annualRetirementLimits(calendarYear, Number(a.taxInflation));
+    const primaryAge = annualAge(s.retirementProfiles.primary, year),
+      spouseAge = annualAge(s.retirementProfiles.spouse, year),
+      primaryRetirementCap = employeeDeferralLimit(retirementLimits, primaryAge, s.retirementProfiles.primary.allowsCatchUp === true),
+      spouseRetirementCap = employeeDeferralLimit(retirementLimits, spouseAge, s.retirementProfiles.spouse.allowsCatchUp === true),
       hsaCap =
         (s.taxProfile.hsaCoverage === "none"
           ? 0
@@ -226,10 +268,11 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         base + bonus,
         s.benefits,
         usedPrimary,
-        retirementCap,
+        primaryRetirementCap,
         s.taxProfile.hsaCoverage === "self"
-          ? 4400 * scale
+        ? retirementLimits.hsaSelf
           : Math.max(0, hsaCap - usedSpouse.hsa),
+        monthlyRetirementTarget(s.retirementTargets.primary, base),
       );
       const spouse = allocateBenefits(
         spouseCash,
@@ -237,14 +280,15 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
           ? s.spouseBenefits
           : { retirement: "0", hsa: "0", health: "0" },
         usedSpouse,
-        retirementCap,
+        spouseRetirementCap,
         s.taxProfile.hsaCoverage === "self"
-          ? 4400 * scale
+        ? retirementLimits.hsaSelf
           : Math.max(0, hsaCap - usedPrimary.hsa),
+        monthlyRetirementTarget(s.retirementTargets.spouse, spouseCash),
       );
       const match = s.employerMatch;
       const eligiblePay = base;
-      const employeeRate = eligiblePay > 0 ? (primary.retirement / eligiblePay) * 100 : 0;
+      const employeeRate = eligiblePay > 0 ? ((primary.retirement + (primary.roth401k ?? 0)) / eligiblePay) * 100 : 0;
       let matchAmount = 0;
       if (initialEmployerActive && match.type === "simple") {
         matchAmount = Math.min(employeeRate, Number(match.payPercent)) * Number(match.rate) / 100 * eligiblePay / 100;
@@ -274,6 +318,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         spouse,
         health: primary.health + spouse.health,
         retirement: primary.retirement + spouse.retirement,
+        roth401k: (primary.roth401k ?? 0) + (spouse.roth401k ?? 0),
         employerMatch: matchAmount,
         hsa: primary.hsa + spouse.hsa,
       });
@@ -328,7 +373,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       const stockTaxes =
         annualStock > 0 ? (incrementalTax * stockGross) / annualStock : 0;
       const takeHome =
-        c.cashGross - c.health - c.retirement - c.hsa - cashTaxes;
+        c.cashGross - c.health - c.retirement - c.roth401k - c.hsa - cashTaxes;
       const inflation = (1 + Number(a.inflation) / 100) ** year;
       const budgetExpenses = totalBudget(s) * inflation;
       const healthcareOffset = Math.min(
@@ -367,9 +412,13 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         Math.max(0, balances.taxable) * monthlyReturn +
         surplus +
         stockContribution;
-      balances.retirement =
-        balances.retirement * (1 + monthlyReturn) + c.retirement + c.employerMatch;
-      balances.hsa = balances.hsa * (1 + monthlyReturn) + c.hsa;
+      for (const type of accountTypes)
+        accountBalances[type] *= 1 + monthlyReturn;
+      accountBalances["traditional-401k"] += c.retirement + c.employerMatch;
+      accountBalances["roth-401k"] += c.roth401k;
+      accountBalances.hsa += c.hsa;
+      balances.retirement = sumAccountBalances(accountBalances, false);
+      balances.hsa = accountBalances.hsa;
       balances.employerStock = sum(
         s.issuers.map(
           (i) => held.get(i.id)!.shares * issuerPrice(i, month + 1),
@@ -400,6 +449,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         expenses,
         surplus,
         retirementContribution: c.retirement,
+        roth401kContribution: c.roth401k,
         employerMatch: c.employerMatch,
         hsaContribution: c.hsa,
         stockContribution,
@@ -408,6 +458,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         investmentGain,
         unrealizedGain,
         balances: { ...balances },
+        accountBalances: { ...accountBalances },
         endingBalance: accountTotal(balances),
         vests,
         event: c.event,
@@ -451,16 +502,19 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       benefits:
         sumField("healthPremiums") +
         sumField("retirementContribution") +
+        sumField("roth401kContribution") +
         sumField("hsaContribution"),
       healthcareOffset: sumField("healthcareOffset"),
       budgetExpenses: sumField("budgetExpenses"),
       heldContribution: sumField("heldContribution"),
       retirementContribution: sumField("retirementContribution"),
+      roth401kContribution: sumField("roth401kContribution"),
       employerMatch: sumField("employerMatch"),
       hsaContribution: sumField("hsaContribution"),
       forfeitedEquity: sumField("forfeitedEquity"),
       unrealizedGain: last.unrealizedGain,
       balances: { ...last.balances },
+      accountBalances: { ...last.accountBalances },
       taxBreakdown: fullTax,
       months,
     });
@@ -484,6 +538,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
     months: allMonths,
     equity,
     starting,
+    startingAccountBalances,
     startingTotal: accountTotal(starting),
     warnings: [...warnings],
   };

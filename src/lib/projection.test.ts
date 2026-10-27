@@ -158,6 +158,8 @@ describe("monthly career and investment engine", () => {
       s = p.scenarios[0];
     s.base = "100000";
     s.benefits = { retirement: "12000", hsa: "4000", health: "6000" };
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "12000";
     s.taxProfile.hsaCoverage = "self";
     s.expenses.healthcare = "1000";
     const r = projectScenario(s, p.shared).rows[0];
@@ -187,7 +189,8 @@ describe("monthly career and investment engine", () => {
   it("does not create benefit assets when there is no cash pay", () => {
     const p = fixture(),
       s = p.scenarios[0];
-    s.benefits.retirement = "12000";
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "12000";
     const r = projectScenario(s, p.shared).rows[0];
     expect(r.retirementContribution).toBe(0);
     expect(r.endingBalance).toBe(0);
@@ -202,14 +205,17 @@ describe("monthly career and investment engine", () => {
     expect(plannerScenarioErrors(s, p.shared)["benefits.hsa"]).toBeTruthy();
     s.benefits.hsa = "0";
     s.spouseBenefits.hsa = "0";
-    s.benefits.retirement = "24501";
-    expect(() => projectScenario(s, p.shared)).toThrow();
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "24501";
+    s.base = "100000";
+    expect(projectScenario(s, p.shared).rows[0].retirementContribution).toBeCloseTo(24500, 8);
   });
   it("keeps annual 401(k) targets global when switching jobs", () => {
     const p = fixture(),
       s = p.scenarios[0];
     s.base = "200000";
-    s.benefits.retirement = "24500";
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "24500";
     s.events = [
       event(p, {
         kind: "job",

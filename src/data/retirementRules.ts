@@ -37,7 +37,6 @@ export const retirementRules2026 = {
   employeeDeferral: 24_500,
   catchUp: 8_000,
   catchUpAge60To63: 11_250,
-  catchUpAge60To63: 11_250,
   annualAdditions: 72_000,
   compensationCap: 360_000,
   rothCatchUpPriorYearWages: 150_000,

@@ -6,6 +6,8 @@ import { money, percent } from "../lib/format";
 import { exportProjection } from "../lib/plannerCsv";
 import { ProjectionChart } from "./ProjectionChart";
 import { SelectField } from "./EditorFields";
+import { retirementAccountLabels } from "../lib/retirement";
+import type { RetirementAccountType } from "../lib/retirement";
 interface ResultSeries {
   name: string;
   index: number;
@@ -194,23 +196,20 @@ export function Results({
               ))}
             </div>
           )}
-          {(
-            [
-              ["Taxable investments / shortfall", "taxable"],
-              ["Vested employer shares", "employerStock"],
-              ["Traditional 401(k)", "retirement"],
-              ["HSA", "hsa"],
-            ] as const
-          ).map(([label, key]) => (
+          {([
+            ["Taxable investments / shortfall", "taxable", "aggregate"],
+            ["Vested employer shares", "employerStock", "aggregate"],
+            ...(Object.entries(retirementAccountLabels) as [RetirementAccountType, string][]).map(([type, label]) => [label, type, "account"] as const),
+          ] as const).map(([label, key, kind]) => (
             <div className="metric-row" key={key}>
               <span>{label}</span>
               {series.map((s, i) => (
                 <strong
-                  className={final[i].balances[key] < 0 ? "negative" : ""}
+                  className={(kind === "account" ? final[i].accountBalances[key as RetirementAccountType] : final[i].balances[key as "taxable" | "employerStock"]) < 0 ? "negative" : ""}
                   key={s.index}
                   data-testid={`${key}-${s.index}`}
                 >
-                  {money(final[i].balances[key])}
+                  {money(kind === "account" ? final[i].accountBalances[key as RetirementAccountType] : final[i].balances[key as "taxable" | "employerStock"])}
                 </strong>
               ))}
             </div>
@@ -519,8 +518,7 @@ export function Results({
                           "Forfeited awards",
                           "Taxable balance",
                           "Employer stock",
-                          "Retirement balance",
-                          "HSA balance",
+                          ...Object.values(retirementAccountLabels).map((label) => `${label} balance`),
                           "Total balance",
                         ].map((h) => (
                           <th scope="col" key={h}>
@@ -535,8 +533,7 @@ export function Results({
                         <td colSpan={15}>Starting owned assets</td>
                         <td>{money(s.projection.starting.taxable)}</td>
                         <td>{money(s.projection.starting.employerStock)}</td>
-                        <td>{money(s.projection.starting.retirement)}</td>
-                        <td>{money(s.projection.starting.hsa)}</td>
+                        {Object.keys(retirementAccountLabels).map((key) => <td key={key}>{money(s.projection.startingAccountBalances[key as RetirementAccountType])}</td>)}
                         <td>{money(s.projection.startingTotal)}</td>
                       </tr>
                       {s.projection.rows.map((r) => (
@@ -563,8 +560,7 @@ export function Results({
                             r.forfeitedEquity,
                             r.balances.taxable,
                             r.balances.employerStock,
-                            r.balances.retirement,
-                            r.balances.hsa,
+                            ...Object.keys(retirementAccountLabels).map((key) => r.accountBalances[key as RetirementAccountType]),
                             r.endingBalance,
                           ].map((v, i) => (
                             <td key={i} className={v < 0 ? "negative" : ""}>

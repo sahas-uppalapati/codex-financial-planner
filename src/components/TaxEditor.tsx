@@ -6,6 +6,7 @@ import type {
 } from "../lib/planner";
 import { plannerScenarioErrors, taxLocations } from "../lib/planner";
 import { taxSources } from "../data/taxRules";
+import { money } from "../lib/format";
 import {
   AutoDetails,
   ErrorList,
@@ -208,12 +209,6 @@ function BenefitFields({
     <fieldset className="benefits-group">
       <legend>{prefix} payroll benefits</legend>
       <NumberField
-        label={`${prefix} annual traditional 401(k)`}
-        value={s[who].retirement}
-        onChange={(v) => set("retirement", v)}
-        error={errors[`${who}.retirement`]}
-      />
-      <NumberField
         label={`${prefix} annual pretax health premiums`}
         value={s[who].health}
         onChange={(v) => set("health", v)}
@@ -240,6 +235,62 @@ export function BenefitsEditor({
   const errors = plannerScenarioErrors(s, a);
   const setMatch = (key: "rate" | "payPercent" | "cap", value: string) =>
     onChange({ ...s, employerMatch: { ...s.employerMatch, [key]: value } });
+  const retirementTargets = (owner: "primary" | "spouse") => {
+    const target = s.retirementTargets[owner];
+    const profile = s.retirementProfiles[owner];
+    const label = owner === "primary" ? "You" : "Spouse";
+    const setTarget = (next: typeof target) => onChange({ ...s, retirementTargets: { ...s.retirementTargets, [owner]: next } });
+    const setProfile = (next: typeof profile) => onChange({ ...s, retirementProfiles: { ...s.retirementProfiles, [owner]: next } });
+    const annualPay = Number(owner === "primary" ? s.base : s.taxProfile.spouseWages) + (owner === "primary" ? Number(s.bonus) : 0);
+    const annualEstimate = target.workplace401k.mode === "percent" ? annualPay * Number(target.workplace401k.amount) / 100 : Number(target.workplace401k.amount);
+    return (
+      <fieldset className="benefits-group" key={owner}>
+        <legend>{label} workplace retirement</legend>
+        <div className="two-cols">
+          <SelectField label={`${label} 401(k) target type`} value={target.workplace401k.mode} onChange={(mode) => setTarget({ ...target, workplace401k: { ...target.workplace401k, mode: mode as "percent" | "dollars" } })}>
+            <option value="percent">Percent of eligible pay</option><option value="dollars">Annual dollars</option>
+          </SelectField>
+          <NumberField label={`${label} annual 401(k) target`} unit={target.workplace401k.mode === "percent" ? "% of eligible pay" : "USD / year"} max={target.workplace401k.mode === "percent" ? 100 : 10000000} value={target.workplace401k.amount} onChange={(amount) => setTarget({ ...target, workplace401k: { ...target.workplace401k, amount } })} error={errors[`retirementTargets.${owner}.workplace401k.amount`]} />
+        </div>
+        <div className="two-cols">
+          <NumberField label={`${label} traditional share`} unit="%" max={100} value={target.workplace401k.traditionalSharePercent} onChange={(traditionalSharePercent) => setTarget({ ...target, workplace401k: { ...target.workplace401k, traditionalSharePercent } })} />
+          <NumberField label={`${label} Roth 401(k) share`} unit="%" max={100} value={target.workplace401k.rothSharePercent} onChange={(rothSharePercent) => setTarget({ ...target, workplace401k: { ...target.workplace401k, rothSharePercent } })} />
+        </div>
+        <p className="hint">Estimated target: {money(annualEstimate)} per year ({money(annualEstimate / 12)} per month), before limits and available-pay caps. Traditional contributions generally lower current taxable income; Roth contributions are taxed now. Which fits depends on current and future tax rates.</p>
+        {errors[`retirementTargets.${owner}.workplace401k.split`] && <p className="error">{errors[`retirementTargets.${owner}.workplace401k.split`]}</p>}
+        <details>
+          <summary>Age, eligibility & additional accounts <span className="optional">Optional</span></summary>
+          <div className="details-body">
+            <NumberField label={`${label} age at end of first projection year`} unit="years old" max={120} integer value={profile.ageAtFirstYearEnd} onChange={(ageAtFirstYearEnd) => setProfile({ ...profile, ageAtFirstYearEnd })} />
+            <Toggle label={`Confirm ${label.toLowerCase()} age for age-based contribution limits`} checked={profile.ageConfirmed} onChange={(ageConfirmed) => setProfile({ ...profile, ageConfirmed })} />
+            <SelectField label={`${label} plan allows catch-up contributions?`} value={String(profile.allowsCatchUp)} onChange={(value) => setProfile({ ...profile, allowsCatchUp: value === "unsure" ? "unsure" : value === "true" })}>
+              <option value="unsure">Unsure · use regular limit</option><option value="true">Yes</option><option value="false">No</option>
+            </SelectField>
+            <SelectField label={`${label} covered by a workplace retirement plan?`} value={String(profile.workplacePlanCoverage)} onChange={(value) => setProfile({ ...profile, workplacePlanCoverage: value === "unsure" ? "unsure" : value === "true" })}>
+              <option value="unsure">Unsure</option><option value="true">Yes</option><option value="false">No</option>
+            </SelectField>
+            <NumberField label={`${label} initial prior-year FICA wages from this employer`} value={profile.priorYearFicaWages} onChange={(priorYearFicaWages) => setProfile({ ...profile, priorYearFicaWages })} hint="Used for required Roth catch-up treatment when applicable. Do not enter wages from unrelated employers." />
+            <SelectField label={`${label} Medicare enrollment month (optional)`} value={profile.medicareMonth} onChange={(medicareMonth) => setProfile({ ...profile, medicareMonth })}>
+              <option value="">Not enrolled in Medicare</option>{Array.from({ length: 12 }, (_, i) => <option value={String(i + 1)} key={i + 1}>{new Date(2026, i, 1).toLocaleString("en-US", { month: "long" })}</option>)}
+            </SelectField>
+            <p className="hint">Eligibility estimates use modeled W-2 income and payroll deductions only. Other income, tax adjustments, and part-year HSA coverage are not modeled.</p>
+            <div className="two-cols">
+              {(["traditionalIra", "rothIra", "backdoorRoth", "megaBackdoor"] as const).map((key) => (
+                <NumberField key={key} label={`${label} annual ${({ traditionalIra: "traditional IRA", rothIra: "Roth IRA", backdoorRoth: "backdoor Roth IRA", megaBackdoor: "mega backdoor Roth" })[key]} target`} value={target[key]} onChange={(value) => setTarget({ ...target, [key]: value })} />
+              ))}
+            </div>
+            <Toggle label={`${label}: confirm backdoor Roth strategy and Form 8606 reporting`} checked={target.backdoorConfirmed} onChange={(backdoorConfirmed) => setTarget({ ...target, backdoorConfirmed })} />
+            <Toggle label={`${label}: confirm aggregate traditional, rollover, SEP, and SIMPLE IRA balances are $0`} checked={target.iraBalanceZeroConfirmed} onChange={(iraBalanceZeroConfirmed) => setTarget({ ...target, iraBalanceZeroConfirmed })} />
+            <Toggle label={`${label}: confirm plan supports after-tax workplace contributions and Roth conversion`} checked={target.megaBackdoorSupported} onChange={(megaBackdoorSupported) => setTarget({ ...target, megaBackdoorSupported })} />
+            <SelectField label={`${label} mega backdoor conversion route`} value={target.megaBackdoorRoute} onChange={(megaBackdoorRoute) => setTarget({ ...target, megaBackdoorRoute: megaBackdoorRoute as typeof target.megaBackdoorRoute })}>
+              <option value="none">Not configured</option><option value="in-plan">Immediate in-plan Roth 401(k)</option><option value="roth-ira">Immediate rollover to Roth IRA</option>
+            </SelectField>
+            <p className="hint">Backdoor Roth assumes an immediate conversion of new nondeductible contributions and requires $0 aggregate traditional, rollover, SEP, and SIMPLE IRA balances, including accounts outside this planner. Form 8606 reporting applies. Existing balances or delayed conversions are not modeled. Mega backdoor contributions require confirmed plan support and immediate conversion; no match is assumed.</p>
+          </div>
+        </details>
+      </fieldset>
+    );
+  };
   return (
     <AutoDetails
       className="advanced-section"
@@ -250,16 +301,14 @@ export function BenefitsEditor({
       }
     >
       <summary>
-        Pretax benefits <span className="optional">401(k), health & HSA</span>
+        Your 401(k) <span className="optional">Contributions & employer match</span>
       </summary>
       <div className="details-body">
         <p className="hint">
-          Annual targets, spread monthly and capped at cash pay and contribution
-          limits across all employers. 401(k) and HSA assets are tracked
-          separately. Employer match estimates use the initial employer's base
-          salary and actual modeled traditional 401(k) contributions. Catch-up
-          contributions, withdrawals and reimbursements are not modeled.
+          Payroll targets are limited by available pay and annual limits. Annual-dollar targets remain fixed; percentage targets follow modeled compensation.
         </p>
+        {retirementTargets("primary")}
+        {s.taxProfile.filing === "joint" && retirementTargets("spouse")}
         <fieldset className="benefits-group">
           <legend>Your employer match</legend>
           <SelectField
