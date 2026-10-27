@@ -229,6 +229,34 @@ describe("monthly career and investment engine", () => {
       projectScenario(s, p.shared).rows[0].retirementContribution,
     ).toBeCloseTo(24500, 8);
   });
+  it("funds eligible IRA targets from available cash and taxes only the funded deductible amount", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.base = "70000";
+    s.retirementProfiles.primary.workplacePlanCoverage = true;
+    s.retirementTargets.primary.traditionalIra = "7500";
+    const row = projectScenario(s, p.shared).rows[0];
+    expect(row.traditionalIraContribution).toBeCloseTo(7500, 8);
+    expect(row.deductibleIraContribution).toBeCloseTo(7500, 8);
+    expect(row.accountBalances["traditional-ira"]).toBeCloseTo(7500, 8);
+    s.retirementProfiles.primary.workplacePlanCoverage = "unsure";
+    s.retirementTargets.primary.traditionalIra = "100000";
+    const limited = projectScenario(s, p.shared).rows[0];
+    expect(limited.deductibleIraContribution).toBe(0);
+    expect(limited.unfundedIraContribution).toBeGreaterThan(0);
+  });
+  it("routes catch-up dollars to Roth when prior-year sponsoring-employer wages exceed the threshold", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.base = "200000";
+    s.retirementProfiles.primary.ageAtFirstYearEnd = "50";
+    s.retirementProfiles.primary.ageConfirmed = true;
+    s.retirementProfiles.primary.allowsCatchUp = true;
+    s.retirementProfiles.primary.priorYearFicaWages = "160000";
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "32500";
+    const row = projectScenario(s, p.shared).rows[0];
+    expect(row.retirementContribution).toBeCloseTo(24500, 8);
+    expect(row.roth401kContribution).toBeCloseTo(8000, 8);
+  });
   it("rejects malformed numeric inputs rather than returning non-finite values", () => {
     const p = fixture();
     p.scenarios[0].base = "Infinity";

@@ -513,6 +513,12 @@ export function Results({
                           "401(k)",
                           "Employer match",
                           "HSA",
+                          "Traditional IRA",
+                          "Roth IRA",
+                          "Backdoor conversion",
+                          "Mega backdoor Roth",
+                          "IRA deduction",
+                          "Unfunded IRA target",
                           "Stock invested",
                           "Equity retained",
                           "Forfeited awards",
@@ -530,7 +536,7 @@ export function Results({
                     <tbody>
                       <tr>
                         <th scope="row">Start</th>
-                        <td colSpan={15}>Starting owned assets</td>
+                        <td colSpan={21}>Starting owned assets</td>
                         <td>{money(s.projection.starting.taxable)}</td>
                         <td>{money(s.projection.starting.employerStock)}</td>
                         {Object.keys(retirementAccountLabels).map((key) => <td key={key}>{money(s.projection.startingAccountBalances[key as RetirementAccountType])}</td>)}
@@ -555,6 +561,12 @@ export function Results({
                             r.retirementContribution,
                             r.employerMatch,
                             r.hsaContribution,
+                            r.traditionalIraContribution,
+                            r.rothIraContribution,
+                            r.backdoorRothConversion,
+                            r.megaBackdoorContribution,
+                            r.deductibleIraContribution,
+                            r.unfundedIraContribution,
                             r.stockContribution,
                             r.heldContribution,
                             r.forfeitedEquity,

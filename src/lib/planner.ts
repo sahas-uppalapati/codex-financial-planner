@@ -6,6 +6,7 @@ import {
 } from "./model";
 import type { Scenario, Assumptions } from "./model";
 import type { PersonRetirementProfile, RetirementAccountType, StartingAccountBalance } from "./retirement";
+import { annualAge, annualRetirementLimits } from "./retirement";
 
 export type TaxLocation =
   | "columbus"
@@ -442,27 +443,22 @@ export function plannerScenarioErrors(
       errors[`retirementTargets.${owner}.strategy`] = "Choose valid IRA and plan conversion confirmations.";
   }
   const spouse = s.taxProfile.filing === "joint";
-  if (s.taxProfile.hsaCoverage === "self")
-    for (const who of (spouse
-      ? ["benefits", "spouseBenefits"]
-      : ["benefits"]) as ("benefits" | "spouseBenefits")[]) {
-      if (
-        Number(s[who].hsa) >
-        4400 *
-          (1 + Number(shared.taxInflation) / 100) ** Math.max(0, start - 2026)
-      )
-        errors[`${who}.hsa`] =
-          "Exceeds the projected per-person self-only HSA limit.";
-    }
+  const yearLimits = annualRetirementLimits(start, Number(shared.taxInflation));
+  const primaryHsaCatchUp = (annualAge(s.retirementProfiles.primary, 0) ?? 0) >= 55 ? yearLimits.hsaCatchUp : 0;
+  const spouseHsaCatchUp = (annualAge(s.retirementProfiles.spouse, 0) ?? 0) >= 55 ? yearLimits.hsaCatchUp : 0;
+  if (s.taxProfile.hsaCoverage === "self") {
+    if (Number(s.benefits.hsa) > yearLimits.hsaSelf + primaryHsaCatchUp)
+      errors["benefits.hsa"] = "Exceeds your projected self-only HSA limit, including any confirmed age-55 catch-up.";
+    if (spouse && Number(s.spouseBenefits.hsa) > yearLimits.hsaSelf + spouseHsaCatchUp)
+      errors["spouseBenefits.hsa"] = "Exceeds the spouse's projected self-only HSA limit, including any confirmed age-55 catch-up.";
+  }
   const hsa =
     Number(s.benefits.hsa) + (spouse ? Number(s.spouseBenefits.hsa) : 0);
-  const hsaLimit =
-    (s.taxProfile.hsaCoverage === "none"
-      ? 0
-      : s.taxProfile.hsaCoverage === "self"
-        ? 4400 * (spouse ? 2 : 1)
-        : 8750) *
-    (1 + Number(shared.taxInflation) / 100) ** Math.max(0, start - 2026);
+  const hsaLimit = s.taxProfile.hsaCoverage === "none"
+    ? 0
+    : s.taxProfile.hsaCoverage === "self"
+      ? yearLimits.hsaSelf * (spouse ? 2 : 1) + primaryHsaCatchUp + (spouse ? spouseHsaCatchUp : 0)
+      : yearLimits.hsaFamily + primaryHsaCatchUp + (spouse ? spouseHsaCatchUp : 0);
   if (hsa > hsaLimit)
     errors["benefits.hsa"] =
       s.taxProfile.hsaCoverage === "none"

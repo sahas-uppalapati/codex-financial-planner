@@ -31,6 +31,12 @@ export function plannerCsv(
     "Cash surplus or shortfall (USD)",
     "Traditional 401(k) contribution (USD)",
     "Roth 401(k) contribution (USD)",
+    "Traditional IRA contribution (USD)",
+    "Roth IRA contribution (USD)",
+    "Backdoor Roth conversion (USD)",
+    "Mega backdoor Roth contribution (USD)",
+    "Deductible IRA contribution (USD)",
+    "Unfunded IRA target (USD)",
     "Employer match (USD)",
     "HSA contribution (USD)",
     "Stock proceeds invested (USD)",
@@ -60,11 +66,11 @@ export function plannerCsv(
     const initial: (string | number)[] = Array(header.length).fill("");
     initial[0] = name;
     initial[1] = "Starting balances";
-    initial[24] = p.starting.taxable;
-    initial[25] = p.starting.employerStock;
-    initial[26] = p.starting.retirement;
-    initial[27] = p.starting.hsa;
-    initial[28] = p.startingTotal;
+    initial[30] = p.starting.taxable;
+    initial[31] = p.starting.employerStock;
+    initial[32] = p.starting.retirement;
+    initial[33] = p.starting.hsa;
+    initial[34] = p.startingTotal;
     accountTypes.forEach((type, index) => {
       initial[header.length - accountTypes.length + index] = p.startingAccountBalances[type];
     });
@@ -91,6 +97,12 @@ export function plannerCsv(
           r.surplus,
           r.retirementContribution,
           r.roth401kContribution,
+          r.traditionalIraContribution,
+          r.rothIraContribution,
+          r.backdoorRothConversion,
+          r.megaBackdoorContribution,
+          r.deductibleIraContribution,
+          r.unfundedIraContribution,
           r.employerMatch,
           r.hsaContribution,
           r.stockContribution,
@@ -142,6 +154,12 @@ export function plannerCsv(
           r.surplus,
           r.retirementContribution,
           r.roth401kContribution,
+          r.traditionalIraContribution,
+          r.rothIraContribution,
+          r.backdoorRothConversion,
+          r.megaBackdoorContribution,
+          r.deductibleIraContribution,
+          r.unfundedIraContribution,
           r.employerMatch,
           r.hsaContribution,
           r.stockContribution,

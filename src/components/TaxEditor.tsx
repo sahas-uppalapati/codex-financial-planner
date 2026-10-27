@@ -235,13 +235,31 @@ export function BenefitsEditor({
   const errors = plannerScenarioErrors(s, a);
   const setMatch = (key: "rate" | "payPercent" | "cap", value: string) =>
     onChange({ ...s, employerMatch: { ...s.employerMatch, [key]: value } });
+  const employeeRate = Number(s.retirementTargets.primary.workplace401k.mode === "percent"
+    ? s.retirementTargets.primary.workplace401k.amount
+    : Number(s.base) > 0 ? Number(s.retirementTargets.primary.workplace401k.amount) / Number(s.base) * 100 : 0);
+  const eligibleAnnualPay = Number(s.base);
+  const maximumMatch = s.employerMatch.type === "simple"
+    ? Math.min(100, Number(s.employerMatch.payPercent)) * Number(s.employerMatch.rate) / 100 * eligibleAnnualPay / 100
+    : s.employerMatch.type === "tiered"
+      ? s.employerMatch.tiers.reduce((total, tier) => total + Number(tier.payPercent) * Number(tier.rate) / 100 * eligibleAnnualPay / 100, 0)
+      : 0;
+  const estimatedMatch = s.employerMatch.type === "simple"
+    ? Math.min(employeeRate, Number(s.employerMatch.payPercent)) * Number(s.employerMatch.rate) / 100 * eligibleAnnualPay / 100
+    : s.employerMatch.type === "tiered"
+      ? s.employerMatch.tiers.reduce((value, tier) => {
+          const bandStart = s.employerMatch.tiers.slice(0, s.employerMatch.tiers.indexOf(tier)).reduce((sum, row) => sum + Number(row.payPercent), 0);
+          const covered = Math.max(0, Math.min(employeeRate, bandStart + Number(tier.payPercent)) - bandStart);
+          return value + covered * Number(tier.rate) / 100 * eligibleAnnualPay / 100;
+        }, 0)
+      : 0;
   const retirementTargets = (owner: "primary" | "spouse") => {
     const target = s.retirementTargets[owner];
     const profile = s.retirementProfiles[owner];
     const label = owner === "primary" ? "You" : "Spouse";
     const setTarget = (next: typeof target) => onChange({ ...s, retirementTargets: { ...s.retirementTargets, [owner]: next } });
     const setProfile = (next: typeof profile) => onChange({ ...s, retirementProfiles: { ...s.retirementProfiles, [owner]: next } });
-    const annualPay = Number(owner === "primary" ? s.base : s.taxProfile.spouseWages) + (owner === "primary" ? Number(s.bonus) : 0);
+    const annualPay = Number(owner === "primary" ? s.base : s.taxProfile.spouseWages);
     const annualEstimate = target.workplace401k.mode === "percent" ? annualPay * Number(target.workplace401k.amount) / 100 : Number(target.workplace401k.amount);
     return (
       <fieldset className="benefits-group" key={owner}>
@@ -292,17 +310,8 @@ export function BenefitsEditor({
     );
   };
   return (
-    <AutoDetails
-      className="advanced-section"
-      hasErrors={
-        Object.keys(errors).some(
-          (k) => k.startsWith("benefits") || k.startsWith("spouseBenefits"),
-        ) || undefined
-      }
-    >
-      <summary>
-        Your 401(k) <span className="optional">Contributions & employer match</span>
-      </summary>
+    <section className="shared-inputs retirement-contributions">
+      <div className="section-label"><h3>Your 401(k)</h3><span className="optional">Contributions & employer match</span></div>
       <div className="details-body">
         <p className="hint">
           Payroll targets are limited by available pay and annual limits. Annual-dollar targets remain fixed; percentage targets follow modeled compensation.
@@ -341,6 +350,7 @@ export function BenefitsEditor({
           )}
           <NumberField label="Optional annual employer match cap" value={s.employerMatch.cap} onChange={(v) => setMatch("cap", v)} hint="Enter 0 when there is no separate dollar cap. The cap applies to the whole formula." />
           <p className="hint">Example: at $100,000 eligible pay, a 50% match on the first 6% can add up to $3,000 when you contribute $6,000. Current model uses base salary and monthly matching at the initial employer; it does not model exact payroll dates, true-ups, catch-ups, or total annual-additions limits.</p>
+          {s.employerMatch.type === "simple" || s.employerMatch.type === "tiered" ? <p className="hint">At your current target, estimated employer match is {money(Math.min(estimatedMatch, Number(s.employerMatch.cap) > 0 ? Number(s.employerMatch.cap) : Infinity))} per year; maximum under this formula is {money(Math.min(maximumMatch, Number(s.employerMatch.cap) > 0 ? Number(s.employerMatch.cap) : Infinity))}. Eligible pay uses base salary only.</p> : null}
           {errors.employerMatch && <p className="error">{errors.employerMatch}</p>}
         </fieldset>
         <SelectField
@@ -387,6 +397,6 @@ export function BenefitsEditor({
         <ErrorList errors={errors} prefix="benefits" />
         <ErrorList errors={errors} prefix="spouseBenefits" />
       </div>
-    </AutoDetails>
+    </section>
   );
 }

@@ -55,6 +55,7 @@ export interface AnnualRetirementLimits {
   hsaSelf: number;
   hsaFamily: number;
   hsaCatchUp: number;
+  medicareAge: number;
 }
 
 export function annualRetirementLimits(
@@ -93,6 +94,7 @@ export function annualRetirementLimits(
     hsaSelf: indexed(base.hsaSelf),
     hsaFamily: indexed(base.hsaFamily),
     hsaCatchUp: indexed(base.hsaCatchUp),
+    medicareAge: base.medicareAge,
   };
 }
 
