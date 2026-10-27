@@ -34,22 +34,18 @@ export default function App() {
   const modeledState = useMemo<PlannerV2>(() => {
     if (!quickMode) return state;
     const original = state.scenarios[0];
-    const zeroBenefits = { retirement: "0", health: "0", hsa: "0" };
     const quickScenario = {
       ...original,
       name: "Quick estimate",
       role: "Software engineer",
-      bonus: "0",
-      stock: "0",
-      growth: "3",
+      stock: original.stock,
       taxProfile: {
         ...original.taxProfile,
-        location: original.taxProfile.location,
-        mode: "calculated" as const,
-        filing: "single" as const,
-        spouseWages: "0",
-        spouseGrowth: "0",
-        hsaCoverage: "none" as const,
+        mode: original.taxProfile.mode,
+        filing: original.taxProfile.filing,
+        spouseWages: original.taxProfile.spouseWages,
+        spouseGrowth: original.taxProfile.spouseGrowth,
+        hsaCoverage: original.taxProfile.hsaCoverage,
         employeePremiums: true,
         waCaresExempt: false,
         nyDisability: false,
@@ -57,9 +53,9 @@ export default function App() {
         stateAdjustment: "0",
         localAdjustment: "0",
       },
-      benefits: zeroBenefits,
-      spouseBenefits: zeroBenefits,
-      stockMode: "grants" as const,
+      benefits: { ...original.benefits, health: "0" },
+      spouseBenefits: { retirement: "0", health: "0", hsa: "0" },
+      stockMode: original.includeStock ? "legacy" as const : "grants" as const,
       employerId: "quick-estimate-employer",
       grantOverrides: {},
       issuers: [{
@@ -81,11 +77,11 @@ export default function App() {
       shared: {
         ...state.shared,
         startYear: "2026",
-        returns: "5",
-        inflation: "2.5",
+        returns: state.shared.returns,
+        inflation: state.shared.inflation,
         taxInflation: "2.5",
-        startingRetirement: "0",
-        startingHsa: "0",
+        startingRetirement: state.shared.startingRetirement,
+        startingHsa: state.shared.startingHsa,
       },
     };
   }, [state, quickMode]);
@@ -192,10 +188,10 @@ export default function App() {
                   assumptions={state.shared}
                   onScenarioChange={(scenario) => setState((s) => ({ ...s, scenarios: [scenario, s.scenarios[1]] }))}
                   onAssumptionsChange={(shared) => setState((s) => ({ ...s, shared }))}
-                  salaryError={plannerScenarioErrors(modeledState.scenarios[0], modeledState.shared).base}
-                  expensesError={plannerScenarioErrors(modeledState.scenarios[0], modeledState.shared).expenses}
-                  investmentsError={errors.starting}
-                  yearsError={errors.years}
+                  errors={{
+                    ...plannerScenarioErrors(modeledState.scenarios[0], modeledState.shared),
+                    ...errors,
+                  }}
                 />
                 <div className="quick-detail-cta">
                   <p>Want a closer look at your plan?</p>
@@ -208,8 +204,6 @@ export default function App() {
                         shared: {
                           ...s.shared,
                           startYear: "2026",
-                          returns: "5",
-                          inflation: "2.5",
                           taxInflation: "2.5",
                         },
                       }));
@@ -218,7 +212,7 @@ export default function App() {
                   >
                     Add more detail <span aria-hidden="true">→</span>
                   </button>
-                  <span className="hint">Bonuses, equity, taxes, benefits and career changes</span>
+                  <span className="hint">RSU schedules, career changes, employer presets and comparisons</span>
                 </div>
               </>
             ) : (
