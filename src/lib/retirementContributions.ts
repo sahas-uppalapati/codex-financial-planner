@@ -23,9 +23,9 @@ export function eligibleIraRequests(
 ): IraContributionRequest {
   const iraLimit = eligibility.contributionLimit;
   const traditional = Math.min(Number(targets.traditionalIra), iraLimit);
-  const roth = Math.min(Number(targets.rothIra), eligibility.rothContributionLimit);
+  const roth = Math.min(Number(targets.rothIra), eligibility.rothContributionLimit, Math.max(0, iraLimit - traditional));
   const canBackdoor = targets.backdoorConfirmed && targets.iraBalanceZeroConfirmed && aggregateIraBalance <= 0 && traditional <= 0;
-  const backdoor = canBackdoor ? Math.min(Number(targets.backdoorRoth), Math.max(0, iraLimit - roth)) : 0;
+  const backdoor = canBackdoor ? Math.min(Number(targets.backdoorRoth), Math.max(0, iraLimit - traditional - roth)) : 0;
   const canMega = targets.megaBackdoorSupported && targets.megaBackdoorRoute !== "none";
   const megaBackdoor = canMega ? Math.min(Number(targets.megaBackdoor), Math.max(0, megaBackdoorRoom)) : 0;
   return { traditional, roth, backdoor, megaBackdoor };
