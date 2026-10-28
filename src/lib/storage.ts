@@ -9,6 +9,7 @@ import {
   companies,
   stages,
   compensationPresets,
+  compensationRegions,
   locationPresets,
 } from "../data/presets";
 export const STORAGE_KEY = "careerworth:v1";
@@ -37,10 +38,14 @@ function isScenario(value: unknown): value is Scenario {
     categoryKeys.every((k) => typeof s.expenses[k] === "string") &&
     companies.includes(s.company as (typeof companies)[number]) &&
     stages.some((p) => p.id === s.stage) &&
-    s.compensationLocation === "United States" &&
+    compensationRegions.includes(s.compensationLocation as (typeof compensationRegions)[number]) &&
     (s.location === "" || locationPresets.some((p) => p.id === s.location)) &&
     (s.appliedCompensation === null ||
-      compensationPresets.some((p) => p.id === s.appliedCompensation)) &&
+      compensationPresets.some(
+        (p) =>
+          p.id === s.appliedCompensation ||
+          `${p.company.toLowerCase()}-${p.stage}` === s.appliedCompensation,
+      )) &&
     (s.appliedLocation === null ||
       locationPresets.some((p) => p.id === s.appliedLocation)) &&
     !Object.keys(scenarioErrors(s)).length
@@ -71,7 +76,17 @@ export function loadState(storage: StorageLike): {
     const state: PlannerState = {
       version: 1,
       comparison: value.comparison,
-      scenarios: value.scenarios,
+      scenarios: value.scenarios.map((s: Scenario) => {
+        if (!s.appliedCompensation) return s;
+        const match = compensationPresets.find(
+          (p) =>
+            p.id === s.appliedCompensation ||
+            `${p.company.toLowerCase()}-${p.stage}` === s.appliedCompensation,
+        );
+        return match && s.appliedCompensation !== match.id
+          ? { ...s, appliedCompensation: match.id }
+          : s;
+      }),
       shared: value.shared,
     };
     return { state, message: "" };

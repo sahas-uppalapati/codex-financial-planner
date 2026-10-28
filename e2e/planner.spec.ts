@@ -63,9 +63,9 @@ test("cash presets, independent tax location, budget edits and reload", async ({
   await page.getByText("Start with a company preset").click();
   await page.getByLabel("Company", { exact: true }).selectOption("Apple");
   await expect(page.getByLabel("Annual base salary")).toHaveValue("100000");
-  await page.getByRole("button", { name: "Apply preset", exact: true }).click();
+  await page.getByRole("button", { name: "Apply pay and progression", exact: true }).click();
   await expect(page.getByLabel("Annual base salary")).toHaveValue("142000");
-  await expect(page.getByTestId("stock-0")).toHaveText("$0");
+  await expect(page.getByTestId("stock-0")).toHaveText("$25,300");
   await page.getByLabel("Annual base salary").fill("150001");
   await expect(page.getByText("Customized", { exact: true })).toBeVisible();
   await page

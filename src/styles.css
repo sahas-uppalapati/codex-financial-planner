@@ -504,6 +504,23 @@ details[open] > summary:before {
   padding: 10px;
   border-radius: 5px;
 }
+.progression-preview {
+  margin: 12px 0;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  font-size: 11px;
+}
+.progression-preview ol {
+  margin: 8px 0;
+  padding-left: 20px;
+}
+.progression-preview li {
+  padding: 4px 0;
+}
+.progression-preview li span {
+  display: block;
+}
 .source {
   font-size: 10px;
 }

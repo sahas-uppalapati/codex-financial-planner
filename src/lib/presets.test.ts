@@ -3,6 +3,7 @@ import {
   applyCompensation,
   applyLocation,
   compensationPresets,
+  compensationRegions,
   compensationStatus,
   findCompensation,
   locationPresets,
@@ -35,7 +36,7 @@ describe("presets and persistence", () => {
       expect(applied).toMatchObject({
         base: String(p.base),
         stock: String(p.stock),
-        bonus: String(p.bonus),
+        bonus: String(p.bonusProjection),
         tax: original.tax,
         expenses: original.expenses,
         includeStock: false,
@@ -101,16 +102,31 @@ describe("presets and persistence", () => {
     expect(monthlyExpenses(changed)).toBe(3000);
   });
   it("omits incompatible or unverified presets", () => {
-    expect(compensationPresets.some((p) => p.company === "Google")).toBe(false);
     expect(
       compensationPresets.every(
         (p) =>
-          p.scope === "United States" &&
+          compensationRegions.includes(p.scope) &&
           p.statistic === "Reported average" &&
           !!p.source &&
           !!p.reportedPeriod,
       ),
     ).toBe(true);
+    // Microsoft senior detailed component breakdown was unverified in source snapshots
+    expect(
+      compensationPresets.some(
+        (p) => p.company === "Microsoft" && p.stage === "senior",
+      ),
+    ).toBe(false);
+  });
+  it("restores legacy un-scoped preset IDs without wiping saves", () => {
+    const storage = memoryStorage(),
+      s = defaultState();
+    // Simulate legacy v1 save with old appliedCompensation format "meta-entry"
+    s.scenarios[0].appliedCompensation = "meta-entry";
+    saveState(storage, s);
+    const restored = loadState(storage);
+    expect(restored.message).toBe("");
+    expect(restored.state.scenarios[0].appliedCompensation).toBe("meta-entry-united-states");
   });
   it("restores customized fields, selected and applied presets and both scenarios", () => {
     const storage = memoryStorage(),
