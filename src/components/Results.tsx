@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PlannerV2 } from "../lib/planner";
 import { monthIndex } from "../lib/planner";
 import type { Projection } from "../lib/projection";
@@ -14,12 +14,18 @@ interface ResultSeries {
 export function Results({
   state,
   series,
+  quickMode = false,
 }: {
   state: PlannerV2;
   series: ResultSeries[];
+  quickMode?: boolean;
 }) {
   const [selected, setSelected] = useState(0),
     activeYear = Math.min(selected, Number(state.shared.years) - 1);
+  const [detailsExpanded, setDetailsExpanded] = useState(!quickMode);
+  useEffect(() => {
+    setDetailsExpanded(!quickMode);
+  }, [quickMode]);
   const years = Number(state.shared.years),
     startYear = Number(state.shared.startYear);
   const first = series[0].projection.rows[activeYear],
@@ -35,6 +41,10 @@ export function Results({
         ? `Your assumptions leave approximately ${money(first.surplus / 12)} per month in cash savings in ${first.calendarYear}, with equity and retirement contributions tracked separately.`
         : `Cash expenses exceed cash take-home by approximately ${money(-first.surplus / 12)} per month in ${first.calendarYear}.`;
   const warnings = [...new Set(series.flatMap((s) => s.projection.warnings))];
+  const monthlyReturn = Math.pow(1 + Number(state.shared.returns) / 100, 1 / 12) - 1;
+  const monthlyContributionValue = monthlyReturn === 0
+    ? 100 * years * 12
+    : 100 * ((Math.pow(1 + monthlyReturn, years * 12) - 1) / monthlyReturn);
   const chartSeries = series.map((s) => ({
     name: s.name,
     index: s.index,
@@ -78,6 +88,14 @@ export function Results({
           })}
         </div>
         <p className="hint">Cash savings after modeled taxes, payroll benefits and living costs. Equity and retirement contributions are tracked separately.</p>
+        {quickMode && (
+          <p className="quick-advice">
+            <strong>{first.surplus >= 1200 ? "A savings idea" : "A first thing to check"}</strong>
+            {first.surplus >= 1200
+              ? `The estimate shows room for $100/month in cash savings. Investing that amount could add about ${money(monthlyContributionValue)} over ${years} years in nominal value, before future taxes, if it earns the same return. This is an illustration, not a guarantee.`
+              : `The estimate shows ${money(first.surplus / 12)} per month after modeled costs. Reviewing your income and expense inputs may be more useful before adding a savings target.`}
+          </p>
+        )}
       </section>
       <section
         className="projection-panel"
@@ -146,6 +164,16 @@ export function Results({
           </p>
         )}
       </section>
+      <details
+        className="more-results"
+        open={detailsExpanded}
+        onToggle={(e) => setDetailsExpanded(e.currentTarget.open)}
+      >
+        <summary>
+          Explore detailed results{" "}
+          <span className="optional">Account, tax and monthly breakdowns</span>
+        </summary>
+        <div className="more-results-content">
       <section className="cash-panel" aria-labelledby="assets-heading">
         <div className="panel-heading">
           <h2 id="assets-heading">What makes up that balance</h2>
@@ -161,7 +189,7 @@ export function Results({
               {series.map((s) => (
                 <strong key={s.index}>
                   <i className={`dot series-${s.index}`} />
-                  {s.name}
+                  <span>{s.name}</span>
                 </strong>
               ))}
             </div>
@@ -235,7 +263,9 @@ export function Results({
             <div className="metric-row metric-head">
               <span>Monthly equivalent</span>
               {series.map((s) => (
-                <strong key={s.index}>{s.name}</strong>
+                <strong key={s.index}>
+                  <span>{s.name}</span>
+                </strong>
               ))}
             </div>
           )}
@@ -664,6 +694,8 @@ export function Results({
           ))}
         </div>
       )}
+      </div>
+      </details>
     </div>
   );
 }

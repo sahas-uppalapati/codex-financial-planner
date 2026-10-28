@@ -40,7 +40,9 @@ PLAYWRIGHT_BROWSERS_PATH=/tmp/careerworth-browsers npm run test:e2e
 
 ## Using the planner
 
-Start with base salary, recurring bonus, growth and a living budget. Optional company presets fill reported cash compensation; their annual stock figures are references, not automatically invented grants. Budget presets change expenses only. Tax residence is independent and must be selected in **Taxes**.
+The planner opens in **Quick estimate** mode. Enter annual salary, monthly living costs, current taxable investments, and projection years to get an immediate monthly cash estimate and balance projection. Open **Customize assumptions** to edit salary growth (3% by default), annual investment return (5%), annual expense inflation (2.5%), tax location (Columbus, OH), filing status (single), and annual cash bonus. Choose a location-based tax estimate or enter your own total effective tax rate. You can also include simplified annual stock compensation, spouse wages for joint filers, starting 401(k)/HSA balances, and annual 401(k)/HSA contributions. These controls use the same calculation model as the detailed planner; annual stock compensation is treated as sold in December, and only the primary worker's benefits are modeled in this quick mode. The optional $100/month illustration assumes the extra savings are invested at the same return, before future taxes, and is not a guarantee. Tax calculations use 2026 law and do not predict future legislation.
+
+Choose **Add more detail** to use the full planner. It retains the quick estimate inputs and reveals comparison scenarios, company presets, compensation, taxes, budgets, benefits, career progression, equity grants and account assumptions. Detailed result tables and tax/vesting breakdowns are also collapsed by default in Quick estimate mode and can be opened with **Explore detailed results**.
 
 Advanced sections stay collapsed until needed:
 

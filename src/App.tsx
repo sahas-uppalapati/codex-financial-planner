@@ -3,6 +3,7 @@ import type { PlannerV2 } from "./lib/planner";
 import {
   defaultPlanner,
   plannerSharedErrors,
+  plannerScenarioErrors,
   validPlanner,
 } from "./lib/planner";
 import { loadPlanner, savePlanner } from "./lib/plannerStorage";
@@ -11,6 +12,7 @@ import { ScenarioForm } from "./components/ScenarioForm";
 import { Field } from "./components/Field";
 import { AutoDetails, NumberField } from "./components/EditorFields";
 import { Results } from "./components/Results";
+import { QuickEstimate } from "./components/QuickEstimate";
 import { locationPresets } from "./data/presets";
 function initial() {
   try {
@@ -22,24 +24,98 @@ function initial() {
     };
   }
 }
+function initialMode(): boolean {
+  try {
+    return window.sessionStorage?.getItem("careerworth:mode") !== "detailed";
+  } catch {
+    return true;
+  }
+}
 export default function App() {
   const [loaded] = useState(initial),
     [state, setState] = useState<PlannerV2>(loaded.state),
     [active, setActive] = useState(0),
+    [quickMode, setQuickModeState] = useState(initialMode),
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message);
-  const valid = validPlanner(state),
-    errors = plannerSharedErrors(state.shared);
+  const setQuickMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    setQuickModeState((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      try {
+        window.sessionStorage?.setItem(
+          "careerworth:mode",
+          next ? "quick" : "detailed",
+        );
+      } catch {}
+      return next;
+    });
+  };
+  const modeledState = useMemo<PlannerV2>(() => {
+    if (!quickMode) return state;
+    const original = state.scenarios[0];
+    const quickScenario = {
+      ...original,
+      name: "Quick estimate",
+      role: "Software engineer",
+      stock: original.stock,
+      taxProfile: {
+        ...original.taxProfile,
+        mode: original.taxProfile.mode,
+        filing: original.taxProfile.filing,
+        spouseWages: original.taxProfile.spouseWages,
+        spouseGrowth: original.taxProfile.spouseGrowth,
+        hsaCoverage: original.taxProfile.hsaCoverage,
+        employeePremiums: true,
+        waCaresExempt: false,
+        nyDisability: false,
+        federalAdjustment: "0",
+        stateAdjustment: "0",
+        localAdjustment: "0",
+      },
+      benefits: { ...original.benefits, health: "0" },
+      spouseBenefits: { retirement: "0", health: "0", hsa: "0" },
+      stockMode: original.includeStock ? "legacy" as const : "grants" as const,
+      employerId: "quick-estimate-employer",
+      grantOverrides: {},
+      issuers: [{
+        id: "quick-estimate-employer",
+        name: "Current employer",
+        price: "100",
+        appreciation: "0",
+        startingShares: "0",
+        startingBasis: "0",
+      }],
+      grants: [],
+      refreshers: [],
+      events: [],
+    };
+    return {
+      ...state,
+      comparison: false,
+      scenarios: [quickScenario, state.scenarios[1]],
+      shared: {
+        ...state.shared,
+        startYear: "2026",
+        returns: state.shared.returns,
+        inflation: state.shared.inflation,
+        taxInflation: "2.5",
+        startingRetirement: state.shared.startingRetirement,
+        startingHsa: state.shared.startingHsa,
+      },
+    };
+  }, [state, quickMode]);
+  const valid = validPlanner(modeledState),
+    errors = plannerSharedErrors(modeledState.shared);
   const calculation = useMemo(() => {
     if (!valid) return { series: [], error: "" };
     try {
       return {
-        series: state.scenarios
-          .slice(0, state.comparison ? 2 : 1)
+        series: modeledState.scenarios
+          .slice(0, modeledState.comparison ? 2 : 1)
           .map((s, index) => ({
             name: s.name,
             index,
-            projection: projectScenario(s, state.shared),
+            projection: projectScenario(s, modeledState.shared),
           })),
         error: "",
       };
@@ -52,7 +128,7 @@ export default function App() {
             : "Check the projection assumptions.",
       };
     }
-  }, [state, valid]);
+  }, [modeledState, valid]);
   const ready = valid && !calculation.error;
   useEffect(() => {
     if (!ready) return;
@@ -95,11 +171,10 @@ export default function App() {
       <main>
         <div className="intro">
           <div>
-            <p className="eyebrow">CAREER DECISIONS, IN PERSPECTIVE</p>
-            <h1>What could your next move make possible?</h1>
+            <p className="eyebrow">A CLEARER START FOR YOUR MONEY</p>
+            <h1>Get a quick view of your financial future</h1>
             <p>
-              See how taxes, equity and your career path shape your financial
-              picture.
+              Replace the sample values with yours. Add more detail whenever you’re ready.
             </p>
           </div>
           <button
@@ -121,9 +196,46 @@ export default function App() {
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
             <div className="inputs-heading">
-              <h2>Your scenario{state.comparison ? "s" : ""}</h2>
+              <h2>{quickMode ? "Quick estimate" : `Your scenario${state.comparison ? "s" : ""}`}</h2>
               <span className="muted small-text">All amounts in USD</span>
             </div>
+            {quickMode ? (
+              <>
+                <QuickEstimate
+                  key={resetVersion}
+                  scenario={state.scenarios[0]}
+                  assumptions={state.shared}
+                  onScenarioChange={(scenario) => setState((s) => ({ ...s, scenarios: [scenario, s.scenarios[1]] }))}
+                  onAssumptionsChange={(shared) => setState((s) => ({ ...s, shared }))}
+                  errors={{
+                    ...plannerScenarioErrors(modeledState.scenarios[0], modeledState.shared),
+                    ...errors,
+                  }}
+                />
+                <div className="quick-detail-cta">
+                  <p>Want a closer look at your plan?</p>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => {
+                      setState((s) => ({
+                        ...s,
+                        shared: {
+                          ...s.shared,
+                          startYear: "2026",
+                          taxInflation: "2.5",
+                        },
+                      }));
+                      setQuickMode(false);
+                    }}
+                  >
+                    Add more detail <span aria-hidden="true">→</span>
+                  </button>
+                  <span className="hint">RSU schedules, career changes, employer presets and comparisons</span>
+                </div>
+              </>
+            ) : (
+              <>
             <div
               className="scenario-switcher"
               role="group"
@@ -287,10 +399,15 @@ export default function App() {
               city averages or career predictions. Tax rules and reported
               vesting templates have linked sources.
             </p>
+            <button type="button" className="text-button back-to-quick" onClick={() => setQuickMode(true)}>
+              ← Back to quick estimate
+            </button>
+              </>
+            )}
           </aside>
           <div id="results" className="results-column" tabIndex={-1}>
             {ready ? (
-              <Results state={state} series={calculation.series} />
+              <Results state={modeledState} series={calculation.series} quickMode={quickMode} />
             ) : (
               <section className="invalid-results" role="status">
                 <span className="empty-icon" aria-hidden="true">

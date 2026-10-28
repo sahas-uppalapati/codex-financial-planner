@@ -1,8 +1,57 @@
 import { test, expect } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { defaultState } from "../src/lib/model";
+
+async function openDetailed(page: Page) {
+  const button = page.getByRole("button", { name: /Add more detail/ });
+  if (await button.isVisible()) {
+    await button.click();
+  }
+}
+
 test.beforeEach(async ({ page }) => {
   await page.goto("/");
+  await openDetailed(page);
+});
+
+test("quick estimate mode defaults, inputs, assumptions and transitions", async ({
+  page,
+}) => {
+  await page.goto("/");
+  const back = page.getByRole("button", { name: /Back to quick estimate/ });
+  if (await back.isVisible()) {
+    await back.click();
+  }
+  await expect(
+    page.getByRole("heading", { name: "Get a quick view of your financial future" }),
+  ).toBeVisible();
+  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("100000");
+  await expect(page.getByLabel("Monthly living costs")).toHaveValue("3000");
+  await expect(page.getByLabel("Current invested savings")).toHaveValue("20000");
+  await expect(page.getByLabel("Years to project")).toHaveValue("10");
+  await expect(page.getByTestId("take-home-0")).toHaveText("$6,197");
+  await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
+
+  // Edit quick input
+  await page.getByLabel("Annual salary before tax").fill("120000");
+  await expect(page.getByTestId("take-home-0")).toHaveText("$7,282");
+
+  // Open assumptions drawer
+  await page.locator("summary").filter({ hasText: /^Assumptions:/ }).click();
+  await page.getByLabel("Filing status").selectOption("joint");
+  await page.getByLabel("Spouse annual salary").fill("50000");
+
+  // Transition to detailed view
+  await page.getByRole("button", { name: "Add more detail" }).click();
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("120000");
+  await expect(
+    page.getByRole("button", { name: "← Back to quick estimate" }),
+  ).toBeVisible();
+
+  // Return to quick view
+  await page.getByRole("button", { name: "← Back to quick estimate" }).click();
+  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("120000");
 });
 test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   page,
@@ -275,6 +324,7 @@ test("v1 migration preserves inputs and supports explicit legacy equity conversi
     localStorage.setItem("careerworth:v1", JSON.stringify(old));
   }, old);
   await page.reload();
+  await openDetailed(page);
   await expect(
     page.getByText("Saved inputs upgraded.", { exact: false }).first(),
   ).toBeVisible();
@@ -314,6 +364,7 @@ test("malformed or unavailable storage does not break calculations", async ({
     });
   });
   await page.reload();
+  await openDetailed(page);
   await page.getByLabel("Annual base salary").fill("120000");
   await expect(page.getByTestId("take-home-0")).toHaveText("$7,282");
   await expect(
