@@ -24,13 +24,32 @@ function initial() {
     };
   }
 }
+function initialMode(): boolean {
+  try {
+    return window.sessionStorage?.getItem("careerworth:mode") !== "detailed";
+  } catch {
+    return true;
+  }
+}
 export default function App() {
   const [loaded] = useState(initial),
     [state, setState] = useState<PlannerV2>(loaded.state),
     [active, setActive] = useState(0),
-    [quickMode, setQuickMode] = useState(true),
+    [quickMode, setQuickModeState] = useState(initialMode),
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message);
+  const setQuickMode = (value: boolean | ((prev: boolean) => boolean)) => {
+    setQuickModeState((prev) => {
+      const next = typeof value === "function" ? value(prev) : value;
+      try {
+        window.sessionStorage?.setItem(
+          "careerworth:mode",
+          next ? "quick" : "detailed",
+        );
+      } catch {}
+      return next;
+    });
+  };
   const modeledState = useMemo<PlannerV2>(() => {
     if (!quickMode) return state;
     const original = state.scenarios[0];
