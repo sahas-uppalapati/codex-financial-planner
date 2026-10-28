@@ -427,7 +427,9 @@ export function ScenarioForm({
       <TaxEditor s={s} a={a} onChange={onChange} />
       <BenefitsEditor s={s} a={a} onChange={onChange} />
       <CareerEditor s={s} a={a} onChange={onChange} />
-      <EquityEditor s={s} a={a} onChange={onChange} />
+      <div id="starting-employer-shares">
+        <EquityEditor s={s} a={a} onChange={onChange} />
+      </div>
     </div>
   );
 }

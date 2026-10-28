@@ -5,6 +5,8 @@ import {
   categoryKeys,
 } from "./model";
 import type { Scenario, Assumptions } from "./model";
+import type { PersonRetirementProfile, RetirementAccountType, StartingAccountBalance } from "./retirement";
+import { annualAge, annualRetirementLimits } from "./retirement";
 
 export type TaxLocation =
   | "columbus"
@@ -18,6 +20,34 @@ export interface Benefits {
   retirement: string;
   health: string;
   hsa: string;
+}
+export interface MatchTier {
+  rate: string;
+  payPercent: string;
+}
+export interface EmployerMatch {
+  type: "unsure" | "none" | "simple" | "tiered";
+  rate: string;
+  payPercent: string;
+  cap: string;
+  tiers: MatchTier[];
+}
+export interface Employee401kTarget {
+  mode: "percent" | "dollars";
+  amount: string;
+  traditionalSharePercent: string;
+  rothSharePercent: string;
+}
+export interface RetirementTargets {
+  workplace401k: Employee401kTarget;
+  traditionalIra: string;
+  rothIra: string;
+  backdoorRoth: string;
+  megaBackdoor: string;
+  backdoorConfirmed: boolean;
+  iraBalanceZeroConfirmed: boolean;
+  megaBackdoorSupported: boolean;
+  megaBackdoorRoute: "none" | "in-plan" | "roth-ira";
 }
 export interface TaxProfile {
   mode: "calculated" | "manual";
@@ -106,15 +136,21 @@ export interface ScenarioV2 extends Scenario {
   grants: Grant[];
   refreshers: RefresherRule[];
   events: CareerEvent[];
+  employerMatch: EmployerMatch;
+  retirementProfiles: { primary: PersonRetirementProfile; spouse: PersonRetirementProfile };
+  retirementTargets: { primary: RetirementTargets; spouse: RetirementTargets };
 }
 export interface AssumptionsV2 extends Assumptions {
   startYear: string;
   taxInflation: string;
   startingRetirement: string;
   startingHsa: string;
+  startingSpouseRetirement: string;
+  startingSpouseHsa: string;
+  startingAccounts: StartingAccountBalance[];
 }
 export interface PlannerV2 {
-  version: 2;
+  version: 3;
   scenarios: [ScenarioV2, ScenarioV2];
   shared: AssumptionsV2;
   comparison: boolean;
@@ -137,6 +173,30 @@ export function upgradeScenario(
   index: number,
   legacy = false,
 ): ScenarioV2 {
+  const target = (): RetirementTargets => ({
+    workplace401k: {
+      mode: legacy ? "dollars" : "percent",
+      amount: "0",
+      traditionalSharePercent: "100",
+      rothSharePercent: "0",
+    },
+    traditionalIra: "0",
+    rothIra: "0",
+    backdoorRoth: "0",
+    megaBackdoor: "0",
+    backdoorConfirmed: false,
+    iraBalanceZeroConfirmed: false,
+    megaBackdoorSupported: false,
+    megaBackdoorRoute: "none",
+  });
+  const profile = (): PersonRetirementProfile => ({
+    ageAtFirstYearEnd: "35",
+    ageConfirmed: false,
+    allowsCatchUp: "unsure",
+    workplacePlanCoverage: "unsure",
+    priorYearFicaWages: "0",
+    medicareMonth: "",
+  });
   return {
     ...s,
     taxProfile: {
@@ -172,12 +232,24 @@ export function upgradeScenario(
     grants: [],
     refreshers: [],
     events: [],
+    employerMatch: {
+      type: "unsure",
+      rate: "50",
+      payPercent: "6",
+      cap: "0",
+      tiers: [
+        { rate: "100", payPercent: "3" },
+        { rate: "50", payPercent: "2" },
+      ],
+    },
+    retirementProfiles: { primary: profile(), spouse: profile() },
+    retirementTargets: { primary: target(), spouse: target() },
   };
 }
 export function defaultPlanner(): PlannerV2 {
   const d = legacyDefaults();
   return {
-    version: 2,
+    version: 3,
     comparison: false,
     scenarios: d.scenarios.map((s, i) =>
       upgradeScenario(s, i),
@@ -188,6 +260,9 @@ export function defaultPlanner(): PlannerV2 {
       taxInflation: "2.5",
       startingRetirement: "0",
       startingHsa: "0",
+      startingSpouseRetirement: "0",
+      startingSpouseHsa: "0",
+      startingAccounts: [],
     },
   };
 }
@@ -321,28 +396,69 @@ export function plannerScenarioErrors(
       errors[`${who}.retirement`] =
         "Exceeds the projected annual 401(k) employee limit (under age 50).";
   }
-  const spouse = s.taxProfile.filing === "joint";
-  if (s.taxProfile.hsaCoverage === "self")
-    for (const who of (spouse
-      ? ["benefits", "spouseBenefits"]
-      : ["benefits"]) as ("benefits" | "spouseBenefits")[]) {
-      if (
-        Number(s[who].hsa) >
-        4400 *
-          (1 + Number(shared.taxInflation) / 100) ** Math.max(0, start - 2026)
-      )
-        errors[`${who}.hsa`] =
-          "Exceeds the projected per-person self-only HSA limit.";
+  const match = s.employerMatch;
+  if (!match || !["unsure", "none", "simple", "tiered"].includes(match.type)) {
+    errors.employerMatch = "Choose a valid employer match setting.";
+  } else {
+    check("employerMatch.rate", match.rate, 0, 100);
+    check("employerMatch.payPercent", match.payPercent, 0, 100);
+    check("employerMatch.cap", match.cap, 0, 10_000_000);
+    if (!Array.isArray(match.tiers) || match.tiers.length > 20)
+      errors.employerMatch = "Use at most 20 employer match tiers.";
+    else {
+      let previous = 0;
+      match.tiers.forEach((tier, index) => {
+        check(`employerMatch.tiers.${index}.rate`, tier.rate, 0, 100);
+        check(`employerMatch.tiers.${index}.payPercent`, tier.payPercent, 0, 100);
+        previous += Number(tier.payPercent);
+      });
+      if (previous > 100) errors.employerMatch = "Match tiers cannot exceed 100% of eligible pay.";
     }
+  }
+  for (const owner of ["primary", "spouse"] as const) {
+    const profile = s.retirementProfiles?.[owner];
+    if (!profile) {
+      errors[`retirementProfiles.${owner}`] = "Set up the retirement profile.";
+      continue;
+    }
+    check(`retirementProfiles.${owner}.ageAtFirstYearEnd`, profile.ageAtFirstYearEnd, 0, 120, true);
+    if (typeof profile.ageConfirmed !== "boolean" || ![true, false, "unsure"].includes(profile.workplacePlanCoverage) || ![true, false, "unsure"].includes(profile.allowsCatchUp))
+      errors[`retirementProfiles.${owner}`] = "Choose valid age and plan-coverage settings.";
+    check(`retirementProfiles.${owner}.priorYearFicaWages`, profile.priorYearFicaWages, 0, 10_000_000);
+    if (profile.medicareMonth !== "" && !/^(0?[1-9]|1[0-2])$/.test(profile.medicareMonth))
+      errors[`retirementProfiles.${owner}.medicareMonth`] = "Choose a month from 1 to 12.";
+    const targets = s.retirementTargets?.[owner];
+    if (!targets || !targets.workplace401k || !["percent", "dollars"].includes(targets.workplace401k.mode)) {
+      errors[`retirementTargets.${owner}`] = "Choose valid retirement contribution targets.";
+      continue;
+    }
+    check(`retirementTargets.${owner}.workplace401k.amount`, targets.workplace401k.amount, 0, targets.workplace401k.mode === "percent" ? 100 : 10_000_000);
+    check(`retirementTargets.${owner}.workplace401k.traditionalSharePercent`, targets.workplace401k.traditionalSharePercent, 0, 100);
+    check(`retirementTargets.${owner}.workplace401k.rothSharePercent`, targets.workplace401k.rothSharePercent, 0, 100);
+    if (Math.abs(Number(targets.workplace401k.traditionalSharePercent) + Number(targets.workplace401k.rothSharePercent) - 100) > 1e-8)
+      errors[`retirementTargets.${owner}.workplace401k.split`] = "Traditional and Roth splits must total 100%.";
+    for (const key of ["traditionalIra", "rothIra", "backdoorRoth", "megaBackdoor"] as const)
+      check(`retirementTargets.${owner}.${key}`, targets[key], 0, 10_000_000);
+    if ([targets.backdoorConfirmed, targets.iraBalanceZeroConfirmed, targets.megaBackdoorSupported].some((value) => typeof value !== "boolean") || !["none", "in-plan", "roth-ira"].includes(targets.megaBackdoorRoute))
+      errors[`retirementTargets.${owner}.strategy`] = "Choose valid IRA and plan conversion confirmations.";
+  }
+  const spouse = s.taxProfile.filing === "joint";
+  const yearLimits = annualRetirementLimits(start, Number(shared.taxInflation));
+  const primaryHsaCatchUp = (annualAge(s.retirementProfiles.primary, 0) ?? 0) >= 55 ? yearLimits.hsaCatchUp : 0;
+  const spouseHsaCatchUp = (annualAge(s.retirementProfiles.spouse, 0) ?? 0) >= 55 ? yearLimits.hsaCatchUp : 0;
+  if (s.taxProfile.hsaCoverage === "self") {
+    if (Number(s.benefits.hsa) > yearLimits.hsaSelf + primaryHsaCatchUp)
+      errors["benefits.hsa"] = "Exceeds your projected self-only HSA limit, including any confirmed age-55 catch-up.";
+    if (spouse && Number(s.spouseBenefits.hsa) > yearLimits.hsaSelf + spouseHsaCatchUp)
+      errors["spouseBenefits.hsa"] = "Exceeds the spouse's projected self-only HSA limit, including any confirmed age-55 catch-up.";
+  }
   const hsa =
     Number(s.benefits.hsa) + (spouse ? Number(s.spouseBenefits.hsa) : 0);
-  const hsaLimit =
-    (s.taxProfile.hsaCoverage === "none"
-      ? 0
-      : s.taxProfile.hsaCoverage === "self"
-        ? 4400 * (spouse ? 2 : 1)
-        : 8750) *
-    (1 + Number(shared.taxInflation) / 100) ** Math.max(0, start - 2026);
+  const hsaLimit = s.taxProfile.hsaCoverage === "none"
+    ? 0
+    : s.taxProfile.hsaCoverage === "self"
+      ? yearLimits.hsaSelf * (spouse ? 2 : 1) + primaryHsaCatchUp + (spouse ? spouseHsaCatchUp : 0)
+      : yearLimits.hsaFamily + primaryHsaCatchUp + (spouse ? spouseHsaCatchUp : 0);
   if (hsa > hsaLimit)
     errors["benefits.hsa"] =
       s.taxProfile.hsaCoverage === "none"
@@ -477,9 +593,29 @@ export function plannerSharedErrors(s: AssumptionsV2): Record<string, string> {
     ["taxInflation", 0, 10, false],
     ["startingRetirement", 0, 1e7, false],
     ["startingHsa", 0, 1e7, false],
+    ["startingSpouseRetirement", 0, 1e7, false],
+    ["startingSpouseHsa", 0, 1e7, false],
   ] as const) {
     const e = numberError(s[k], min, max, integer);
     if (e) errors[k] = e;
+  }
+  const accountTypes: RetirementAccountType[] = [
+    "traditional-401k", "roth-401k", "traditional-ira", "roth-ira",
+    "hsa", "sep-ira", "simple-ira",
+  ];
+  if (!Array.isArray(s.startingAccounts) || s.startingAccounts.length > 40) {
+    errors.startingAccounts = "Use up to 40 starting account balances.";
+  } else {
+    const ids = new Set<string>();
+    s.startingAccounts.forEach((account, index) => {
+      if (!account || typeof account.id !== "string" || !account.id || ids.has(account.id))
+        errors[`startingAccounts.${index}.id`] = "Account entries need unique IDs.";
+      if (account?.id) ids.add(account.id);
+      if (!accountTypes.includes(account?.type) || !["primary", "spouse"].includes(account?.owner))
+        errors[`startingAccounts.${index}`] = "Choose a valid account type and owner.";
+      const e = numberError(account?.balance, 0, 1e10);
+      if (e) errors[`startingAccounts.${index}.balance`] = e;
+    });
   }
   return errors;
 }

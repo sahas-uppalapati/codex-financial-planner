@@ -258,7 +258,8 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
   await page
     .getByLabel("HSA eligible coverage (full year)")
     .selectOption("family");
-  await page.getByLabel("Your annual traditional 401(k)").fill("12000");
+  await page.getByLabel("You 401(k) target type").selectOption("dollars");
+  await page.getByLabel("You annual 401(k) target").fill("12000");
   await page.getByLabel("Your annual pretax health premiums").fill("6000");
   await page.getByLabel("Your annual payroll HSA contribution").fill("4000");
   await page.getByLabel("Spouse annual payroll HSA contribution").fill("5000");
@@ -272,7 +273,7 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
   ).toBeVisible();
   await page.getByLabel("Spouse annual payroll HSA contribution").fill("4750");
   await expect(page.getByTestId("ending-0")).toBeVisible();
-  await expect(page.getByTestId("retirement-0")).not.toHaveText("$0");
+  await expect(page.getByTestId("traditional-401k-0")).not.toHaveText("$0");
   await expect(page.getByTestId("hsa-0")).not.toHaveText("$0");
   await page.reload();
   await page
@@ -320,6 +321,7 @@ test("v1 migration preserves inputs and supports explicit legacy equity conversi
   old.scenarios[0].stock = "50000";
   old.scenarios[0].includeStock = true;
   await page.evaluate((old) => {
+    localStorage.removeItem("careerworth:v3");
     localStorage.removeItem("careerworth:v2");
     localStorage.setItem("careerworth:v1", JSON.stringify(old));
   }, old);
@@ -350,7 +352,10 @@ test("v1 migration preserves inputs and supports explicit legacy equity conversi
 test("malformed or unavailable storage does not break calculations", async ({
   page,
 }) => {
-  await page.evaluate(() => localStorage.setItem("careerworth:v2", "{broken"));
+  await page.evaluate(() => {
+    localStorage.removeItem("careerworth:v3");
+    localStorage.setItem("careerworth:v2", "{broken");
+  });
   await page.reload();
   await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
   await expect(

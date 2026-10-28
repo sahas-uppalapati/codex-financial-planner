@@ -14,7 +14,7 @@ const memory = () => {
     },
   };
 };
-describe("v2 persistence and migration", () => {
+describe("v3 persistence and migration", () => {
   it("preserves customized v2 profiles, employers, benefits and assumptions", () => {
     const storage = memory(),
       p = defaultPlanner();
@@ -33,7 +33,7 @@ describe("v2 persistence and migration", () => {
     old.scenarios[0].includeStock = true;
     storage.setItem(STORAGE_KEY, JSON.stringify(old));
     const loaded = loadPlanner(storage);
-    expect(loaded.state.version).toBe(2);
+    expect(loaded.state.version).toBe(3);
     expect(loaded.state.scenarios[0].taxProfile.mode).toBe("manual");
     expect(loaded.state.scenarios[0].tax).toBe("25");
     expect(loaded.state.scenarios[0].stockMode).toBe("legacy");
@@ -42,6 +42,20 @@ describe("v2 persistence and migration", () => {
     expect(loaded.message).toContain("monthly");
     expect(storage.getItem(STORAGE_KEY)).toBe(JSON.stringify(old));
     expect(savePlanner(storage, loaded.state)).toBe(true);
+  });
+  it("migrates prior v2 saves without changing balances or annual-dollar targets", () => {
+    const storage = memory(), p = defaultPlanner();
+    p.version = 2 as 3;
+    delete (p.shared as Partial<typeof p.shared>).startingAccounts;
+    p.shared.startingRetirement = "25000";
+    p.scenarios[0].retirementTargets.primary.workplace401k.mode = "dollars";
+    p.scenarios[0].retirementTargets.primary.workplace401k.amount = "12000";
+    storage.setItem("careerworth:v2", JSON.stringify(p));
+    const loaded = loadPlanner(storage);
+    expect(loaded.state.version).toBe(3);
+    expect(loaded.state.shared.startingAccounts).toContainEqual(expect.objectContaining({ type: "traditional-401k", balance: "25000" }));
+    expect(loaded.state.scenarios[0].retirementTargets.primary.workplace401k).toMatchObject({ mode: "dollars", amount: "12000" });
+    expect(storage.getItem("careerworth:v2")).toBe(JSON.stringify(p));
   });
   it("keeps the last valid save while fields are invalid", () => {
     const storage = memory(),
@@ -52,7 +66,7 @@ describe("v2 persistence and migration", () => {
     expect(savePlanner(storage, invalid)).toBe(false);
     expect(loadPlanner(storage).state).toEqual(p);
   });
-  it.each(["null", "{}", "{broken", '{"version":2,"scenarios":[{},{}]}'])(
+  it.each(["null", "{}", "{broken", '{"version":3,"scenarios":[{},{}]}'])(
     "recovers from malformed v2 input %s",
     (raw) => {
       const storage = memory();
@@ -81,7 +95,7 @@ describe("v2 persistence and migration", () => {
     expect(savePlanner(storage, defaultPlanner())).toBe(false);
   });
 });
-describe("v2 annual and monthly CSV", () => {
+describe("v3 annual and monthly CSV", () => {
   it("exports both scenarios, starting assets, components, and full monthly data", () => {
     const p = defaultPlanner(),
       series = p.scenarios.map((s) => ({

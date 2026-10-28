@@ -4,6 +4,8 @@ export interface WorkerTaxInput {
   cash: number;
   stock: number;
   retirement: number;
+  roth401k?: number;
+  deductibleIra?: number;
   health: number;
   hsa: number;
 }
@@ -145,7 +147,7 @@ export function calculateTaxes(
   if (
     !active.length ||
     active.some((w) =>
-      Object.values(w).some((v) => !Number.isFinite(v) || v < 0),
+      Object.values(w).some((v) => v !== undefined && (!Number.isFinite(v) || v < 0)),
     ) ||
     !Number.isInteger(calendarYear) ||
     calendarYear < 2026 ||
@@ -164,7 +166,7 @@ export function calculateTaxes(
   const gross = total((w) => w.cash + w.stock),
     wages = active.map((w) => Math.max(0, w.cash + w.stock - w.health - w.hsa));
   const agis = active.map((w) =>
-      Math.max(0, w.cash + w.stock - w.health - w.hsa - w.retirement),
+      Math.max(0, w.cash + w.stock - w.health - w.hsa - w.retirement - (w.deductibleIra ?? 0)),
     ),
     agi = agis.reduce((a, b) => a + b, 0);
   const filing = profile.filing,
