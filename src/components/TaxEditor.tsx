@@ -310,8 +310,22 @@ export function BenefitsEditor({
     );
   };
   return (
-    <section className="shared-inputs retirement-contributions">
-      <div className="section-label"><h3>Your 401(k)</h3><span className="optional">Contributions & employer match</span></div>
+    <AutoDetails
+      className="advanced-section"
+      hasErrors={
+        Object.keys(errors).some(
+          (k) =>
+            k.startsWith("benefits") ||
+            k.startsWith("spouseBenefits") ||
+            k.startsWith("employerMatch") ||
+            k.startsWith("retirementTargets") ||
+            k.startsWith("retirementProfiles"),
+        ) || undefined
+      }
+    >
+      <summary>
+        Pretax benefits <span className="optional">401(k), health & HSA</span>
+      </summary>
       <div className="details-body">
         <p className="hint">
           Payroll targets are limited by available pay and annual limits. Annual-dollar targets remain fixed; percentage targets follow modeled compensation.
@@ -397,6 +411,6 @@ export function BenefitsEditor({
         <ErrorList errors={errors} prefix="benefits" />
         <ErrorList errors={errors} prefix="spouseBenefits" />
       </div>
-    </section>
+    </AutoDetails>
   );
 }
