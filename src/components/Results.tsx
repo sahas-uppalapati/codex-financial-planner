@@ -189,7 +189,7 @@ export function Results({
               {series.map((s) => (
                 <strong key={s.index}>
                   <i className={`dot series-${s.index}`} />
-                  {s.name}
+                  <span>{s.name}</span>
                 </strong>
               ))}
             </div>
@@ -263,7 +263,9 @@ export function Results({
             <div className="metric-row metric-head">
               <span>Monthly equivalent</span>
               {series.map((s) => (
-                <strong key={s.index}>{s.name}</strong>
+                <strong key={s.index}>
+                  <span>{s.name}</span>
+                </strong>
               ))}
             </div>
           )}
