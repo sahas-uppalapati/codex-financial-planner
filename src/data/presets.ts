@@ -241,7 +241,11 @@ export function hasCompensationProgression(preset: CompensationPreset): boolean 
   );
 }
 export function compensationStatus(s: Scenario): string {
-  const p = compensationPresets.find((p) => p.id === s.appliedCompensation);
+  const p = compensationPresets.find(
+    (p) =>
+      p.id === s.appliedCompensation ||
+      `${p.company.toLowerCase()}-${p.stage}` === s.appliedCompensation,
+  );
   if (!p) return "Manual entry";
   return Number(s.base) === p.base &&
     Number(s.bonus) === p.bonusProjection &&

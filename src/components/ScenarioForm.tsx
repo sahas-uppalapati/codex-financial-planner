@@ -210,9 +210,7 @@ export function ScenarioForm({
             </p>
           ) : (
             <p className="hint">
-              {s.company === "Google"
-                ? "Google’s public snapshot combines bonus with sign-on pay and uses first-year stock. A recurring breakdown could not be verified."
-                : "A comparable recurring breakdown for this level was not verified."}{" "}
+              A comparable recurring breakdown for this level was not verified.{" "}
               Use manual entry or choose another level.
             </p>
           )}
