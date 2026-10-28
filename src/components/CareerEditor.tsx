@@ -116,7 +116,7 @@ function EventCard({
               <option value="">Choose verified company / level</option>
               {compensationPresets.map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.company} · {p.level} · US average
+                  {p.company} · {p.level} · {p.scope}
                 </option>
               ))}
             </SelectField>
@@ -129,7 +129,7 @@ function EventCard({
                 if (p)
                   patch({
                     base: String(p.base),
-                    bonus: String(p.bonus),
+                    bonus: String(p.bonusProjection),
                     role: `${p.company} ${p.level} · Software engineer`,
                   });
               }}

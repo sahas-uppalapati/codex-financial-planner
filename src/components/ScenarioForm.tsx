@@ -11,9 +11,14 @@ import {
   applyCompensation,
   applyLocation,
   compensationPresets,
+  compensationProgressionEvents,
   compensationStatus,
   companies,
+  compensationRegions,
   findCompensation,
+  hasCompensationProgression,
+  levelExperience,
+  levelExperienceSource,
   levelMappings,
   locationPresets,
   locationStatus,
@@ -21,6 +26,8 @@ import {
 } from "../data/presets";
 import { Field } from "./Field";
 import { money } from "../lib/format";
+import { templateSchedule } from "../data/vesting";
+import { monthLabel, uid } from "../lib/planner";
 export const categoryLabels: Record<Category, string> = {
   housing: "Housing and utilities",
   food: "Food",
@@ -99,6 +106,36 @@ export function ScenarioForm({
     );
     onChange(next);
   }
+  function applyCompanyPreset(preset: (typeof compensationPresets)[number]) {
+    const manualEvents = s.events.filter((event) => !event.presetProgression),
+      proposed = compensationProgressionEvents(
+        s,
+        preset,
+        Number(a.startYear),
+        Number(a.years),
+      ),
+      collision = proposed.findIndex((event) =>
+        manualEvents.some((manual) => manual.month <= event.month),
+      ),
+      generated = proposed.slice(0, collision < 0 ? proposed.length : collision),
+      next = applyCompensation(s, preset),
+      presetGrant = preset.stockGrantMultiplier > 0
+        ? [{ id: uid(), name: `${preset.company} ${preset.level} preset equity`, issuerId: s.employerId, employmentId: "initial", month: monthLabel(0, Number(a.startYear)), units: "dollars" as const, value: String(preset.stock * preset.stockGrantMultiplier), priceMode: "modeled" as const, grantPrice: "100", schedule: templateSchedule(preset.vestingTemplate), template: preset.vestingTemplate, treatment: "sell" as const, keepOnDeparture: false, presetCompensation: preset.id }]
+        : [];
+    onChange({
+      ...s,
+      ...next,
+      role: `${preset.company} ${preset.level} · Software engineer`,
+      issuers: s.issuers.map((issuer) =>
+        issuer.id === s.employerId
+          ? { ...issuer, name: preset.company }
+          : issuer,
+      ),
+      events: [...manualEvents, ...generated],
+      grants: [...s.grants.filter((grant) => !grant.presetCompensation), ...presetGrant],
+      stockMode: presetGrant.length ? "grants" : s.stockMode,
+    });
+  }
   const totalValid = !["base", "bonus"].some((k) => errors[k]);
   return (
     <div className="scenario-form">
@@ -124,7 +161,7 @@ export function ScenarioForm({
           Start with a company preset <span className="optional">Optional</span>
         </summary>
         <div className="details-body">
-          <p className="hint">Software engineer · Reported US averages</p>
+          <p className="hint">Software engineer · Reported regional averages</p>
           <div className="two-cols">
             <div className="field">
               <label htmlFor="company">Company</label>
@@ -160,36 +197,87 @@ export function ScenarioForm({
               value={s.compensationLocation}
               onChange={(e) => set("compensationLocation", e.target.value)}
             >
-              <option>United States</option>
+              {compensationRegions.map((region) => <option key={region}>{region}</option>)}
             </select>
             <p className="hint">
-              Nationwide figures; city-specific compensation is not bundled.
+              Compensation and progression use this region’s reported figures.
             </p>
           </div>
           {candidate ? (
             <p className="preset-preview">
-              {money(candidate.base)} base + {money(candidate.bonus)} bonus +{" "}
-              {money(candidate.stock)} stock / year
+              {money(candidate.base)} base + {money(candidate.bonusProjection)} modeled recurring bonus (reported: {money(candidate.bonus)}) +{" "}
+              {money(candidate.stock)} reported stock / year
             </p>
           ) : (
             <p className="hint">
-              {s.company === "Google"
-                ? "Google’s public snapshot combines bonus with sign-on pay and uses first-year stock. A recurring breakdown could not be verified."
-                : "A comparable recurring breakdown for this level was not verified."}{" "}
+              A comparable recurring breakdown for this level was not verified.{" "}
               Use manual entry or choose another level.
             </p>
           )}
+          <div className="progression-preview">
+            <strong>Reported level progression</strong>
+            {levelExperience[s.company] ? (
+              <>
+                <p className="hint">
+                  Average years of experience by level in Levels.fyi submissions.
+                  Gaps between these averages time modeled promotions when you
+                  apply the preset; they are not observed promotion durations.
+                </p>
+                <ol>
+                  {stages.map((stage, index) => {
+                    const row = compensationPresets.find(
+                      (p) => p.company === s.company && p.stage === stage.id && p.scope === s.compensationLocation,
+                    );
+                    const experience = levelExperience[s.company][index];
+                    return (
+                      <li key={stage.id}>
+                        <span>
+                          {stage.label} · {levelMappings[s.company][index]}
+                        </span>
+                        <span>Avg. {experience} years’ experience</span>
+                        <span>
+                          {row
+                          ? `${money(row.base)} base + ${money(row.bonusProjection)} recurring bonus + ${money(row.stock)} stock / yr`
+                            : "Compensation breakdown unavailable"}
+                        </span>
+                        {index > 0 && (
+                          <span className="hint">
+                            +{(experience - levelExperience[s.company][index - 1]).toFixed(1)}
+                            yrs between level averages
+                          </span>
+                        )}
+                      </li>
+                    );
+                  })}
+                </ol>
+              </>
+            ) : (
+              <p className="hint">
+                No comparable public level-by-experience breakdown found for {s.company}.
+              </p>
+            )}
+            <p className="hint source">
+              <a href={levelExperienceSource} target="_blank" rel="noreferrer">
+                Levels.fyi community analysis ↗
+              </a>
+            </p>
+          </div>
           <button
             type="button"
             className="secondary small"
             disabled={!candidate}
-            onClick={() =>
-              candidate &&
-              onChange({ ...s, ...applyCompensation(s, candidate) })
-            }
+            onClick={() => candidate && applyCompanyPreset(candidate)}
           >
-            Apply preset
+            Apply pay and progression
           </button>
+          {candidate && (
+            <p className="hint">
+              {hasCompensationProgression(candidate)
+                ? "Models next-level base, eligible recurring bonus, and a representative four-year equity award at each available promotion. Promotion timing uses level experience averages; edit or remove events under Career progression."
+                : "No next-level promotion path is available for this preset; the reported pay fills the starting role only."}{" "}
+              Initial and promotion equity uses the company vesting template. No annual refreshers are assumed. Google first-year stock and combined bonus/sign-on are excluded from recurring projections; Amazon sign-on bonus is excluded.
+            </p>
+          )}
           {candidate && (
             <p className="hint source">
               <a href={candidate.source} target="_blank" rel="noreferrer">
@@ -206,7 +294,7 @@ export function ScenarioForm({
       </div>
       {applied && (
         <p className="hint">
-          Applied: {applied.company} {applied.level} · United States ·{" "}
+          Applied: {applied.company} {applied.level} · {applied.scope} ·{" "}
           <a href={applied.source} target="_blank" rel="noreferrer">
             Source ↗
           </a>
@@ -243,9 +331,7 @@ export function ScenarioForm({
       </div>
       {applied && (
         <p className="hint">
-          Reported annual stock reference: {money(applied.stock)}. Add actual
-          grants below; an annual average does not establish award size or
-          vesting.
+          Reported annualized stock reference: {money(applied.stock)}. The preset models an estimated four-year grant of {money(applied.stock * applied.stockGrantMultiplier)} using {applied.vestingTemplate} vesting; this is an estimate, not a disclosed individual grant.
         </p>
       )}
       <div className="section-label">
