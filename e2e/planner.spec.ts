@@ -28,7 +28,7 @@ test("quick estimate mode defaults, inputs, assumptions and transitions", async 
   ).toBeVisible();
   await expect(page.getByLabel("Annual salary before tax")).toHaveValue("100000");
   await expect(page.getByLabel("Monthly living costs")).toHaveValue("3000");
-  await expect(page.getByLabel("Current invested savings")).toHaveValue("60000");
+  await expect(page.getByLabel("Current invested savings")).toHaveValue("20000");
   await expect(page.getByLabel("Years to project")).toHaveValue("5");
   await expect(page.getByTestId("take-home-0")).toHaveText("$6,197");
   await expect(page.getByTestId("savings-0")).toHaveText("$3,197");

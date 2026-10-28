@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { PlannerV2 } from "../lib/planner";
 import { monthIndex } from "../lib/planner";
 import type { Projection } from "../lib/projection";
@@ -22,6 +22,10 @@ export function Results({
 }) {
   const [selected, setSelected] = useState(0),
     activeYear = Math.min(selected, Number(state.shared.years) - 1);
+  const [detailsExpanded, setDetailsExpanded] = useState(!quickMode);
+  useEffect(() => {
+    setDetailsExpanded(!quickMode);
+  }, [quickMode]);
   const years = Number(state.shared.years),
     startYear = Number(state.shared.startYear);
   const first = series[0].projection.rows[activeYear],
@@ -160,9 +164,16 @@ export function Results({
           </p>
         )}
       </section>
-      <details className="more-results" open={!quickMode}>
-      <summary>Explore detailed results <span className="optional">Account, tax and monthly breakdowns</span></summary>
-      <div className="more-results-content">
+      <details
+        className="more-results"
+        open={detailsExpanded}
+        onToggle={(e) => setDetailsExpanded(e.currentTarget.open)}
+      >
+        <summary>
+          Explore detailed results{" "}
+          <span className="optional">Account, tax and monthly breakdowns</span>
+        </summary>
+        <div className="more-results-content">
       <section className="cash-panel" aria-labelledby="assets-heading">
         <div className="panel-heading">
           <h2 id="assets-heading">What makes up that balance</h2>

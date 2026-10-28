@@ -1382,6 +1382,9 @@ footer > span {
     padding-left: 17px;
     padding-right: 17px;
   }
+  .more-results {
+    padding: 0 10px 14px;
+  }
   .ending-balances {
     gap: 12px;
   }
@@ -1735,17 +1738,22 @@ table small {
   border-radius: 12px;
   background: #fff;
   padding: 0 20px 18px;
+  min-width: 0;
+  max-width: 100%;
 }
 .more-results > summary {
   font-size: 13px;
   padding: 16px 0;
+  flex-wrap: wrap;
 }
 .more-results-content {
   display: grid;
   gap: 18px;
+  min-width: 0;
 }
 .more-results-content > .cash-panel {
   margin: 0;
+  min-width: 0;
 }
 .result-year {
   min-width: 0;
