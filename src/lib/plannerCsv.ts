@@ -1,5 +1,7 @@
 import { csvCell, downloadCsv } from "./csv";
 import type { Projection } from "./projection";
+import { retirementAccountLabels } from "./retirement";
+import type { RetirementAccountType } from "./retirement";
 export interface ExportScenario {
   name: string;
   projection: Projection;
@@ -8,6 +10,7 @@ export function plannerCsv(
   scenarios: ExportScenario[],
   monthly = false,
 ): string {
+  const accountTypes = Object.keys(retirementAccountLabels) as RetirementAccountType[];
   const header = [
     "Scenario",
     "Period",
@@ -26,7 +29,15 @@ export function plannerCsv(
     "Healthcare premium offset (USD)",
     "Post-payroll expenses (USD)",
     "Cash surplus or shortfall (USD)",
-    "401(k) contribution (USD)",
+    "Traditional 401(k) contribution (USD)",
+    "Roth 401(k) contribution (USD)",
+    "Traditional IRA contribution (USD)",
+    "Roth IRA contribution (USD)",
+    "Backdoor Roth conversion (USD)",
+    "Mega backdoor Roth contribution (USD)",
+    "Deductible IRA contribution (USD)",
+    "Unfunded IRA target (USD)",
+    "Employer match (USD)",
     "HSA contribution (USD)",
     "Stock proceeds invested (USD)",
     "Equity retained at vest (USD)",
@@ -48,17 +59,21 @@ export function plannerCsv(
     "Federal taxable income (USD)",
     "State taxable income (USD)",
     "Payroll health premiums (USD)",
+    ...accountTypes.map((type) => `${retirementAccountLabels[type]} balance (USD)`),
   ];
   const records: (string | number)[][] = [header];
   for (const { name, projection: p } of scenarios) {
     const initial: (string | number)[] = Array(header.length).fill("");
     initial[0] = name;
     initial[1] = "Starting balances";
-    initial[22] = p.starting.taxable;
-    initial[23] = p.starting.employerStock;
-    initial[24] = p.starting.retirement;
-    initial[25] = p.starting.hsa;
-    initial[26] = p.startingTotal;
+    initial[30] = p.starting.taxable;
+    initial[31] = p.starting.employerStock;
+    initial[32] = p.starting.retirement;
+    initial[33] = p.starting.hsa;
+    initial[34] = p.startingTotal;
+    accountTypes.forEach((type, index) => {
+      initial[header.length - accountTypes.length + index] = p.startingAccountBalances[type];
+    });
     records.push(initial);
     if (monthly)
       for (const r of p.months)
@@ -81,6 +96,14 @@ export function plannerCsv(
           r.expenses,
           r.surplus,
           r.retirementContribution,
+          r.roth401kContribution,
+          r.traditionalIraContribution,
+          r.rothIraContribution,
+          r.backdoorRothConversion,
+          r.megaBackdoorContribution,
+          r.deductibleIraContribution,
+          r.unfundedIraContribution,
+          r.employerMatch,
           r.hsaContribution,
           r.stockContribution,
           r.heldContribution,
@@ -104,6 +127,7 @@ export function plannerCsv(
           "",
           "",
           r.healthPremiums,
+          ...accountTypes.map((type) => r.accountBalances[type]),
         ]);
     else
       for (const r of p.rows)
@@ -129,6 +153,14 @@ export function plannerCsv(
           r.expenses,
           r.surplus,
           r.retirementContribution,
+          r.roth401kContribution,
+          r.traditionalIraContribution,
+          r.rothIraContribution,
+          r.backdoorRothConversion,
+          r.megaBackdoorContribution,
+          r.deductibleIraContribution,
+          r.unfundedIraContribution,
+          r.employerMatch,
           r.hsaContribution,
           r.stockContribution,
           r.heldContribution,
@@ -157,6 +189,7 @@ export function plannerCsv(
           r.taxBreakdown.federalTaxable,
           r.taxBreakdown.stateTaxable,
           r.healthPremiums,
+          ...accountTypes.map((type) => r.accountBalances[type]),
         ]);
   }
   return "\uFEFF" + records.map((r) => r.map(csvCell).join(",")).join("\r\n");

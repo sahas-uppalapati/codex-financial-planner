@@ -4,16 +4,21 @@ import {
   defaultPlanner,
   plannerSharedErrors,
   plannerScenarioErrors,
+  uid,
   validPlanner,
 } from "./lib/planner";
 import { loadPlanner, savePlanner } from "./lib/plannerStorage";
 import { projectScenario } from "./lib/projection";
 import { ScenarioForm } from "./components/ScenarioForm";
 import { Field } from "./components/Field";
-import { AutoDetails, NumberField } from "./components/EditorFields";
+import { AutoDetails, NumberField, SelectField } from "./components/EditorFields";
 import { Results } from "./components/Results";
 import { QuickEstimate } from "./components/QuickEstimate";
 import { locationPresets } from "./data/presets";
+import { RetirementGuide } from "./components/RetirementGuide";
+import { retirementAccountLabels } from "./lib/retirement";
+import type { RetirementAccountType } from "./lib/retirement";
+import { money } from "./lib/format";
 function initial() {
   try {
     return loadPlanner(window.localStorage);
@@ -145,6 +150,11 @@ export default function App() {
   }, [state, ready]);
   const shared = (key: keyof PlannerV2["shared"], value: string) =>
     setState((s) => ({ ...s, shared: { ...s.shared, [key]: value } }));
+  const startingAccountTotal =
+    Number(state.shared.starting) +
+    state.shared.startingAccounts.reduce((sum, row) => sum + Number(row.balance), 0) +
+    Number(state.shared.startingRetirement) + Number(state.shared.startingHsa) +
+    Number(state.shared.startingSpouseRetirement) + Number(state.shared.startingSpouseHsa);
   return (
     <>
       <a className="skip-link" href="#results">
@@ -324,13 +334,40 @@ export default function App() {
                   integer
                 />
               </div>
+              <div className="section-label">
+                <h3>Starting balances</h3>
+                {state.comparison && <span className="status-tag">Shared</span>}
+              </div>
+              <div className="metric-row starting-total"><span>Starting assets <small>Taxable + retirement accounts; employer shares shown in the results</small></span><strong>{Number.isFinite(startingAccountTotal) ? money(startingAccountTotal) : "Check balances"}</strong></div>
+              {state.shared.startingAccounts.map((account, index) => (
+                <div className="starting-account-row" key={account.id}>
+                  <SelectField
+                    label={`Account ${index + 1} type`}
+                    value={account.type}
+                    onChange={(value) => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: current.shared.startingAccounts.map((row) => row.id === account.id ? { ...row, type: value as RetirementAccountType } : row) } }))}
+                  >
+                    {(Object.entries(retirementAccountLabels) as [RetirementAccountType, string][]).map(([type, label]) => <option key={type} value={type}>{label}</option>)}
+                  </SelectField>
+                  <SelectField
+                    label={`Account ${index + 1} owner`}
+                    value={account.owner}
+                    onChange={(value) => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: current.shared.startingAccounts.map((row) => row.id === account.id ? { ...row, owner: value as "primary" | "spouse" } : row) } }))}
+                  >
+                    <option value="primary">You</option><option value="spouse">Spouse</option>
+                  </SelectField>
+                  <Field label={`${account.owner === "spouse" ? "Spouse" : "Your"} ${retirementAccountLabels[account.type]} balance`} value={account.balance} onChange={(value) => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: current.shared.startingAccounts.map((row) => row.id === account.id ? { ...row, balance: value } : row) } }))} error={errors[`startingAccounts.${index}.balance`]} />
+                  <button type="button" className="text-button small-text" aria-label={`Remove ${retirementAccountLabels[account.type]} starting balance`} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: current.shared.startingAccounts.filter((row) => row.id !== account.id) } }))}>Remove</button>
+                </div>
+              ))}
+              <button type="button" className="secondary small" disabled={state.shared.startingAccounts.length >= 40} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: [...current.shared.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] } }))}>Add account balance</button>
+              {errors.startingAccounts && <p className="error">{errors.startingAccounts}</p>}
+              <p className="hint">Include balances from old employers. Starting spouse assets stay in the household total even when one comparison scenario uses single filing. These balances grow with zero new contributions. <a href="#starting-employer-shares">Edit starting employer shares</a> in the equity section; shares are counted once.</p>
               <AutoDetails
                 hasErrors={
                   !!(
                     errors.startYear ||
                     errors.taxInflation ||
-                    errors.startingRetirement ||
-                    errors.startingHsa ||
+                    errors.startingAccounts ||
                     errors.returns ||
                     errors.inflation
                   )
@@ -371,18 +408,6 @@ export default function App() {
                     value={state.shared.taxInflation}
                     onChange={(v) => shared("taxInflation", v)}
                     hint="Projects only indexed parameters of 2026 law. Fixed thresholds remain fixed; future legislation is not predicted."
-                  />
-                  <NumberField
-                    label="Starting traditional 401(k) balance"
-                    unit="USD"
-                    value={state.shared.startingRetirement}
-                    onChange={(v) => shared("startingRetirement", v)}
-                  />
-                  <NumberField
-                    label="Starting HSA balance"
-                    unit="USD"
-                    value={state.shared.startingHsa}
-                    onChange={(v) => shared("startingHsa", v)}
                   />
                   <p className="hint">
                     The investment return applies to taxable investments, 401(k)
@@ -440,7 +465,7 @@ export default function App() {
                     Each nonnegative opening investment balance earns the
                     monthly equivalent of your annual return assumption. Cash
                     surplus, sold-equity proceeds, and retirement/HSA
-                    contributions enter at month-end. Unfunded cash shortfalls
+                    contributions and estimated employer matching enter at month-end. Unfunded cash shortfalls
                     earn no return and are not modeled loans. Held shares and
                     retirement assets are never automatically liquidated to fund
                     living costs.
@@ -485,7 +510,7 @@ export default function App() {
                     Balances are nominal future dollars before future sale or
                     withdrawal taxes. The model excludes options, later stock
                     sales, investment dividends/realized gains, HSA
-                    reimbursements, retirement withdrawals/matches/catch-ups,
+                    reimbursements, retirement withdrawals/catch-ups,
                     itemized or family/earned-income credits, self-employment,
                     interstate income allocation, other assets/liabilities and
                     Monte Carlo simulation. Returns, share appreciation and
@@ -582,6 +607,7 @@ export default function App() {
             </div>
           </div>
         </div>
+        <RetirementGuide />
         <footer>
           <p>
             ◈ Your inputs stay in this browser. No accounts, analytics, or data
