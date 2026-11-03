@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { AssumptionsV2, ScenarioV2, TaxLocation } from "../lib/planner";
 import { taxLocations } from "../lib/planner";
 import { categoryKeys, fieldError, monthlyExpenses } from "../lib/model";
 import { Field } from "./Field";
-import { Toggle } from "./EditorFields";
+import { TechEstimatorHero } from "./TechEstimatorHero";
 
 export function QuickEstimate({
   scenario,
@@ -19,6 +19,11 @@ export function QuickEstimate({
   errors: Record<string, string>;
 }) {
   const [expenses, setExpenses] = useState(() => String(monthlyExpenses(scenario)));
+
+  useEffect(() => {
+    setExpenses(String(monthlyExpenses(scenario)));
+  }, [scenario.expenses]);
+
   const selectedTaxLocation = taxLocations.find(
     (location) => location.id === scenario.taxProfile.location,
   );
@@ -76,8 +81,14 @@ export function QuickEstimate({
 
   return (
     <div className="quick-estimate-form">
+      <TechEstimatorHero
+        scenario={scenario}
+        assumptions={assumptions}
+        onScenarioChange={onScenarioChange}
+        onAssumptionsChange={onAssumptionsChange}
+      />
       <p className="quick-estimate-intro">
-        Start with four numbers. You can add assumptions below or build a detailed plan.
+        Fine-tune your figures below or use the 1-click presets above.
       </p>
       <Field
         label="Annual salary before tax"
@@ -85,6 +96,28 @@ export function QuickEstimate({
         value={scenario.base}
         onChange={(base) => onScenarioChange({ ...scenario, base })}
         error={errors.base}
+      />
+      <Field
+        label="Annual stock / RSUs"
+        unit="USD / year"
+        value={scenario.stock}
+        onChange={(stock) => {
+          const annualVal = Number(stock) || 0;
+          const updatedGrants =
+            scenario.grants &&
+            scenario.grants.length === 1 &&
+            scenario.grants[0].employmentId === "initial"
+              ? [{ ...scenario.grants[0], value: String(annualVal * 4) }]
+              : scenario.grants;
+          onScenarioChange({
+            ...scenario,
+            stock,
+            includeStock: annualVal > 0 ? true : scenario.includeStock,
+            grants: updatedGrants,
+          });
+        }}
+        error={errors.stock}
+        hint="Annual RSU vesting value (e.g. 4-year grant divided by 4)."
       />
       <Field
         label="Monthly living costs"
@@ -273,22 +306,7 @@ export function QuickEstimate({
           </section>
 
           <section className="assumption-group" aria-labelledby="accounts-assumptions">
-            <h3 id="accounts-assumptions">Equity and retirement accounts</h3>
-            <Toggle
-              label="Include annual stock compensation"
-              checked={scenario.includeStock}
-              onChange={(includeStock) => onScenarioChange({ ...scenario, includeStock })}
-              hint="A simplified annual amount, treated as sold in December. Detailed grant schedules are available in the full planner."
-            />
-            {scenario.includeStock && (
-              <Field
-                label="Annual stock value"
-                unit="USD / year"
-                value={scenario.stock}
-                onChange={(stock) => onScenarioChange({ ...scenario, stock })}
-                error={errors.stock}
-              />
-            )}
+            <h3 id="accounts-assumptions">Retirement accounts</h3>
             <div className="two-cols">
               <Field
                 label="Starting 401(k) balance"

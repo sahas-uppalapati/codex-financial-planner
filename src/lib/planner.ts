@@ -25,12 +25,25 @@ export interface MatchTier {
   rate: string;
   payPercent: string;
 }
+export type MatchVestingType =
+  | "immediate"
+  | "cliff-1"
+  | "cliff-2"
+  | "cliff-3"
+  | "graded-3"
+  | "graded-4"
+  | "graded-5"
+  | "graded-6"
+  | "custom";
+
 export interface EmployerMatch {
   type: "unsure" | "none" | "simple" | "tiered";
   rate: string;
   payPercent: string;
   cap: string;
   tiers: MatchTier[];
+  vestingType?: MatchVestingType;
+  vestingSchedule?: string[];
 }
 export interface Employee401kTarget {
   mode: "percent" | "dollars";
@@ -123,6 +136,7 @@ export interface CareerEvent {
   refresherTemplate: string;
   refresherTreatment: SaleTreatment;
   presetProgression?: string;
+  employerMatch?: EmployerMatch;
 }
 export interface ScenarioV2 extends Scenario {
   taxProfile: TaxProfile;
@@ -168,6 +182,21 @@ export const emptyBenefits = (): Benefits => ({
   health: "0",
   hsa: "0",
 });
+export function defaultEmployerMatch(): EmployerMatch {
+  return {
+    type: "unsure",
+    rate: "50",
+    payPercent: "6",
+    cap: "0",
+    tiers: [
+      { rate: "100", payPercent: "3" },
+      { rate: "50", payPercent: "2" },
+    ],
+    vestingType: "immediate",
+    vestingSchedule: ["100"],
+  };
+}
+
 export function upgradeScenario(
   s: Scenario,
   index: number,
@@ -232,16 +261,7 @@ export function upgradeScenario(
     grants: [],
     refreshers: [],
     events: [],
-    employerMatch: {
-      type: "unsure",
-      rate: "50",
-      payPercent: "6",
-      cap: "0",
-      tiers: [
-        { rate: "100", payPercent: "3" },
-        { rate: "50", payPercent: "2" },
-      ],
-    },
+    employerMatch: defaultEmployerMatch(),
     retirementProfiles: { primary: profile(), spouse: profile() },
     retirementTargets: { primary: target(), spouse: target() },
   };
@@ -321,6 +341,57 @@ export function scheduleError(rows: VestingRow[]): string | undefined {
   )
     return "Vesting percentages must total 100%.";
 }
+export function validateEmployerMatch(
+  match: EmployerMatch | undefined,
+  prefix: string,
+  errors: Record<string, string>,
+  check: (key: string, val: unknown, min?: number, max?: number, integer?: boolean) => void,
+) {
+  if (!match || !["unsure", "none", "simple", "tiered"].includes(match.type)) {
+    errors[prefix] = "Choose a valid employer match setting.";
+    return;
+  }
+  check(`${prefix}.rate`, match.rate, 0, 100);
+  check(`${prefix}.payPercent`, match.payPercent, 0, 100);
+  check(`${prefix}.cap`, match.cap, 0, 10_000_000);
+  if (!Array.isArray(match.tiers) || match.tiers.length > 20) {
+    errors[prefix] = "Use at most 20 employer match tiers.";
+  } else {
+    let previous = 0;
+    match.tiers.forEach((tier, index) => {
+      check(`${prefix}.tiers.${index}.rate`, tier.rate, 0, 100);
+      check(`${prefix}.tiers.${index}.payPercent`, tier.payPercent, 0, 100);
+      previous += Number(tier.payPercent);
+    });
+    if (previous > 100) errors[prefix] = "Match tiers cannot exceed 100% of eligible pay.";
+  }
+  if (
+    match.vestingType &&
+    ![
+      "immediate",
+      "cliff-1",
+      "cliff-2",
+      "cliff-3",
+      "graded-3",
+      "graded-4",
+      "graded-5",
+      "graded-6",
+      "custom",
+    ].includes(match.vestingType)
+  ) {
+    errors[`${prefix}.vestingType`] = "Choose a valid match vesting schedule.";
+  }
+  if (match.vestingSchedule) {
+    if (!Array.isArray(match.vestingSchedule) || match.vestingSchedule.length > 10) {
+      errors[`${prefix}.vestingSchedule`] = "Vesting schedule must have between 1 and 10 years.";
+    } else {
+      match.vestingSchedule.forEach((pct, index) => {
+        check(`${prefix}.vestingSchedule.${index}`, pct, 0, 100);
+      });
+    }
+  }
+}
+
 export function plannerScenarioErrors(
   s: ScenarioV2,
   shared: AssumptionsV2,
@@ -396,25 +467,7 @@ export function plannerScenarioErrors(
       errors[`${who}.retirement`] =
         "Exceeds the projected annual 401(k) employee limit (under age 50).";
   }
-  const match = s.employerMatch;
-  if (!match || !["unsure", "none", "simple", "tiered"].includes(match.type)) {
-    errors.employerMatch = "Choose a valid employer match setting.";
-  } else {
-    check("employerMatch.rate", match.rate, 0, 100);
-    check("employerMatch.payPercent", match.payPercent, 0, 100);
-    check("employerMatch.cap", match.cap, 0, 10_000_000);
-    if (!Array.isArray(match.tiers) || match.tiers.length > 20)
-      errors.employerMatch = "Use at most 20 employer match tiers.";
-    else {
-      let previous = 0;
-      match.tiers.forEach((tier, index) => {
-        check(`employerMatch.tiers.${index}.rate`, tier.rate, 0, 100);
-        check(`employerMatch.tiers.${index}.payPercent`, tier.payPercent, 0, 100);
-        previous += Number(tier.payPercent);
-      });
-      if (previous > 100) errors.employerMatch = "Match tiers cannot exceed 100% of eligible pay.";
-    }
-  }
+  validateEmployerMatch(s.employerMatch, "employerMatch", errors, check);
   for (const owner of ["primary", "spouse"] as const) {
     const profile = s.retirementProfiles?.[owner];
     if (!profile) {
@@ -514,7 +567,12 @@ export function plannerScenarioErrors(
     if (e.kind === "promotion" && e.issuerId !== currentIssuer)
       errors[`${p}.issuerId`] =
         "A promotion must remain at the active employer. Use Change employer instead.";
-    if (e.kind === "job") currentIssuer = e.issuerId;
+    if (e.kind === "job") {
+      currentIssuer = e.issuerId;
+      if (e.employerMatch) {
+        validateEmployerMatch(e.employerMatch, `${p}.employerMatch`, errors, check);
+      }
+    }
     for (const k of ["base", "bonus", "awardValue", "refresherValue"] as const)
       check(`${p}.${k}`, e[k]);
     check(`${p}.growth`, e.growth, -100, 20);

@@ -1,7 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { defaultPlanner } from "./planner";
 import { eligibleIraRequests, fundIraRequests } from "./retirementContributions";
-import { annualRetirementLimits, employeeDeferralLimit, iraEligibility } from "./retirement";
+import {
+  annualRetirementLimits,
+  employeeDeferralLimit,
+  iraEligibility,
+  matchVestedPercent,
+  requiredEmployeeRateForFullMatch,
+} from "./retirement";
 
 describe("retirement rule calculations", () => {
   const limits = annualRetirementLimits(2026, 2.5);
@@ -52,5 +58,40 @@ describe("retirement rule calculations", () => {
     const funded = fundIraRequests({ traditional: 3000, roth: 3000, backdoor: 0, megaBackdoor: 0 }, 3000, 1000);
     expect(funded).toMatchObject({ traditional: 1500, roth: 1500, deductibleTraditional: 1000 });
     expect(funded.unfunded).toMatchObject({ traditional: 1500, roth: 1500 });
+  });
+
+  it("calculates match vesting percentage across standard schedules and custom percentages", () => {
+    const immediate = { type: "simple" as const, rate: "50", payPercent: "6", cap: "0", tiers: [], vestingType: "immediate" as const, vestingSchedule: ["100"] };
+    expect(matchVestedPercent(immediate, 0)).toBe(100);
+    expect(matchVestedPercent(immediate, 3)).toBe(100);
+
+    const cliff2 = { type: "simple" as const, rate: "50", payPercent: "6", cap: "0", tiers: [], vestingType: "cliff-2" as const, vestingSchedule: ["0", "100"] };
+    expect(matchVestedPercent(cliff2, 0)).toBe(0);
+    expect(matchVestedPercent(cliff2, 1)).toBe(0);
+    expect(matchVestedPercent(cliff2, 2)).toBe(100);
+    expect(matchVestedPercent(cliff2, 5)).toBe(100);
+
+    const graded4 = { type: "simple" as const, rate: "50", payPercent: "6", cap: "0", tiers: [], vestingType: "graded-4" as const, vestingSchedule: ["25", "50", "75", "100"] };
+    expect(matchVestedPercent(graded4, 0)).toBe(0);
+    expect(matchVestedPercent(graded4, 1)).toBe(25);
+    expect(matchVestedPercent(graded4, 2)).toBe(50);
+    expect(matchVestedPercent(graded4, 3)).toBe(75);
+    expect(matchVestedPercent(graded4, 4)).toBe(100);
+
+    const custom = { type: "simple" as const, rate: "50", payPercent: "6", cap: "0", tiers: [], vestingType: "custom" as const, vestingSchedule: ["10", "30", "60", "100"] };
+    expect(matchVestedPercent(custom, 1)).toBe(10);
+    expect(matchVestedPercent(custom, 2)).toBe(30);
+    expect(matchVestedPercent(custom, 3)).toBe(60);
+    expect(matchVestedPercent(custom, 4)).toBe(100);
+  });
+
+  it("computes required employee contribution rate to capture 100% of employer match", () => {
+    expect(requiredEmployeeRateForFullMatch(undefined)).toBe(0);
+    expect(requiredEmployeeRateForFullMatch({ type: "none", rate: "0", payPercent: "0", cap: "0", tiers: [] })).toBe(0);
+    expect(requiredEmployeeRateForFullMatch({ type: "simple", rate: "50", payPercent: "6", cap: "0", tiers: [] })).toBe(6);
+    expect(requiredEmployeeRateForFullMatch({
+      type: "tiered", rate: "50", payPercent: "5", cap: "0",
+      tiers: [{ rate: "100", payPercent: "3" }, { rate: "50", payPercent: "2" }],
+    })).toBe(5);
   });
 });
