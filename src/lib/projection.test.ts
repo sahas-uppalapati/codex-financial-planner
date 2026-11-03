@@ -257,6 +257,91 @@ describe("monthly career and investment engine", () => {
     expect(row.retirementContribution).toBeCloseTo(24500, 8);
     expect(row.roth401kContribution).toBeCloseTo(8000, 8);
   });
+  it("continues employer match across employers and supports employer-specific match formulas", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "2";
+    p.shared.returns = "0";
+    s.base = "100000";
+    s.bonus = "0";
+    s.growth = "0";
+    s.retirementTargets.primary.workplace401k.mode = "percent";
+    s.retirementTargets.primary.workplace401k.amount = "6";
+    s.employerMatch = {
+      type: "simple",
+      rate: "50",
+      payPercent: "6",
+      cap: "0",
+      tiers: [],
+      vestingType: "immediate",
+      vestingSchedule: ["100"],
+    };
+    s.events = [
+      event(p, {
+        id: "new-job",
+        kind: "job",
+        month: "2027-01",
+        base: "100000",
+        bonus: "0",
+        growth: "0",
+        employerMatch: {
+          type: "simple",
+          rate: "100",
+          payPercent: "4",
+          cap: "0",
+          tiers: [],
+          vestingType: "immediate",
+          vestingSchedule: ["100"],
+        },
+      }),
+    ];
+    const proj = projectScenario(s, p.shared);
+    expect(proj.rows[0].employerMatch).toBeCloseTo(3000, 5);
+    expect(proj.rows[1].employerMatch).toBeCloseTo(4000, 5);
+  });
+  it("tracks unvested match and forfeits unvested employer match upon job departure before vesting", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "2";
+    p.shared.returns = "0";
+    s.base = "120000";
+    s.bonus = "0";
+    s.growth = "0";
+    s.retirementTargets.primary.workplace401k.mode = "percent";
+    s.retirementTargets.primary.workplace401k.amount = "6";
+    s.employerMatch = {
+      type: "simple",
+      rate: "100",
+      payPercent: "6",
+      cap: "0",
+      tiers: [],
+      vestingType: "cliff-2",
+      vestingSchedule: ["0", "100"],
+    };
+    s.events = [
+      event(p, {
+        id: "job-change",
+        kind: "job",
+        month: "2027-01",
+        base: "120000",
+        bonus: "0",
+        growth: "0",
+        employerMatch: {
+          type: "none",
+          rate: "0",
+          payPercent: "0",
+          cap: "0",
+          tiers: [],
+          vestingType: "immediate",
+          vestingSchedule: ["100"],
+        },
+      }),
+    ];
+    const proj = projectScenario(s, p.shared);
+    expect(proj.rows[0].employerMatch).toBeCloseTo(7200, 5);
+    expect(proj.rows[0].unvestedMatch).toBeCloseTo(7200, 5);
+    expect(proj.rows[0].accountBalances["traditional-401k"]).toBeCloseTo(14400, 5);
+    expect(proj.rows[1].forfeitedMatch).toBeCloseTo(7200, 5);
+    expect(proj.rows[1].accountBalances["traditional-401k"]).toBeCloseTo(14400, 5);
+  });
   it("rejects malformed numeric inputs rather than returning non-finite values", () => {
     const p = fixture();
     p.scenarios[0].base = "Infinity";

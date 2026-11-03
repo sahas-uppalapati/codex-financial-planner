@@ -38,6 +38,8 @@ export function plannerCsv(
     "Deductible IRA contribution (USD)",
     "Unfunded IRA target (USD)",
     "Employer match (USD)",
+    "Forfeited unvested match (USD)",
+    "Unvested employer match (USD)",
     "HSA contribution (USD)",
     "Stock proceeds invested (USD)",
     "Equity retained at vest (USD)",
@@ -66,11 +68,12 @@ export function plannerCsv(
     const initial: (string | number)[] = Array(header.length).fill("");
     initial[0] = name;
     initial[1] = "Starting balances";
-    initial[30] = p.starting.taxable;
-    initial[31] = p.starting.employerStock;
-    initial[32] = p.starting.retirement;
-    initial[33] = p.starting.hsa;
-    initial[34] = p.startingTotal;
+    const taxableIndex = header.indexOf("Taxable investments or unfunded shortfall (USD)");
+    initial[taxableIndex] = p.starting.taxable;
+    initial[taxableIndex + 1] = p.starting.employerStock;
+    initial[taxableIndex + 2] = p.starting.retirement;
+    initial[taxableIndex + 3] = p.starting.hsa;
+    initial[taxableIndex + 4] = p.startingTotal;
     accountTypes.forEach((type, index) => {
       initial[header.length - accountTypes.length + index] = p.startingAccountBalances[type];
     });
@@ -104,6 +107,8 @@ export function plannerCsv(
           r.deductibleIraContribution,
           r.unfundedIraContribution,
           r.employerMatch,
+          r.forfeitedMatch,
+          r.unvestedMatch,
           r.hsaContribution,
           r.stockContribution,
           r.heldContribution,
@@ -161,6 +166,8 @@ export function plannerCsv(
           r.deductibleIraContribution,
           r.unfundedIraContribution,
           r.employerMatch,
+          r.forfeitedMatch,
+          r.unvestedMatch,
           r.hsaContribution,
           r.stockContribution,
           r.heldContribution,

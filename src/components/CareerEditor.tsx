@@ -16,6 +16,7 @@ import {
   TextField,
 } from "./EditorFields";
 import { TemplateField, TreatmentField } from "./EquityEditor";
+import { EmployerMatchFields } from "./EmployerMatchEditor";
 function EventCard({
   s,
   a,
@@ -235,11 +236,79 @@ function EventCard({
           </div>
         </details>
         {e.kind === "job" && (
-          <p className="shortfall-note">
-            Unvested awards linked to the departing employment are forfeited
-            before this month’s vests unless explicitly retained. Previously
-            vested {employer?.name ? "employer " : ""}shares remain owned.
-          </p>
+          <>
+            <details className="event-match-details">
+              <summary>
+                401(k) match at this new employer{" "}
+                <span className="optional">
+                  {e.employerMatch
+                    ? e.employerMatch.type === "none"
+                      ? "No match"
+                      : "Custom match"
+                    : "Continues previous match"}
+                </span>
+              </summary>
+              <div className="details-body">
+                <SelectField
+                  label="Employer match policy for this role"
+                  value={
+                    e.employerMatch
+                      ? e.employerMatch.type === "none"
+                        ? "none"
+                        : "custom"
+                      : "continue"
+                  }
+                  onChange={(mode) => {
+                    if (mode === "continue") {
+                      patch({ employerMatch: undefined });
+                    } else if (mode === "none") {
+                      patch({
+                        employerMatch: {
+                          type: "none",
+                          rate: "0",
+                          payPercent: "0",
+                          cap: "0",
+                          tiers: [],
+                          vestingType: "immediate",
+                          vestingSchedule: ["100"],
+                        },
+                      });
+                    } else {
+                      patch({
+                        employerMatch: e.employerMatch ?? { ...s.employerMatch },
+                      });
+                    }
+                  }}
+                >
+                  <option value="continue">
+                    Continue previous employer match formula
+                  </option>
+                  <option value="custom">
+                    Custom match formula & vesting for this employer
+                  </option>
+                  <option value="none">No match at this employer</option>
+                </SelectField>
+
+                {e.employerMatch && e.employerMatch.type !== "none" && (
+                  <EmployerMatchFields
+                    match={e.employerMatch}
+                    prefix={`${prefix}.employerMatch`}
+                    errors={errors}
+                    onChange={(nextMatch) => patch({ employerMatch: nextMatch })}
+                    baseSalary={Number(e.base)}
+                  />
+                )}
+                <p className="hint">
+                  Changing employers forfeits unvested employer match from the prior job and resets completed service tenure for the new employer's vesting schedule. Vested 401(k) assets remain yours.
+                </p>
+              </div>
+            </details>
+            <p className="shortfall-note">
+              Unvested equity awards and unvested 401(k) match linked to the departing employment are forfeited
+              before this month’s vests unless explicitly retained. Previously
+              vested {employer?.name ? "employer " : ""}shares and vested 401(k) balances remain owned.
+            </p>
+          </>
         )}
         <ErrorList errors={errors} prefix={prefix} />
         <button

@@ -13,7 +13,7 @@ import { calculateTaxes } from "./tax";
 import type { TaxBreakdown, WorkerTaxInput } from "./tax";
 import type { RetirementAccountType } from "./retirement";
 import { retirementAccountLabels } from "./retirement";
-import { annualAge, annualRetirementLimits, employeeDeferralLimit, iraEligibility } from "./retirement";
+import { annualAge, annualRetirementLimits, employeeDeferralLimit, iraEligibility, matchVestedPercent } from "./retirement";
 import { eligibleIraRequests, fundIraRequests } from "./retirementContributions";
 import type { IraContributionRequest } from "./retirementContributions";
 export type RetirementAccountBalances = Record<RetirementAccountType, number>;
@@ -51,6 +51,8 @@ export interface MonthlyRow {
   deductibleIraContribution: number;
   unfundedIraContribution: number;
   employerMatch: number;
+  forfeitedMatch: number;
+  unvestedMatch: number;
   hsaContribution: number;
   stockContribution: number;
   heldContribution: number;
@@ -81,6 +83,8 @@ export interface AnnualRow extends ProjectionRow {
   deductibleIraContribution: number;
   unfundedIraContribution: number;
   employerMatch: number;
+  forfeitedMatch: number;
+  unvestedMatch: number;
   hsaContribution: number;
   forfeitedEquity: number;
   unrealizedGain: number;
@@ -112,6 +116,7 @@ interface CashMonth {
   retirement: number;
   roth401k: number;
   employerMatch: number;
+  forfeitedMatch: number;
   hsa: number;
   traditionalIra: number;
   primaryTraditionalIra: number;
@@ -245,17 +250,15 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
     warnings.add(
       "California personal-credit phaseout starts are derived from announced 2026 indexing pending the complete published booklet.",
     );
-  if (s.events.some((event) => event.kind === "job"))
-    warnings.add(
-      "Employer match settings apply only to the initial employer. No match is assumed after a job change until plan settings can be entered for that employer.",
-    );
   let role = s.role,
     issuerId = s.employerId,
     annualBase = Number(s.base),
     annualBonus = Number(s.bonus),
     growth = Number(s.growth),
-    roleStart = 0,
-    initialEmployerActive = true;
+    roleStart = 0;
+  let activeMatch = s.employerMatch;
+  let employerStartMonth = 0;
+  let employerMatchBalance = 0;
   let primaryPriorYearFicaWages = Number(s.retirementProfiles.primary.priorYearFicaWages);
   let spousePriorYearFicaWages = Number(s.retirementProfiles.spouse.priorYearFicaWages);
   for (let year = 0; year < years; year++) {
@@ -279,10 +282,30 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
   let accruedBonus = 0;
     let annualMatchUsed = 0;
     for (let within = 0; within < 12; within++) {
-      const month = year * 12 + within,
-        e = events.find((e) => monthIndex(e.month, startYear) === month);
+      const month = year * 12 + within;
+      let monthlyForfeitedMatch = 0;
+      const e = events.find((e) => monthIndex(e.month, startYear) === month);
       if (e) {
-        if (e.kind === "job") initialEmployerActive = false;
+        if (e.kind === "job") {
+          const elapsedMonths = month - employerStartMonth;
+          const completedYears = Math.max(0, Math.floor(elapsedMonths / 12));
+          const vestedPct = matchVestedPercent(activeMatch, completedYears);
+          if (vestedPct < 100 && employerMatchBalance > 0) {
+            const unvestedFraction = Math.max(0, 100 - vestedPct) / 100;
+            monthlyForfeitedMatch = employerMatchBalance * unvestedFraction;
+            accountBalances["traditional-401k"] = Math.max(
+              0,
+              accountBalances["traditional-401k"] - monthlyForfeitedMatch,
+            );
+            balances.retirement = Math.max(
+              0,
+              balances.retirement - monthlyForfeitedMatch,
+            );
+          }
+          employerMatchBalance = 0;
+          employerStartMonth = month;
+          activeMatch = e.employerMatch ?? s.employerMatch;
+        }
         role = e.role;
         issuerId = e.issuerId;
         annualBase = Number(e.base);
@@ -330,13 +353,13 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
           : Math.max(0, hsaCap - usedPrimary.hsa),
         monthlyRetirementTarget(s.retirementTargets.spouse, spouseCash),
       );
-      const match = s.employerMatch;
+      const match = activeMatch;
       const eligiblePay = base;
       const employeeRate = eligiblePay > 0 ? ((primary.retirement + (primary.roth401k ?? 0)) / eligiblePay) * 100 : 0;
       let matchAmount = 0;
-      if (initialEmployerActive && match.type === "simple") {
+      if (match.type === "simple") {
         matchAmount = Math.min(employeeRate, Number(match.payPercent)) * Number(match.rate) / 100 * eligiblePay / 100;
-      } else if (initialEmployerActive && match.type === "tiered") {
+      } else if (match.type === "tiered") {
         let bandStart = 0;
         for (const tier of match.tiers) {
           const bandEnd = bandStart + Number(tier.payPercent);
@@ -345,7 +368,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
           bandStart = bandEnd;
         }
       }
-      if (!initialEmployerActive || match.type === "unsure" || match.type === "none") matchAmount = 0;
+      if (match.type === "unsure" || match.type === "none") matchAmount = 0;
       if (Number(match.cap) > 0) matchAmount = Math.min(matchAmount, Math.max(0, Number(match.cap) - annualMatchUsed));
       annualMatchUsed += matchAmount;
       cashMonths.push({
@@ -364,6 +387,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         retirement: primary.retirement + spouse.retirement,
         roth401k: (primary.roth401k ?? 0) + (spouse.roth401k ?? 0),
         employerMatch: matchAmount,
+        forfeitedMatch: monthlyForfeitedMatch,
         hsa: primary.hsa + spouse.hsa,
         traditionalIra: 0,
         primaryTraditionalIra: 0,
@@ -548,6 +572,18 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       accountBalances["traditional-ira"] += c.traditionalIra;
       accountBalances["roth-ira"] += c.rothIra + c.megaBackdoorRollover;
       accountBalances.hsa += c.hsa;
+      employerMatchBalance *= 1 + monthlyReturn;
+      employerMatchBalance += c.employerMatch;
+      const completedYearsAtMonthEnd = Math.max(
+        0,
+        Math.floor((month - employerStartMonth + 1) / 12),
+      );
+      const vestedPctAtMonthEnd = matchVestedPercent(
+        activeMatch,
+        completedYearsAtMonthEnd,
+      );
+      const monthlyUnvestedMatch =
+        (employerMatchBalance * Math.max(0, 100 - vestedPctAtMonthEnd)) / 100;
       balances.retirement = sumAccountBalances(accountBalances, false);
       balances.hsa = accountBalances.hsa;
       balances.employerStock = sum(
@@ -588,6 +624,8 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         deductibleIraContribution: c.deductibleIra,
         unfundedIraContribution: c.unfundedIra,
         employerMatch: c.employerMatch,
+        forfeitedMatch: c.forfeitedMatch,
+        unvestedMatch: monthlyUnvestedMatch,
         hsaContribution: c.hsa,
         stockContribution,
         heldContribution,
@@ -653,6 +691,8 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       deductibleIraContribution: sumField("deductibleIraContribution"),
       unfundedIraContribution: sumField("unfundedIraContribution"),
       employerMatch: sumField("employerMatch"),
+      forfeitedMatch: sumField("forfeitedMatch"),
+      unvestedMatch: last.unvestedMatch,
       hsaContribution: sumField("hsaContribution"),
       forfeitedEquity: sumField("forfeitedEquity"),
       unrealizedGain: last.unrealizedGain,
@@ -661,9 +701,10 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       taxBreakdown: fullTax,
       months,
     });
-    primaryPriorYearFicaWages = initialEmployerActive
-      ? sum(cashMonths.map((m) => m.base + m.bonus - m.primary.health))
-      : 0;
+    primaryPriorYearFicaWages =
+      employerStartMonth < year * 12
+        ? sum(cashMonths.map((m) => m.employer === last.employer ? m.base + m.bonus - m.primary.health : 0))
+        : 0;
     spousePriorYearFicaWages = sum(cashMonths.map((m) => m.spouseCash - m.spouse.health));
   }
   if (
