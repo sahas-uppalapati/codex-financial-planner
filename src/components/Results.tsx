@@ -8,6 +8,7 @@ import { ProjectionChart } from "./ProjectionChart";
 import { SelectField } from "./EditorFields";
 import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
+import { TechRealityCard } from "./TechRealityCard";
 interface ResultSeries {
   name: string;
   index: number;
@@ -43,10 +44,6 @@ export function Results({
         ? `Your assumptions leave approximately ${money(first.surplus / 12)} per month in cash savings in ${first.calendarYear}, with equity and retirement contributions tracked separately.`
         : `Cash expenses exceed cash take-home by approximately ${money(-first.surplus / 12)} per month in ${first.calendarYear}.`;
   const warnings = [...new Set(series.flatMap((s) => s.projection.warnings))];
-  const monthlyReturn = Math.pow(1 + Number(state.shared.returns) / 100, 1 / 12) - 1;
-  const monthlyContributionValue = monthlyReturn === 0
-    ? 100 * years * 12
-    : 100 * ((Math.pow(1 + monthlyReturn, years * 12) - 1) / monthlyReturn);
   const chartSeries = series.map((s) => ({
     name: s.name,
     index: s.index,
@@ -90,15 +87,10 @@ export function Results({
           })}
         </div>
         <p className="hint">Cash savings after modeled taxes, payroll benefits and living costs. Equity and retirement contributions are tracked separately.</p>
-        {quickMode && (
-          <p className="quick-advice">
-            <strong>{first.surplus >= 1200 ? "A savings idea" : "A first thing to check"}</strong>
-            {first.surplus >= 1200
-              ? `The estimate shows room for $100/month in cash savings. Investing that amount could add about ${money(monthlyContributionValue)} over ${years} years in nominal value, before future taxes, if it earns the same return. This is an illustration, not a guarantee.`
-              : `The estimate shows ${money(first.surplus / 12)} per month after modeled costs. Reviewing your income and expense inputs may be more useful before adding a savings target.`}
-          </p>
-        )}
       </section>
+      {quickMode && (
+        <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />
+      )}
       <section
         className="projection-panel"
         aria-labelledby="projection-heading"
@@ -378,6 +370,32 @@ export function Results({
               </strong>
             ))}
           </div>
+          {series.some((s) => s.projection.rows[activeYear].unvestedMatch > 0) && (
+            <div className="metric-row">
+              <span>
+                Unvested employer match
+                <small>Vesting in progress · unvested balance forfeits on departure</small>
+              </span>
+              {series.map((s) => (
+                <strong key={s.index}>
+                  {money(s.projection.rows[activeYear].unvestedMatch)}
+                </strong>
+              ))}
+            </div>
+          )}
+          {series.some((s) => s.projection.rows[activeYear].forfeitedMatch > 0) && (
+            <div className="metric-row">
+              <span>
+                Forfeited unvested match
+                <small>Deducted on job departure before vesting</small>
+              </span>
+              {series.map((s) => (
+                <strong key={s.index} className="negative">
+                  -{money(s.projection.rows[activeYear].forfeitedMatch)}
+                </strong>
+              ))}
+            </div>
+          )}
           <div className="metric-row">
             <span>
               401(k) + HSA contributions

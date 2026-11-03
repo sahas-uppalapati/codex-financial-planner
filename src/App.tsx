@@ -58,10 +58,25 @@ export default function App() {
   const modeledState = useMemo<PlannerV2>(() => {
     if (!quickMode) return state;
     const original = state.scenarios[0];
+    const empId = original.employerId || "quick-estimate-employer";
+    const hasIssuer = original.issuers && original.issuers.some((i) => i.id === empId);
+    const issuers = hasIssuer && original.issuers.length > 0
+      ? original.issuers
+      : [
+          ...(original.issuers || []),
+          {
+            id: empId,
+            name: "Current employer",
+            price: "100",
+            appreciation: "0",
+            startingShares: "0",
+            startingBasis: "0",
+          },
+        ];
     const quickScenario = {
       ...original,
-      name: "Quick estimate",
-      role: "Software engineer",
+      name: original.name || "Quick estimate",
+      role: original.role || "Software engineer",
       stock: original.stock,
       taxProfile: {
         ...original.taxProfile,
@@ -79,20 +94,18 @@ export default function App() {
       },
       benefits: { ...original.benefits, health: "0" },
       spouseBenefits: { retirement: "0", health: "0", hsa: "0" },
-      stockMode: original.includeStock ? "legacy" as const : "grants" as const,
-      employerId: "quick-estimate-employer",
+      stockMode:
+        original.stockMode === "grants" && original.grants && original.grants.length > 0
+          ? ("grants" as const)
+          : original.includeStock
+            ? ("legacy" as const)
+            : ("grants" as const),
+      employerId: empId,
       grantOverrides: {},
-      issuers: [{
-        id: "quick-estimate-employer",
-        name: "Current employer",
-        price: "100",
-        appreciation: "0",
-        startingShares: "0",
-        startingBasis: "0",
-      }],
-      grants: [],
+      issuers,
+      grants: original.grants || [],
       refreshers: [],
-      events: [],
+      events: original.events || [],
     };
     return {
       ...state,
@@ -228,14 +241,30 @@ export default function App() {
                     type="button"
                     className="secondary"
                     onClick={() => {
-                      setState((s) => ({
-                        ...s,
-                        shared: {
-                          ...s.shared,
-                          startYear: "2026",
-                          taxInflation: "2.5",
-                        },
-                      }));
+                      setState((s) => {
+                        const s0 = s.scenarios[0];
+                        const nextScenarios = [...s.scenarios] as PlannerV2["scenarios"];
+                        if (
+                          Number(s0.stock) > 0 &&
+                          s0.grants.length === 0 &&
+                          s0.stockMode === "grants"
+                        ) {
+                          nextScenarios[0] = {
+                            ...s0,
+                            stockMode: "legacy",
+                            includeStock: true,
+                          };
+                        }
+                        return {
+                          ...s,
+                          scenarios: nextScenarios,
+                          shared: {
+                            ...s.shared,
+                            startYear: "2026",
+                            taxInflation: "2.5",
+                          },
+                        };
+                      });
                       setQuickMode(false);
                     }}
                   >

@@ -1,5 +1,5 @@
 import { retirementRules2026 } from "../data/retirementRules";
-import type { FilingStatus } from "./planner";
+import type { EmployerMatch, FilingStatus, MatchVestingType } from "./planner";
 
 export type RetirementOwner = "primary" | "spouse";
 export type RetirementAccountType =
@@ -232,5 +232,82 @@ export function iraEligibility(input: IraEligibilityInput): IraEligibility {
       ownWorkplaceCoverage === "unsure" ||
       (filing === "joint" && spouseWorkplaceCoverage === "unsure"),
   };
+}
+
+export const matchFormulaPresets = [
+  { label: "50% on first 6%", type: "simple" as const, rate: "50", payPercent: "6", cap: "0" },
+  { label: "100% on first 4%", type: "simple" as const, rate: "100", payPercent: "4", cap: "0" },
+  {
+    label: "100% on 3% + 50% on 2%",
+    type: "tiered" as const,
+    rate: "50",
+    payPercent: "5",
+    cap: "0",
+    tiers: [
+      { rate: "100", payPercent: "3" },
+      { rate: "50", payPercent: "2" },
+    ],
+  },
+  { label: "100% on first 6%", type: "simple" as const, rate: "100", payPercent: "6", cap: "0" },
+];
+
+export const matchVestingPresets: {
+  id: MatchVestingType;
+  label: string;
+  schedule: string[];
+}[] = [
+  { id: "immediate", label: "Immediate (100% from Day 1)", schedule: ["100"] },
+  { id: "cliff-1", label: "1-year cliff (100% after 1 year)", schedule: ["100"] },
+  { id: "cliff-2", label: "2-year cliff (100% after 2 years)", schedule: ["0", "100"] },
+  { id: "cliff-3", label: "3-year cliff (100% after 3 years)", schedule: ["0", "0", "100"] },
+  { id: "graded-3", label: "3-year graded (33% per year)", schedule: ["33", "67", "100"] },
+  { id: "graded-4", label: "4-year graded (25% per year)", schedule: ["25", "50", "75", "100"] },
+  { id: "graded-5", label: "5-year graded (20% per year)", schedule: ["20", "40", "60", "80", "100"] },
+  {
+    id: "graded-6",
+    label: "6-year graded (0% yr 1, then 20%/yr)",
+    schedule: ["0", "20", "40", "60", "80", "100"],
+  },
+  { id: "custom", label: "Custom percentage schedule", schedule: ["25", "50", "75", "100"] },
+];
+
+export function matchVestedPercent(
+  match: EmployerMatch | undefined,
+  completedYears: number,
+): number {
+  if (!match || match.vestingType === "immediate" || !match.vestingType) {
+    return 100;
+  }
+  if (completedYears <= 0) {
+    return 0;
+  }
+  const schedule =
+    match.vestingSchedule && match.vestingSchedule.length > 0
+      ? match.vestingSchedule
+      : matchVestingPresets.find((p) => p.id === match.vestingType)?.schedule ?? ["100"];
+  if (completedYears > schedule.length) {
+    return 100;
+  }
+  const raw = Number(schedule[completedYears - 1]);
+  return Number.isFinite(raw) ? Math.min(100, Math.max(0, raw)) : 100;
+}
+
+export function requiredEmployeeRateForFullMatch(
+  match: EmployerMatch | undefined,
+): number {
+  if (!match || match.type === "unsure" || match.type === "none") {
+    return 0;
+  }
+  if (match.type === "simple") {
+    return Math.min(100, Math.max(0, Number(match.payPercent) || 0));
+  }
+  if (match.type === "tiered" && Array.isArray(match.tiers)) {
+    const total = match.tiers.reduce(
+      (sum, tier) => sum + (Number(tier.payPercent) || 0),
+      0,
+    );
+    return Math.min(100, Math.max(0, total));
+  }
+  return 0;
 }
 

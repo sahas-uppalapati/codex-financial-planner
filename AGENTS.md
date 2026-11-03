@@ -18,6 +18,9 @@ CareerWorth is a private, browser-only career and compensation planner. It uses 
 
 ## Verification
 
+Do **not** run tests, builds, or E2E suites (`npm test`, `npm run build`, `npm run test:e2e`) during iterative development or after making intermediate edits. Run verification only when explicitly instructed or right before preparing a commit.
+
+When verification is requested:
 Run from the repository root with Node.js 22.12+ or Node 24 LTS:
 
 ```bash
