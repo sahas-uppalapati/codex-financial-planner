@@ -73,6 +73,21 @@ export const vestingTemplates: VestingTemplate[] = [
     ],
   },
   {
+    id: "amazon",
+    label: "Amazon-style · 5/15/45/35 semiannually",
+    source:
+      "https://www.levels.fyi/companies/amazon/salaries/software-engineer",
+    note: "Standard Amazon offer: 5% yr 1, 15% yr 2, 23%+22% yr 3, 18%+17% yr 4.",
+    schedule: [
+      row(12, 5),
+      row(24, 15),
+      row(30, 23),
+      row(36, 22),
+      row(42, 18),
+      row(48, 17),
+    ],
+  },
+  {
     id: "amazon-historical",
     label: "Amazon-style · 5/15/40/40 (historical)",
     source:

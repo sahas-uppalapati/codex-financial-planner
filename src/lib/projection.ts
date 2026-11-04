@@ -254,6 +254,8 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
     issuerId = s.employerId,
     annualBase = Number(s.base),
     annualBonus = Number(s.bonus),
+    signOnY1 = Math.max(0, Number(s.signOnY1) || 0),
+    signOnY2 = Math.max(0, Number(s.signOnY2) || 0),
     growth = Number(s.growth),
     roleStart = 0;
   let activeMatch = s.employerMatch;
@@ -317,8 +319,14 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         (annualBase *
           (1 + growth / 100) ** Math.floor((month - roleStart) / 12)) /
         12;
+      let monthlySignOn = 0;
+      if (year === 0 && within === 0) {
+        monthlySignOn = signOnY1;
+      } else if (year === 1) {
+        monthlySignOn = signOnY2 / 12;
+      }
       accruedBonus += annualBonus / 12;
-      const bonus = within === 11 ? accruedBonus : 0;
+      const bonus = (within === 11 ? accruedBonus : 0) + monthlySignOn;
       const spouseCash =
         s.taxProfile.filing === "joint"
           ? (Number(s.taxProfile.spouseWages) *

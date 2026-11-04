@@ -153,6 +153,8 @@ export interface ScenarioV2 extends Scenario {
   employerMatch: EmployerMatch;
   retirementProfiles: { primary: PersonRetirementProfile; spouse: PersonRetirementProfile };
   retirementTargets: { primary: RetirementTargets; spouse: RetirementTargets };
+  signOnY1?: string;
+  signOnY2?: string;
 }
 export interface AssumptionsV2 extends Assumptions {
   startYear: string;
@@ -264,6 +266,8 @@ export function upgradeScenario(
     employerMatch: defaultEmployerMatch(),
     retirementProfiles: { primary: profile(), spouse: profile() },
     retirementTargets: { primary: target(), spouse: target() },
+    signOnY1: s.signOnY1 ?? "0",
+    signOnY2: s.signOnY2 ?? "0",
   };
 }
 export function defaultPlanner(): PlannerV2 {
@@ -410,6 +414,8 @@ export function plannerScenarioErrors(
     const e = numberError(value, min, max, integer);
     if (e) errors[path] = e;
   };
+  if (s.signOnY1 !== undefined && s.signOnY1 !== "") check("signOnY1", s.signOnY1);
+  if (s.signOnY2 !== undefined && s.signOnY2 !== "") check("signOnY2", s.signOnY2);
   const text = (path: string, value: unknown) => {
     if (typeof value !== "string" || !value.trim() || value.length > 100)
       errors[path] = "Use 1–100 characters.";
