@@ -8,6 +8,7 @@ import {
   validPlanner,
 } from "./lib/planner";
 import { loadPlanner, savePlanner } from "./lib/plannerStorage";
+import { parsePlannerUrlParams, buildPlannerSearchString } from "./lib/plannerUrl";
 import { projectScenario } from "./lib/projection";
 import { ScenarioForm } from "./components/ScenarioForm";
 import { Field } from "./components/Field";
@@ -15,22 +16,43 @@ import { AutoDetails, NumberField, SelectField } from "./components/EditorFields
 import { Results } from "./components/Results";
 import { QuickEstimate } from "./components/QuickEstimate";
 import { locationPresets } from "./data/presets";
+import { templateSchedule } from "./data/vesting";
 import { RetirementGuide } from "./components/RetirementGuide";
 import { retirementAccountLabels } from "./lib/retirement";
 import type { RetirementAccountType } from "./lib/retirement";
 import { money } from "./lib/format";
 function initial() {
+  let loadedState: PlannerV2;
+  let message = "";
   try {
-    return loadPlanner(window.localStorage);
+    const res = loadPlanner(window.localStorage);
+    loadedState = res.state;
+    message = res.message;
   } catch {
-    return {
-      state: defaultPlanner(),
-      message: "Browser storage is unavailable. Your inputs will not be saved.",
-    };
+    loadedState = defaultPlanner();
+    message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
+
+  // Check URL parameters on initial load
+  try {
+    if (typeof window !== "undefined" && window.location.search) {
+      const urlParsed = parsePlannerUrlParams(window.location.search);
+      if (urlParsed.hasCustomParams) {
+        loadedState = urlParsed.applyTo(loadedState);
+      }
+    }
+  } catch {}
+
+  return { state: loadedState, message };
 }
 function initialMode(): boolean {
   try {
+    if (typeof window !== "undefined" && window.location.search) {
+      const urlParsed = parsePlannerUrlParams(window.location.search);
+      if (urlParsed.mode) {
+        return urlParsed.mode === "quick";
+      }
+    }
     return window.sessionStorage?.getItem("careerworth:mode") !== "detailed";
   } catch {
     return true;
@@ -54,6 +76,62 @@ export default function App() {
       } catch {}
       return next;
     });
+  };
+
+  const switchToQuick = () => {
+    setQuickMode(true);
+  };
+
+  const switchToDetailed = () => {
+    setState((s) => {
+      const s0 = s.scenarios[0];
+      const nextScenarios = [...s.scenarios] as PlannerV2["scenarios"];
+      if (
+        Number(s0.stock) > 0 &&
+        (!s0.grants || s0.grants.length === 0)
+      ) {
+        const grantValue = Number(s0.stock) * 4;
+        const issuerId = s0.employerId || uid();
+        nextScenarios[0] = {
+          ...s0,
+          employerId: issuerId,
+          issuers: s0.issuers.length > 0 ? s0.issuers : [{
+            id: issuerId,
+            name: s0.company || "Current employer",
+            price: "100",
+            appreciation: "0",
+            startingShares: "0",
+            startingBasis: "0",
+          }],
+          grants: [{
+            id: uid(),
+            name: "Initial grant",
+            issuerId,
+            employmentId: "initial",
+            month: `${s.shared.startYear || "2026"}-01`,
+            units: "dollars",
+            value: String(grantValue),
+            priceMode: "modeled",
+            grantPrice: "100",
+            schedule: templateSchedule("quarterly"),
+            template: "quarterly",
+            treatment: "sell",
+            keepOnDeparture: false,
+          }],
+          stockMode: "grants",
+        };
+      }
+      return {
+        ...s,
+        scenarios: nextScenarios,
+        shared: {
+          ...s.shared,
+          startYear: "2026",
+          taxInflation: "2.5",
+        },
+      };
+    });
+    setQuickMode(false);
   };
   const modeledState = useMemo<PlannerV2>(() => {
     if (!quickMode) return state;
@@ -161,6 +239,21 @@ export default function App() {
       );
     }
   }, [state, ready]);
+
+  // Sync URL bar parameters with current inputs so users can share directly from the top bar
+  useEffect(() => {
+    if (!ready || typeof window === "undefined") return;
+    const timer = setTimeout(() => {
+      try {
+        const search = buildPlannerSearchString(state, quickMode);
+        const newUrl = `${window.location.pathname}${search}${window.location.hash}`;
+        if (window.location.search !== search) {
+          window.history.replaceState(null, "", newUrl);
+        }
+      } catch {}
+    }, 250);
+    return () => clearTimeout(timer);
+  }, [state, quickMode, ready]);
   const shared = (key: keyof PlannerV2["shared"], value: string) =>
     setState((s) => ({ ...s, shared: { ...s.shared, [key]: value } }));
   const startingAccountTotal =
@@ -219,7 +312,26 @@ export default function App() {
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
             <div className="inputs-heading">
-              <h2>{quickMode ? "Quick estimate" : `Your scenario${state.comparison ? "s" : ""}`}</h2>
+              <div className="view-mode-toggle" role="tablist" aria-label="Calculator mode">
+                <button
+                  type="button"
+                  role="tab"
+                  className={`view-mode-pill ${quickMode ? "active" : ""}`}
+                  aria-selected={quickMode}
+                  onClick={switchToQuick}
+                >
+                  Quick Estimate
+                </button>
+                <button
+                  type="button"
+                  role="tab"
+                  className={`view-mode-pill ${!quickMode ? "active" : ""}`}
+                  aria-selected={!quickMode}
+                  onClick={switchToDetailed}
+                >
+                  Detailed View
+                </button>
+              </div>
               <span className="muted small-text">All amounts in USD</span>
             </div>
             {quickMode ? (
@@ -240,33 +352,7 @@ export default function App() {
                   <button
                     type="button"
                     className="secondary"
-                    onClick={() => {
-                      setState((s) => {
-                        const s0 = s.scenarios[0];
-                        const nextScenarios = [...s.scenarios] as PlannerV2["scenarios"];
-                        if (
-                          Number(s0.stock) > 0 &&
-                          s0.grants.length === 0 &&
-                          s0.stockMode === "grants"
-                        ) {
-                          nextScenarios[0] = {
-                            ...s0,
-                            stockMode: "legacy",
-                            includeStock: true,
-                          };
-                        }
-                        return {
-                          ...s,
-                          scenarios: nextScenarios,
-                          shared: {
-                            ...s.shared,
-                            startYear: "2026",
-                            taxInflation: "2.5",
-                          },
-                        };
-                      });
-                      setQuickMode(false);
-                    }}
+                    onClick={switchToDetailed}
                   >
                     Add more detail <span aria-hidden="true">→</span>
                   </button>
@@ -349,10 +435,10 @@ export default function App() {
               <div className="two-cols">
                 <Field
                   label="Starting taxable investments"
-                  unit="USD"
                   value={state.shared.starting}
                   onChange={(v) => shared("starting", v)}
                   error={errors.starting}
+                  hint="Taxable investments and liquid savings at start of projection (USD)."
                 />
                 <Field
                   label="Projection length"
@@ -390,7 +476,7 @@ export default function App() {
               ))}
               <button type="button" className="secondary small" disabled={state.shared.startingAccounts.length >= 40} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: [...current.shared.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] } }))}>Add account balance</button>
               {errors.startingAccounts && <p className="error">{errors.startingAccounts}</p>}
-              <p className="hint">Include balances from old employers. Starting spouse assets stay in the household total even when one comparison scenario uses single filing. These balances grow with zero new contributions. <a href="#starting-employer-shares">Edit starting employer shares</a> in the equity section; shares are counted once.</p>
+              <p className="hint">Include balances from past employers. <a href="#starting-employer-shares">Edit starting shares</a> in equity.</p>
               <AutoDetails
                 hasErrors={
                   !!(
@@ -439,19 +525,13 @@ export default function App() {
                     hint="Projects only indexed parameters of 2026 law. Fixed thresholds remain fixed; future legislation is not predicted."
                   />
                   <p className="hint">
-                    The investment return applies to taxable investments, 401(k)
-                    and HSA balances. Employer share appreciation is set
-                    separately. All returns represent unrealized appreciation;
-                    dividends, realized investment gains and withdrawals are not
-                    modeled.
+                    Applies to taxable, 401(k), and HSA balances. Employer stock appreciation is set separately.
                   </p>
                 </div>
               </AutoDetails>
             </section>
             <p className="example-note">
-              Default offers and promotion timing are illustrative, not verified
-              city averages or career predictions. Tax rules and reported
-              vesting templates have linked sources.
+              Planning estimates only. Sourced tax rules and compensation models.
             </p>
             <button type="button" className="text-button back-to-quick" onClick={() => setQuickMode(true)}>
               ← Back to quick estimate

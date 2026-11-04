@@ -30,6 +30,9 @@ export interface CompensationDataPoint {
   base: number;
   annualRsu: number;
   bonus: number;
+  signOnY1?: number;
+  signOnY2?: number;
+  grantTotal?: number;
 }
 
 export interface GrowthPreset {
@@ -85,7 +88,7 @@ export const techCompanies: CompanyPreset[] = [
     id: "amazon",
     name: "Amazon",
     ticker: "AMZN",
-    defaultVestingTemplate: "amazon-historical", // 5/15/40/40
+    defaultVestingTemplate: "amazon", // 5/15/45/35
     matchPolicy: {
       type: "percent_of_pay",
       rate: 50,
@@ -187,15 +190,15 @@ export const techCompensationTable: CompensationDataPoint[] = [
   { companyId: "meta", levelId: "e6", locationId: "new-york", base: 265000, annualRsu: 330000, bonus: 48000 },
 
   // Amazon - SF Bay Area
-  { companyId: "amazon", levelId: "l4", locationId: "san-francisco", base: 141000, annualRsu: 33000, bonus: 10000 },
-  { companyId: "amazon", levelId: "l5", locationId: "san-francisco", base: 178000, annualRsu: 92000, bonus: 12000 },
-  { companyId: "amazon", levelId: "l6", locationId: "san-francisco", base: 218000, annualRsu: 166000, bonus: 15000 },
-  { companyId: "amazon", levelId: "l7", locationId: "san-francisco", base: 260000, annualRsu: 280000, bonus: 20000 },
+  { companyId: "amazon", levelId: "l4", locationId: "san-francisco", base: 136000, annualRsu: 29000, bonus: 0, signOnY1: 58000, signOnY2: 36000, grantTotal: 116000 },
+  { companyId: "amazon", levelId: "l5", locationId: "san-francisco", base: 178000, annualRsu: 92000, bonus: 0, signOnY1: 50000, signOnY2: 30000 },
+  { companyId: "amazon", levelId: "l6", locationId: "san-francisco", base: 218000, annualRsu: 166000, bonus: 0, signOnY1: 60000, signOnY2: 40000 },
+  { companyId: "amazon", levelId: "l7", locationId: "san-francisco", base: 260000, annualRsu: 280000, bonus: 0, signOnY1: 70000, signOnY2: 50000 },
   // Amazon - Seattle
-  { companyId: "amazon", levelId: "l4", locationId: "seattle", base: 134000, annualRsu: 32000, bonus: 16000 },
-  { companyId: "amazon", levelId: "l5", locationId: "seattle", base: 173000, annualRsu: 92000, bonus: 10000 },
-  { companyId: "amazon", levelId: "l6", locationId: "seattle", base: 211000, annualRsu: 168000, bonus: 12000 },
-  { companyId: "amazon", levelId: "l7", locationId: "seattle", base: 255000, annualRsu: 275000, bonus: 18000 },
+  { companyId: "amazon", levelId: "l4", locationId: "seattle", base: 129000, annualRsu: 27000, bonus: 0, signOnY1: 54000, signOnY2: 33000, grantTotal: 109000 },
+  { companyId: "amazon", levelId: "l5", locationId: "seattle", base: 173000, annualRsu: 92000, bonus: 0, signOnY1: 50000, signOnY2: 30000 },
+  { companyId: "amazon", levelId: "l6", locationId: "seattle", base: 211000, annualRsu: 168000, bonus: 0, signOnY1: 60000, signOnY2: 40000 },
+  { companyId: "amazon", levelId: "l7", locationId: "seattle", base: 255000, annualRsu: 275000, bonus: 0, signOnY1: 70000, signOnY2: 50000 },
 
   // Apple - SF Bay Area
   { companyId: "apple", levelId: "ict2", locationId: "san-francisco", base: 149000, annualRsu: 27000, bonus: 8000 },
@@ -215,7 +218,7 @@ export const growthPresets: GrowthPreset[] = [
     id: "conservative",
     label: "Conservative Baseline",
     shortLabel: "Conservative",
-    icon: "🛡️",
+    icon: "",
     returns: 5,
     stockAppreciation: 0,
     inflation: 2.5,
@@ -225,7 +228,7 @@ export const growthPresets: GrowthPreset[] = [
     id: "moderate",
     label: "Moderate (S&P 500 Index)",
     shortLabel: "S&P Index",
-    icon: "📈",
+    icon: "",
     returns: 7,
     stockAppreciation: 5,
     inflation: 2.5,
@@ -235,7 +238,7 @@ export const growthPresets: GrowthPreset[] = [
     id: "bull",
     label: "Tech Bull Market",
     shortLabel: "Tech Bull",
-    icon: "🚀",
+    icon: "",
     returns: 10,
     stockAppreciation: 10,
     inflation: 2.5,
@@ -306,6 +309,9 @@ export function findTechCompPoint(
       base: Math.round(sfBaseline.base * geoMultiplier),
       annualRsu: Math.round(sfBaseline.annualRsu * geoMultiplier),
       bonus: Math.round(sfBaseline.bonus * geoMultiplier),
+      signOnY1: sfBaseline.signOnY1 ? Math.round(sfBaseline.signOnY1 * geoMultiplier) : undefined,
+      signOnY2: sfBaseline.signOnY2 ? Math.round(sfBaseline.signOnY2 * geoMultiplier) : undefined,
+      grantTotal: sfBaseline.grantTotal ? Math.round(sfBaseline.grantTotal * geoMultiplier) : undefined,
     };
   }
 

@@ -4,6 +4,9 @@ import { readFile } from "node:fs/promises";
 import { defaultState } from "../src/lib/model";
 
 async function openDetailed(page: Page) {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("careerworth:mode", "detailed");
+  });
   const button = page.getByRole("button", { name: /Add more detail/ });
   if (await button.isVisible()) {
     await button.click();
@@ -11,13 +14,16 @@ async function openDetailed(page: Page) {
 }
 
 test.beforeEach(async ({ page }) => {
-  await page.goto("/");
   await openDetailed(page);
+  await page.goto("/");
 });
 
 test("quick estimate mode defaults, inputs, assumptions and transitions", async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    window.sessionStorage.setItem("careerworth:mode", "quick");
+  });
   await page.goto("/");
   const back = page.getByRole("button", { name: /Back to quick estimate/ });
   if (await back.isVisible()) {
@@ -26,32 +32,27 @@ test("quick estimate mode defaults, inputs, assumptions and transitions", async 
   await expect(
     page.getByRole("heading", { name: "Get a quick view of your financial future" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("100000");
-  await expect(page.getByLabel("Monthly living costs")).toHaveValue("3000");
+  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("241000");
+  await expect(page.getByLabel("Monthly living costs")).toHaveValue("4500");
   await expect(page.getByLabel("Current invested savings")).toHaveValue("20000");
   await expect(page.getByLabel("Years to project")).toHaveValue("10");
-  await expect(page.getByTestId("take-home-0")).toHaveText("$6,197");
-  await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
+  await expect(page.getByTestId("quick-tc-0")).toContainText("$544,520");
+  await expect(page.getByTestId("quick-expenses-0")).toContainText("$54,000");
 
   // Edit quick input
-  await page.getByLabel("Annual salary before tax").fill("120000");
-  await expect(page.getByTestId("take-home-0")).toHaveText("$7,282");
-
-  // Open assumptions drawer
-  await page.locator("summary").filter({ hasText: /^Assumptions:/ }).click();
-  await page.getByLabel("Filing status").selectOption("joint");
-  await page.getByLabel("Spouse annual salary").fill("50000");
+  await page.getByLabel("Annual salary before tax").fill("260000");
+  await expect(page.getByTestId("quick-tc-0")).toContainText("$563,520");
 
   // Transition to detailed view
   await page.getByRole("button", { name: "Add more detail" }).click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("120000");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("260000");
   await expect(
     page.getByRole("button", { name: "← Back to quick estimate" }),
   ).toBeVisible();
 
   // Return to quick view
   await page.getByRole("button", { name: "← Back to quick estimate" }).click();
-  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("120000");
+  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("260000");
 });
 test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   page,

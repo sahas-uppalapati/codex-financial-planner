@@ -60,7 +60,7 @@ export function Results({
         <div className="quick-read-heading">
           <div>
             <p className="eyebrow">AT A GLANCE</p>
-            <h2 id="quick-read-heading">Your monthly picture</h2>
+            <h2 id="quick-read-heading">Your summary</h2>
           </div>
           <span className="period-tag">
             {series[0].projection.rows[activeYear].calendarYear}
@@ -71,22 +71,81 @@ export function Results({
             const row = s.projection.rows[activeYear];
             return (
               <article className="quick-read-card" key={s.index}>
-                <h3>
-                  {series.length > 1 && <i className={`dot series-${s.index}`} />}
-                  {s.name}
-                </h3>
-                <p className={`quick-surplus ${row.surplus < 0 ? "negative" : "positive"}`}>
-                  {money(row.surplus / 12)}<span> / month</span>
-                </p>
-                <div className="quick-read-details">
-                  <span>Take-home <strong>{money(row.takeHome / 12)}</strong></span>
-                  <span>Living costs <strong>{money(row.expenses / 12)}</strong></span>
+                {series.length > 1 && (
+                  <h3>
+                    <i className={`dot series-${s.index}`} />
+                    {s.name}
+                  </h3>
+                )}
+                <div className="quick-metrics-row">
+                  <div
+                    className="quick-metric-box"
+                    title={`Base: ${money(row.base)} · Stock: ${money(row.stockGross)}${row.bonus > 0 ? ` · Bonus / Sign-on: ${money(row.bonus)}` : ""}`}
+                  >
+                    <span className="quick-metric-label">
+                      <span className="quick-metric-title">Total Comp (TC)</span>
+                    </span>
+                    <strong className="quick-metric-val" data-testid={`quick-tc-${s.index}`}>
+                      {money(row.grossIncome)}<span className="unit">/ yr</span>
+                    </strong>
+                    <span className="quick-metric-sub">{money(row.grossIncome / 12)} / mo</span>
+                  </div>
+
+                  <div
+                    className="quick-metric-box"
+                    title="Estimated for your location. Includes housing, food, transportation, healthcare and other spending."
+                  >
+                    <span className="quick-metric-label">
+                      <span className="quick-metric-title">Living Costs</span>
+                    </span>
+                    <strong className="quick-metric-val" data-testid={`quick-expenses-${s.index}`}>
+                      {money(row.expenses)}<span className="unit">/ yr</span>
+                    </strong>
+                    <span className="quick-metric-sub">{money(row.expenses / 12)} / mo</span>
+                  </div>
+
+                  {(() => {
+                    const retirementSaved =
+                      (row.retirementContribution || 0) +
+                      (row.roth401kContribution || 0) +
+                      (row.employerMatch || 0) +
+                      (row.hsaContribution || 0) +
+                      (row.traditionalIraContribution || 0) +
+                      (row.rothIraContribution || 0) +
+                      (row.megaBackdoorContribution || 0);
+                    const totalAnnualSaved = row.surplus + retirementSaved;
+                    const hasPretax = retirementSaved > 0;
+
+                    const titleBreakdown = hasPretax
+                      ? `Total Saved: ${money(totalAnnualSaved)}/yr (Cash: ${money(row.surplus)} · 401(k): ${money((row.retirementContribution || 0) + (row.roth401kContribution || 0))} · Match: ${money(row.employerMatch || 0)}${row.hsaContribution > 0 ? ` · HSA: ${money(row.hsaContribution)}` : ""})`
+                      : "Net cash savings after modeled taxes, payroll benefits and living costs.";
+
+                    return (
+                      <div className="quick-metric-box highlight" title={titleBreakdown}>
+                        <span className="quick-metric-label">
+                          <span className="quick-metric-title">
+                            {hasPretax ? "Total Saved (Cash + 401k)" : "Saved Each Year"}
+                          </span>
+                        </span>
+                        <strong
+                          className={`quick-metric-val ${totalAnnualSaved < 0 ? "negative" : "positive"}`}
+                          data-testid={`quick-savings-${s.index}`}
+                        >
+                          {totalAnnualSaved >= 0 ? "+" : ""}{money(totalAnnualSaved)}<span className="unit">/ yr</span>
+                        </strong>
+                        <span className="quick-metric-sub">
+                          {hasPretax
+                            ? `${money(row.surplus)} cash · ${money(retirementSaved)} 401(k)/match`
+                            : `${money(row.surplus / 12)} / mo`}
+                        </span>
+                      </div>
+                    );
+                  })()}
                 </div>
               </article>
             );
           })}
         </div>
-        <p className="hint">Cash savings after modeled taxes, payroll benefits and living costs. Equity and retirement contributions are tracked separately.</p>
       </section>
       {quickMode && (
         <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />
@@ -142,12 +201,14 @@ export function Results({
             Monthly cash flows · vested assets only
           </span>
         </div>
-        <div className="insight" role="status">
-          <span className="insight-icon" aria-hidden="true">
-            ↗
-          </span>
-          <p>{insight}</p>
-        </div>
+        {(!quickMode || series.length === 2) && (
+          <div className="insight" role="status">
+            <span className="insight-icon" aria-hidden="true">
+              ↗
+            </span>
+            <p>{insight}</p>
+          </div>
+        )}
         {series.some((s) =>
           s.projection.months.some((m) => m.balances.taxable < 0),
         ) && (
@@ -158,11 +219,12 @@ export function Results({
           </p>
         )}
       </section>
-      <details
-        className="more-results"
-        open={detailsExpanded}
-        onToggle={(e) => setDetailsExpanded(e.currentTarget.open)}
-      >
+      {!quickMode && (
+        <details
+          className="more-results"
+          open={detailsExpanded}
+          onToggle={(e) => setDetailsExpanded(e.currentTarget.open)}
+        >
         <summary>
           Explore detailed results{" "}
           <span className="optional">Account, tax and monthly breakdowns</span>
@@ -735,6 +797,7 @@ export function Results({
       )}
       </div>
       </details>
+      )}
     </div>
   );
 }
