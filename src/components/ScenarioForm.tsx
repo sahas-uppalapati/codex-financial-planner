@@ -302,18 +302,18 @@ export function ScenarioForm({
       )}
       <Field
         label="Annual base salary"
-        unit="USD / year"
         value={s.base}
         onChange={(v) => set("base", v)}
         error={errors.base}
+        hint="Annual base pay before taxes (USD / year)."
       />
       <div className="two-cols">
         <Field
           label="Recurring cash bonus"
-          unit="USD / year"
           value={s.bonus}
           onChange={(v) => set("bonus", v)}
           error={errors.bonus}
+          hint="Annual performance or cash bonus (USD / year)."
         />
         <Field
           label="Annual salary growth"
@@ -323,15 +323,31 @@ export function ScenarioForm({
           error={errors.growth}
         />
       </div>
+      <div className="two-cols">
+        <Field
+          label="Year 1 sign-on bonus"
+          value={s.signOnY1 ?? "0"}
+          onChange={(v) => set("signOnY1", v)}
+          error={errors.signOnY1}
+          hint="First-year cash sign-on bonus (USD in Year 1)."
+        />
+        <Field
+          label="Year 2 sign-on bonus"
+          value={s.signOnY2 ?? "0"}
+          onChange={(v) => set("signOnY2", v)}
+          error={errors.signOnY2}
+          hint="Second-year cash sign-on bonus (USD in Year 2, common at Amazon)."
+        />
+      </div>
       <div className="comp-total">
-        <span>Annual cash compensation</span>
+        <span>Year 1 cash compensation</span>
         <strong>
-          {totalValid ? money(Number(s.base) + Number(s.bonus)) : "—"}
+          {totalValid ? money(Number(s.base) + Number(s.bonus) + (Number(s.signOnY1) || 0)) : "—"}
         </strong>
       </div>
       {applied && (
         <p className="hint">
-          Reported annualized stock reference: {money(applied.stock)}. The preset models an estimated four-year grant of {money(applied.stock * applied.stockGrantMultiplier)} using {applied.vestingTemplate} vesting; this is an estimate, not a disclosed individual grant.
+          Reported stock reference: {money(applied.stock)} ({applied.vestingTemplate} vesting).
         </p>
       )}
       <div className="section-label">
@@ -387,7 +403,6 @@ export function ScenarioForm({
       )}
       <Field
         label="Monthly living expenses"
-        unit="USD / month"
         value={expenseDraft}
         onChange={setTotal}
         error={
@@ -397,31 +412,24 @@ export function ScenarioForm({
             ? "Check the expense breakdown below."
             : undefined)
         }
+        hint="Total estimated monthly living expenses (USD / month)."
       />
       <AutoDetails hasErrors={categoryKeys.some((k) => !!errors[k])}>
         <summary>Expense breakdown</summary>
         <div className="details-body">
           <p className="hint">
-            Edit categories individually. Changing the total redistributes the
-            budget proportionally.
+            Edit individual categories below, or edit the total above to scale proportionally.
           </p>
           {categoryKeys.map((k) => (
             <Field
               key={k}
               label={categoryLabels[k]}
-              unit="USD / month"
               value={s.expenses[k]}
               onChange={(v) => setCategory(k, v)}
               error={errors[k]}
+              hint={`${categoryLabels[k]} spending (USD / month).`}
             />
           ))}
-          <p className="hint">
-            Housing includes rent, utilities, internet and mobile. Other
-            includes civic engagement and other necessities in sourced budgets;
-            add discretionary spending for your lifestyle. Healthcare includes
-            payroll premiums; these are offset once in results. Income taxes and
-            savings are excluded.
-          </p>
         </div>
       </AutoDetails>
       <TaxEditor s={s} a={a} onChange={onChange} />

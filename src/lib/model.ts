@@ -22,6 +22,8 @@ export interface Scenario {
   appliedCompensation: string | null;
   location: string;
   appliedLocation: string | null;
+  signOnY1?: string;
+  signOnY2?: string;
 }
 export interface Assumptions {
   starting: string;

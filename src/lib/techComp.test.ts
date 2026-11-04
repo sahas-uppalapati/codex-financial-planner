@@ -25,6 +25,23 @@ describe("techComp calculations", () => {
     expect(result[3]).toEqual({ year: 4, percent: 40, value: 160000 });
   });
 
+  it("computes accurate 4-year vesting schedule for Amazon current 5/15/45/35 offer", () => {
+    const amazonSchedule = [
+      { month: "12", percent: "5" },
+      { month: "24", percent: "15" },
+      { month: "30", percent: "23" },
+      { month: "36", percent: "22" },
+      { month: "42", percent: "18" },
+      { month: "48", percent: "17" },
+    ];
+    const result = computeVestingSchedule(27250, amazonSchedule, 109000);
+    expect(result).toHaveLength(4);
+    expect(result[0]).toEqual({ year: 1, percent: 5, value: 5450 });
+    expect(result[1]).toEqual({ year: 2, percent: 15, value: 16350 });
+    expect(result[2]).toEqual({ year: 3, percent: 45, value: 49050 });
+    expect(result[3]).toEqual({ year: 4, percent: 35, value: 38150 });
+  });
+
   it("computes default even 25% schedule when no grant is provided", () => {
     const result = computeVestingSchedule(100000);
     expect(result[0]).toEqual({ year: 1, percent: 25, value: 100000 });

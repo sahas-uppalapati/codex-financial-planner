@@ -7,13 +7,11 @@ import {
   growthPresets,
   housingPresets,
   findTechCompPoint,
-  getTechProgressionTimeline,
   buildTechProgressionEvents,
 } from "../data/techCompPresets";
 import type { GrowthPreset } from "../data/techCompPresets";
 import { templateSchedule } from "../data/vesting";
 import { uid } from "../lib/planner";
-import { money } from "../lib/format";
 
 interface TechEstimatorHeroProps {
   scenario: ScenarioV2;
@@ -28,18 +26,28 @@ export function TechEstimatorHero({
   onScenarioChange,
   onAssumptionsChange,
 }: TechEstimatorHeroProps) {
-  // Infer selected company if present in scenario, otherwise unset
-  const initialCompany =
-    techCompanies.find((c) =>
+  // Check if an actual tech preset is already applied (legacy default "Columbus offer" has company: "Meta" from model.ts)
+  const isPresetApplied =
+    scenario.name !== "Columbus offer" &&
+    techCompanies.some((c) =>
       scenario.role?.toLowerCase().includes(c.name.toLowerCase()) ||
       scenario.name?.toLowerCase().includes(c.name.toLowerCase()) ||
       scenario.issuers?.some((i) => i.name.toLowerCase().includes(c.name.toLowerCase())),
-    )?.id;
+    );
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(initialCompany ?? "");
+  const initialCompany = isPresetApplied
+    ? techCompanies.find((c) =>
+        scenario.role?.toLowerCase().includes(c.name.toLowerCase()) ||
+        scenario.name?.toLowerCase().includes(c.name.toLowerCase()) ||
+        scenario.company?.toLowerCase() === c.name.toLowerCase() ||
+        scenario.issuers?.some((i) => i.name.toLowerCase().includes(c.name.toLowerCase())),
+      )?.id
+    : undefined;
+
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(initialCompany || "google");
   const [selectedLevelId, setSelectedLevelId] = useState<string>(() => {
-    if (!initialCompany) return "";
-    const levels = techLevels[initialCompany] ?? techLevels.google;
+    const compId = initialCompany || "google";
+    const levels = techLevels[compId] ?? techLevels.google;
     const matched = levels.find((l) =>
       scenario.name?.toLowerCase().includes(l.level.toLowerCase()) ||
       scenario.role?.toLowerCase().includes(l.title.toLowerCase()),
@@ -57,8 +65,10 @@ export function TechEstimatorHero({
       )?.id || levels[2]?.id || levels[0]?.id || "l5";
       setSelectedLevelId(matchedLvl);
     } else {
-      setSelectedCompanyId("");
-      setSelectedLevelId("");
+      setSelectedCompanyId("google");
+      setSelectedLevelId("l5");
+      const defaultLoc = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
+      applyTechPreset("google", "l5", defaultLoc, scenario.taxProfile.filing, activeGrowthId, true);
     }
   }, [scenario.name, scenario.role, initialCompany]);
 
@@ -89,25 +99,19 @@ export function TechEstimatorHero({
   }
 
   function handleLocationChange(locationId: TaxLocation) {
-    if (selectedCompanyId) {
-      applyTechPreset(selectedCompanyId, selectedLevelId || "l5", locationId, selectedFiling, activeGrowthId, includeProgression);
-    } else {
-      onScenarioChange({
-        ...scenario,
-        taxProfile: { ...scenario.taxProfile, location: locationId },
-      });
-    }
+    const companyId = selectedCompanyId || "google";
+    const levelId = selectedLevelId || "l5";
+    setSelectedCompanyId(companyId);
+    setSelectedLevelId(levelId);
+    applyTechPreset(companyId, levelId, locationId, selectedFiling, activeGrowthId, includeProgression);
   }
 
   function handleFilingChange(filing: "single" | "joint") {
-    if (selectedCompanyId) {
-      applyTechPreset(selectedCompanyId, selectedLevelId || "l5", selectedLocationId, filing, activeGrowthId, includeProgression);
-    } else {
-      onScenarioChange({
-        ...scenario,
-        taxProfile: { ...scenario.taxProfile, filing },
-      });
-    }
+    const companyId = selectedCompanyId || "google";
+    const levelId = selectedLevelId || "l5";
+    setSelectedCompanyId(companyId);
+    setSelectedLevelId(levelId);
+    applyTechPreset(companyId, levelId, selectedLocationId, filing, activeGrowthId, includeProgression);
   }
 
   function handleProgressionToggle(enabled: boolean) {
@@ -159,7 +163,7 @@ export function TechEstimatorHero({
     const issuerId = scenario.employerId || uid();
     const grantId = uid();
     const vestingTemplate = company.defaultVestingTemplate;
-    const fourYearGrantValue = comp.annualRsu * 4;
+    const fourYearGrantValue = comp.grantTotal ?? (comp.annualRsu * 4);
 
     const newIssuer = {
       id: issuerId,
@@ -209,6 +213,8 @@ export function TechEstimatorHero({
       base: String(comp.base),
       bonus: String(comp.bonus),
       stock: String(comp.annualRsu),
+      signOnY1: String(comp.signOnY1 ?? 0),
+      signOnY2: String(comp.signOnY2 ?? 0),
       stockMode: "grants",
       includeStock: comp.annualRsu > 0,
       issuers: [newIssuer],
@@ -248,29 +254,13 @@ export function TechEstimatorHero({
   const currentLevels = techLevels[selectedCompanyId] || techLevels.google;
   const selectedCompany = techCompanies.find((c) => c.id === selectedCompanyId) || techCompanies[0];
   const selectedLocation = taxLocations.find((l) => l.id === selectedLocationId) || taxLocations[0];
-  const progressionSteps = getTechProgressionTimeline(
-    selectedCompanyId,
-    selectedLevelId,
-    selectedLocationId,
-    Number(assumptions.startYear) || 2026,
-    Number(assumptions.years) || 10,
-  );
 
   return (
-    <div className="tech-estimator-hero" aria-label="1-Click Big Tech Preset Selector">
-      <div className="hero-section-header">
-        <span className="hero-badge">⚡ 1-Click Tech Estimator</span>
-        <p className="hero-subtitle">
-          Select your employer, level, and location to estimate cash flow, RSU liquidity, and tax realities.
-        </p>
-      </div>
-
+    <div className="tech-estimator-hero" aria-label="Big Tech Preset Selector">
       <div className="hero-selector-grid">
         {/* Company Selector */}
         <div className="hero-control-group">
-          <label htmlFor="tech-company-select" className="hero-label">
-            Company
-          </label>
+          <label className="hero-label">Company</label>
           <div className="pill-selector" role="group" aria-label="Big Tech Company">
             {techCompanies.map((c) => (
               <button
@@ -288,9 +278,7 @@ export function TechEstimatorHero({
 
         {/* Level Selector */}
         <div className="hero-control-group">
-          <label htmlFor="tech-level-select" className="hero-label">
-            Level
-          </label>
+          <label className="hero-label">Level</label>
           <div className="pill-selector" role="group" aria-label="Job Level">
             {currentLevels.map((lvl) => (
               <button
@@ -349,104 +337,39 @@ export function TechEstimatorHero({
           </div>
         </div>
 
-        {/* Career Progression & Promotion Timeline */}
-        <div className="hero-control-group hero-full-width hero-progression-card">
-          <div className="progression-card-header">
-            <div className="progression-header-text">
-              <span className="progression-eyebrow">Career Ladder & Progression</span>
-              <strong className="progression-title">
-                {selectedCompany.name} Promotion Progression
-              </strong>
-              <span className="progression-desc">
-                Modeled on typical {selectedCompany.name} promotion timelines for {selectedLocation.label}.
-              </span>
-            </div>
-            <label className="progression-toggle" htmlFor="progression-model-toggle">
-              <input
-                id="progression-model-toggle"
-                type="checkbox"
-                checked={includeProgression}
-                onChange={(e) => handleProgressionToggle(e.target.checked)}
-              />
-              <span className="toggle-text">Model promotions in forecast</span>
-            </label>
-          </div>
-
-          <div className={`progression-steps-container ${!includeProgression ? "dimmed" : ""}`}>
-            {progressionSteps.map((step) => (
-              <div
-                key={step.levelId}
-                className={`progression-step-item ${step.isCurrent ? "current" : "future"}`}
-              >
-                <div className="step-badge-row">
-                  <span className={`step-badge ${step.isCurrent ? "current" : ""}`}>
-                    {step.isCurrent ? "Starting Level" : `+${step.yearsFromPrev} yr${step.yearsFromPrev === 1 ? "" : "s"} (${step.monthLabel})`}
-                  </span>
-                  {step.compDelta > 0 && (
-                    <span className="step-delta-pill">
-                      +{money(step.compDelta)}
-                    </span>
-                  )}
-                </div>
-                <div className="step-level-row">
-                  <strong className="step-level-name">{step.levelName}</strong>
-                  <span className="step-title-text">{step.title.split(" · ")[1] || step.title}</span>
-                </div>
-                <div className="step-tc-row">
-                  <strong className="step-tc-num">{money(step.totalComp)}</strong>
-                  <span className="step-tc-unit">/ yr TC</span>
-                </div>
-                <div className="step-comp-sub">
-                  <span>Base: {money(step.base)}</span>
-                  <span className="dot-sep">·</span>
-                  <span>RSU: {money(step.annualRsu)}</span>
-                  {step.bonus > 0 && (
-                    <>
-                      <span className="dot-sep">·</span>
-                      <span>Bonus: {money(step.bonus)}</span>
-                    </>
-                  )}
-                </div>
-              </div>
-            ))}
-
-            {progressionSteps.length === 1 && (
-              <div className="terminal-level-notice">
-                <span className="terminal-icon" aria-hidden="true">⭐</span>
-                <p>
-                  <strong>{selectedLevelId.toUpperCase()} is the terminal level in this track.</strong> Multi-year projections model steady Senior/Staff compensation with annual merit growth.
-                </p>
-              </div>
-            )}
-          </div>
-
-          {!includeProgression && progressionSteps.length > 1 && (
-            <p className="progression-paused-note">
-              ⚠️ Modeled promotions are currently paused. Enable the toggle above to include regular promotion salary increases and equity awards in your projection.
-            </p>
-          )}
-        </div>
-
         {/* Growth Outlook */}
-        <div className="hero-control-group hero-full-width">
+        <div className="hero-control-group">
           <label className="hero-label">Market Outlook</label>
-          <div className="growth-presets-row" role="group" aria-label="Growth Presets">
+          <div className="pill-selector" role="group" aria-label="Market Outlook">
             {growthPresets.map((g) => (
               <button
                 key={g.id}
                 type="button"
-                className={`growth-preset-card ${activeGrowthId === g.id ? "active" : ""}`}
+                className={`pill-btn ${activeGrowthId === g.id ? "active" : ""}`}
                 aria-pressed={activeGrowthId === g.id}
                 onClick={() => handleGrowthChange(g.id)}
+                title={g.description}
               >
-                <div className="growth-card-top">
-                  <span className="growth-icon">{g.icon}</span>
-                  <strong className="growth-label">{g.shortLabel}</strong>
-                </div>
-                <span className="growth-sub">{g.description}</span>
+                {g.shortLabel}
               </button>
             ))}
           </div>
+        </div>
+
+        {/* Career Progression Toggle - One-line checkmark */}
+        <div className="hero-control-group hero-full-width">
+          <label className="progression-checkbox-label" htmlFor="progression-model-toggle">
+            <input
+              id="progression-model-toggle"
+              type="checkbox"
+              checked={includeProgression}
+              onChange={(e) => handleProgressionToggle(e.target.checked)}
+              title={`Typical ${selectedCompany.name} promotion timeline and compensation progression for ${selectedLocation.label}.`}
+            />
+            <span className="progression-label-text">
+              Model {selectedCompany.name} promotions in forecast
+            </span>
+          </label>
         </div>
       </div>
     </div>

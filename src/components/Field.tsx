@@ -21,7 +21,7 @@ export function Field({
   return (
     <div className="field">
       <label htmlFor={id}>
-        {label}
+        <span className="field-label-text">{label}</span>
         {unit && <span className="unit-label">{unit}</span>}
       </label>
       <div className={`input-wrap ${error ? "invalid" : ""}`}>
@@ -32,14 +32,19 @@ export function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={!!error}
-          aria-describedby={error || hint ? `${id}-help` : undefined}
+          aria-describedby={error ? `${id}-error` : hint ? `${id}-help` : undefined}
           autoComplete="off"
           spellCheck={false}
         />
+        {hint && (
+          <span id={`${id}-help`} className="input-tooltip-bubble" role="tooltip">
+            {hint}
+          </span>
+        )}
       </div>
-      {(error || hint) && (
-        <p id={`${id}-help`} className={error ? "error" : "hint"}>
-          {error || hint}
+      {error && (
+        <p id={`${id}-error`} className="error" role="alert">
+          {error}
         </p>
       )}
     </div>

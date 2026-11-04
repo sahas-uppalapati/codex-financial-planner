@@ -43,16 +43,25 @@ export function TechRealityCard({ scenario, assumptions: _assumptions }: TechRea
   const totalGrantValue = Number(primaryGrant?.value) || annualRsu * 4;
   const vestingYears = computeVestingSchedule(annualRsu, grantSchedule, totalGrantValue);
 
+  const signOnY1 = Number(scenario.signOnY1) || 0;
+  const signOnY2 = Number(scenario.signOnY2) || 0;
+  const totalSignOn = signOnY1 + signOnY2;
+
   const rentPct = Math.round(reality.rentToTakeHomeRatio * 100);
 
   return (
     <details className="tech-breakdown-details" aria-label="Equity vesting and tech compensation details">
       <summary className="tech-breakdown-summary">
         <div className="summary-left">
-          <span className="summary-icon">⚡</span>
           <span className="summary-title">Tech Details</span>
           <span className="summary-chips">
             {annualRsu > 0 && <span>4-Yr RSUs: {money(totalGrantValue)}</span>}
+            {totalSignOn > 0 && (
+              <>
+                <span className="dot-sep">·</span>
+                <span>Sign-on: {money(totalSignOn)}</span>
+              </>
+            )}
             <span className="dot-sep">·</span>
             <span>Rent: {rentPct}% of base</span>
             {reality.annualSurpriseTaxBill > 500 && (
@@ -63,7 +72,6 @@ export function TechRealityCard({ scenario, assumptions: _assumptions }: TechRea
             )}
           </span>
         </div>
-        <span className="summary-action">View details ▾</span>
       </summary>
 
       <div className="tech-breakdown-body">
@@ -75,13 +83,19 @@ export function TechRealityCard({ scenario, assumptions: _assumptions }: TechRea
               <span className="hint">Total Grant: {money(totalGrantValue)} over 48 months</span>
             </div>
             <div className="condensed-vesting-grid">
-              {vestingYears.map((v) => (
-                <div className="condensed-vesting-col" key={v.year}>
-                  <span className="col-year">Year {v.year}</span>
-                  <strong className="col-value">{money(v.value)}</strong>
-                  <span className="col-pct">{v.percent}%</span>
-                </div>
-              ))}
+              {vestingYears.map((v) => {
+                const yearSignOn = v.year === 1 ? signOnY1 : v.year === 2 ? signOnY2 : 0;
+                return (
+                  <div className="condensed-vesting-col" key={v.year}>
+                    <span className="col-year">Year {v.year}</span>
+                    <strong className="col-value">{money(v.value)}</strong>
+                    <span className="col-pct">{v.percent}%</span>
+                    {yearSignOn > 0 && (
+                      <span className="col-signon">+{money(yearSignOn)} sign-on</span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -109,7 +123,6 @@ export function TechRealityCard({ scenario, assumptions: _assumptions }: TechRea
         {reality.annualSurpriseTaxBill > 500 && (
           <div className="condensed-tax-alert">
             <div className="alert-top">
-              <span className="alert-icon">⚠️</span>
               <strong>April Tax Gap Check: Supplemental Underwithholding</strong>
             </div>
             <p>
