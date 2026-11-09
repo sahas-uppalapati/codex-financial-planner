@@ -58,6 +58,7 @@ export function loadPlanner(storage: StorageLike): {
         state.scenarios = state.scenarios.map((scenario, index) => ({
           ...scenario,
           employerMatch: scenario.employerMatch ? { ...defaults.scenarios[index].employerMatch, ...scenario.employerMatch } : defaults.scenarios[index].employerMatch,
+          spouseEmployerMatch: scenario.spouseEmployerMatch ? { ...defaults.scenarios[index].spouseEmployerMatch, ...scenario.spouseEmployerMatch } : defaults.scenarios[index].spouseEmployerMatch,
           retirementProfiles: scenario.retirementProfiles ?? defaults.scenarios[index].retirementProfiles,
           retirementTargets: scenario.retirementTargets ? {
             primary: { ...defaults.scenarios[index].retirementTargets.primary, ...scenario.retirementTargets.primary },

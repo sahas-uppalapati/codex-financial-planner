@@ -16,6 +16,7 @@ export const VALID_LOCATIONS = new Set<TaxLocation>([
 export function parsePlannerUrlParams(search: string): {
   mode?: "quick" | "detailed";
   hasCustomParams: boolean;
+  valid: boolean;
   applyTo: (base: PlannerV2) => PlannerV2;
 } {
   const params = new URLSearchParams(search);
@@ -39,6 +40,7 @@ export function parsePlannerUrlParams(search: string): {
   const matchPayPercent = params.get("match_percent");
 
   const hasParams = Boolean(
+    params.get("share") === "1" ||
     salary !== null ||
     bonus !== null ||
     stock !== null ||
@@ -128,7 +130,12 @@ export function parsePlannerUrlParams(search: string): {
     };
   };
 
-  return { mode, hasCustomParams: hasParams, applyTo };
+  const numbers = [salary, bonus, stock, expenses, growth, spouseSalary, savings, years, returns, inflation, matchRate, matchPayPercent];
+  const valid = numbers.every((value) => value === null || (value.trim() !== "" && Number.isFinite(Number(value)))) &&
+    (location === null || VALID_LOCATIONS.has(location as TaxLocation)) &&
+    (filing === null || filing === "single" || filing === "joint") &&
+    (params.get("mode") === null || mode !== undefined);
+  return { mode, hasCustomParams: hasParams, valid, applyTo };
 }
 
 /**
@@ -144,9 +151,8 @@ export function buildPlannerSearchString(
   const defaultS0 = defaults.scenarios[0];
   const defaultShared = defaults.shared;
 
-  if (!quickMode) {
-    params.set("mode", "detailed");
-  }
+  params.set("share", "1");
+  params.set("mode", quickMode ? "quick" : "detailed");
 
   // Monthly expenses total
   const monthlyExpenses =

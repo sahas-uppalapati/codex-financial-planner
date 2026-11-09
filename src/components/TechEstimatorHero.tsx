@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { AssumptionsV2, ScenarioV2, TaxLocation } from "../lib/planner";
 import { taxLocations } from "../lib/planner";
 import {
@@ -14,6 +14,7 @@ import { templateSchedule } from "../data/vesting";
 import { uid } from "../lib/planner";
 
 interface TechEstimatorHeroProps {
+  allowInitialPreset: boolean;
   scenario: ScenarioV2;
   assumptions: AssumptionsV2;
   onScenarioChange: (scenario: ScenarioV2) => void;
@@ -21,11 +22,13 @@ interface TechEstimatorHeroProps {
 }
 
 export function TechEstimatorHero({
+  allowInitialPreset,
   scenario,
   assumptions,
   onScenarioChange,
   onAssumptionsChange,
 }: TechEstimatorHeroProps) {
+  const initialized = useRef(false);
   // Check if an actual tech preset is already applied (legacy default "Columbus offer" has company: "Meta" from model.ts)
   const isPresetApplied =
     scenario.name !== "Columbus offer" &&
@@ -67,9 +70,12 @@ export function TechEstimatorHero({
     } else {
       setSelectedCompanyId("google");
       setSelectedLevelId("l5");
-      const defaultLoc = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
-      applyTechPreset("google", "l5", defaultLoc, scenario.taxProfile.filing, activeGrowthId, true);
+      if (!initialized.current && allowInitialPreset) {
+        const defaultLoc = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
+        applyTechPreset("google", "l5", defaultLoc, scenario.taxProfile.filing, activeGrowthId, true);
+      }
     }
+    initialized.current = true;
   }, [scenario.name, scenario.role, initialCompany]);
 
   const selectedLocationId = scenario.taxProfile.location;

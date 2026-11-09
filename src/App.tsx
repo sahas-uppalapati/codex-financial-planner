@@ -18,13 +18,16 @@ import { QuickEstimate } from "./components/QuickEstimate";
 import { locationPresets } from "./data/presets";
 import { templateSchedule } from "./data/vesting";
 import { RetirementGuide } from "./components/RetirementGuide";
+import { PlannerBackup } from "./components/PlannerBackup";
 import { retirementAccountLabels } from "./lib/retirement";
 import type { RetirementAccountType } from "./lib/retirement";
 import { money } from "./lib/format";
 function initial() {
   let loadedState: PlannerV2;
   let message = "";
+  let fresh = false;
   try {
+    fresh = !["careerworth:v1", "careerworth:v2", "careerworth:v3"].some((key) => window.localStorage.getItem(key) !== null);
     const res = loadPlanner(window.localStorage);
     loadedState = res.state;
     message = res.message;
@@ -33,26 +36,10 @@ function initial() {
     message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
 
-  // Check URL parameters on initial load
-  try {
-    if (typeof window !== "undefined" && window.location.search) {
-      const urlParsed = parsePlannerUrlParams(window.location.search);
-      if (urlParsed.hasCustomParams) {
-        loadedState = urlParsed.applyTo(loadedState);
-      }
-    }
-  } catch {}
-
-  return { state: loadedState, message };
+  return { state: loadedState, message, fresh };
 }
 function initialMode(): boolean {
   try {
-    if (typeof window !== "undefined" && window.location.search) {
-      const urlParsed = parsePlannerUrlParams(window.location.search);
-      if (urlParsed.mode) {
-        return urlParsed.mode === "quick";
-      }
-    }
     return window.sessionStorage?.getItem("careerworth:mode") !== "detailed";
   } catch {
     return true;
@@ -64,7 +51,14 @@ export default function App() {
     [active, setActive] = useState(0),
     [quickMode, setQuickModeState] = useState(initialMode),
     [resetVersion, setResetVersion] = useState(0),
-    [storageMessage, setStorageMessage] = useState(loaded.message);
+    [storageMessage, setStorageMessage] = useState(loaded.message),
+    [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
+    [sharedLink, setSharedLink] = useState(""),
+    [linkError, setLinkError] = useState(""),
+    [pendingLink, setPendingLink] = useState(() => {
+      const parsed = parsePlannerUrlParams(window.location.search);
+      return parsed.hasCustomParams ? parsed : null;
+    });
   const setQuickMode = (value: boolean | ((prev: boolean) => boolean)) => {
     setQuickModeState((prev) => {
       const next = typeof value === "function" ? value(prev) : value;
@@ -77,6 +71,9 @@ export default function App() {
       return next;
     });
   };
+
+  useEffect(() => setSharedLink(""), [state, quickMode]);
+  useEffect(() => setAllowInitialPreset(false), []);
 
   const switchToQuick = () => {
     setQuickMode(true);
@@ -172,6 +169,15 @@ export default function App() {
       },
       benefits: { ...original.benefits, health: "0" },
       spouseBenefits: { retirement: "0", health: "0", hsa: "0" },
+      retirementTargets: {
+        ...original.retirementTargets,
+        spouse: {
+          ...original.retirementTargets.spouse,
+          workplace401k: { ...original.retirementTargets.spouse.workplace401k, amount: "0" },
+          traditionalIra: "0", rothIra: "0", backdoorRoth: "0", megaBackdoor: "0",
+        },
+      },
+      spouseEmployerMatch: { ...original.spouseEmployerMatch, type: "none" as const },
       stockMode:
         original.stockMode === "grants" && original.grants && original.grants.length > 0
           ? ("grants" as const)
@@ -240,20 +246,6 @@ export default function App() {
     }
   }, [state, ready]);
 
-  // Sync URL bar parameters with current inputs so users can share directly from the top bar
-  useEffect(() => {
-    if (!ready || typeof window === "undefined") return;
-    const timer = setTimeout(() => {
-      try {
-        const search = buildPlannerSearchString(state, quickMode);
-        const newUrl = `${window.location.pathname}${search}${window.location.hash}`;
-        if (window.location.search !== search) {
-          window.history.replaceState(null, "", newUrl);
-        }
-      } catch {}
-    }, 250);
-    return () => clearTimeout(timer);
-  }, [state, quickMode, ready]);
   const shared = (key: keyof PlannerV2["shared"], value: string) =>
     setState((s) => ({ ...s, shared: { ...s.shared, [key]: value } }));
   const startingAccountTotal =
@@ -309,6 +301,30 @@ export default function App() {
         {storageMessage.startsWith("Saved inputs upgraded") && (
           <p className="migration-note">{storageMessage}</p>
         )}
+        {pendingLink && (
+          <section className="cash-panel prose" aria-label="Shared estimate">
+            <p>This link contains a partial estimate. Loading it replaces the current saved plan; omitted settings use defaults and expense categories are estimates.</p>
+            <button type="button" onClick={() => {
+              const candidate = pendingLink.applyTo(defaultPlanner());
+              if (!pendingLink.valid || !validPlanner(candidate)) {
+                setLinkError("This link contains invalid or out-of-range values. Your current plan was not changed.");
+                return;
+              }
+              setState(candidate);
+              setQuickMode(pendingLink.mode !== "detailed");
+              setActive(0);
+              setPendingLink(null);
+            }}>Load shared estimate</button>{" "}
+            <button type="button" className="text-button" onClick={() => setPendingLink(null)}>Keep current plan</button>
+            {linkError && <p role="alert">{linkError}</p>}
+          </section>
+        )}
+        <details className="cash-panel prose">
+          <summary>Share a partial estimate</summary>
+          <p>A link includes salary, expenses, savings and some other assumptions in its address. Anyone with the link can see them. It omits detailed accounts, grants, events and the second scenario; expense categories are approximated. Use a backup to transfer a complete plan.</p>
+          <button type="button" disabled={!valid} onClick={() => setSharedLink(`${window.location.origin}${window.location.pathname}${buildPlannerSearchString(state, quickMode)}`)}>Create share link</button>
+          {sharedLink && <p><label htmlFor="share-link">Partial estimate link</label><br /><input id="share-link" type="text" readOnly value={sharedLink} onFocus={(event) => event.currentTarget.select()} /></p>}
+        </details>
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
             <div className="inputs-heading">
@@ -338,6 +354,7 @@ export default function App() {
               <>
                 <QuickEstimate
                   key={resetVersion}
+                  allowInitialPreset={allowInitialPreset}
                   scenario={state.scenarios[0]}
                   assumptions={state.shared}
                   onScenarioChange={(scenario) => setState((s) => ({ ...s, scenarios: [scenario, s.scenarios[1]] }))}
@@ -619,7 +636,7 @@ export default function App() {
                     Balances are nominal future dollars before future sale or
                     withdrawal taxes. The model excludes options, later stock
                     sales, investment dividends/realized gains, HSA
-                    reimbursements, retirement withdrawals/catch-ups,
+                    reimbursements, retirement withdrawals,
                     itemized or family/earned-income credits, self-employment,
                     interstate income allocation, other assets/liabilities and
                     Monte Carlo simulation. Returns, share appreciation and
@@ -716,6 +733,11 @@ export default function App() {
             </div>
           </div>
         </div>
+        <PlannerBackup state={state} onRestore={(restored) => {
+          setState(restored);
+          setActive(0);
+          setResetVersion((version) => version + 1);
+        }} />
         <RetirementGuide />
         <footer>
           <p>

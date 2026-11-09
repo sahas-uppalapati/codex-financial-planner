@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 import type { Page } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import { defaultState } from "../src/lib/model";
+import { defaultPlanner } from "../src/lib/planner";
+import { exportPlannerBackup } from "../src/lib/plannerBackup";
 
 async function openDetailed(page: Page) {
   await page.addInitScript(() => {
@@ -18,9 +20,45 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+test("backup download contains the current plan", async ({ page }) => {
+  await page.getByLabel("Annual base salary").fill("123456");
+  const backup = page.locator("section").filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
+  const downloading = page.waitForEvent("download");
+  await backup.getByRole("button", { name: "Download backup" }).click();
+  const downloaded = await downloading;
+  expect(downloaded.suggestedFilename()).toBe("careerworth-plan.json");
+  const data = JSON.parse(await readFile((await downloaded.path())!, "utf8"));
+  expect(data.planner.scenarios[0].base).toBe("123456");
+});
+
+test("backup restores a plan only after validation and confirmation", async ({ page }) => {
+  const salary = page.getByLabel("Annual base salary");
+  const backup = page.locator("section").filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
+  const file = backup.locator('input[type="file"]');
+  const plan = defaultPlanner();
+  plan.scenarios[0].base = "123456";
+  const data = Buffer.from(exportPlannerBackup(plan));
+  await salary.fill("200000");
+  page.once("dialog", (dialog) => dialog.dismiss());
+  await file.setInputFiles({ name: "plan.json", mimeType: "application/json", buffer: data });
+  await expect(salary).toHaveValue("200000");
+  await expect(backup.getByRole("status")).toContainText("canceled");
+  await file.setInputFiles({ name: "broken.json", mimeType: "application/json", buffer: Buffer.from("{broken") });
+  await expect(backup.getByRole("status")).toContainText("not a valid");
+  await expect(salary).toHaveValue("200000");
+  page.once("dialog", (dialog) => dialog.accept());
+  await file.setInputFiles({ name: "plan.json", mimeType: "application/json", buffer: data });
+  await expect(salary).toHaveValue("123456");
+  await page.reload();
+  await expect(salary).toHaveValue("123456");
+});
+
 test("quick estimate mode defaults, inputs, assumptions and transitions", async ({
   page,
 }) => {
+  // The shared setup opens detailed mode and saves a plan; this test exercises
+  // a genuinely fresh quick-mode visit instead.
+  await page.evaluate(() => window.localStorage.clear());
   await page.addInitScript(() => {
     window.sessionStorage.setItem("careerworth:mode", "quick");
   });
@@ -244,7 +282,7 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
 }) => {
   await page.getByText("Expense breakdown", { exact: true }).click();
   await page
-    .getByRole("textbox", { name: "Healthcare USD / month", exact: true })
+    .getByRole("textbox", { name: "Healthcare", exact: true })
     .fill("1000");
   await page
     .locator("summary")

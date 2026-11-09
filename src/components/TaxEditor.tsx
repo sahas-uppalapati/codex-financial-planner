@@ -115,7 +115,8 @@ export function TaxEditor({
             <p className="hint">
               2026 published rules projected forward. Includes federal,
               state/local, payroll and applicable employee premiums. Standard
-              deductions; under age 50; no dependents. Planning liability, not
+              deductions without senior-specific provisions; no dependents.
+              Age-based contribution catch-ups are estimated separately. Planning liability, not
               paycheck withholding or tax filing.
             </p>
             <Toggle
@@ -285,7 +286,7 @@ export function BenefitsEditor({
             <SelectField label={`${label} Medicare enrollment month (optional)`} value={profile.medicareMonth} onChange={(medicareMonth) => setProfile({ ...profile, medicareMonth })}>
               <option value="">Not enrolled in Medicare</option>{Array.from({ length: 12 }, (_, i) => <option value={String(i + 1)} key={i + 1}>{new Date(2026, i, 1).toLocaleString("en-US", { month: "long" })}</option>)}
             </SelectField>
-            <p className="hint">Eligibility estimates use modeled W-2 income and payroll deductions only. Other income, tax adjustments, and part-year HSA coverage are not modeled.</p>
+            <p className="hint">Medicare enrollment is assumed to begin in this month of the year you turn 65 and continue thereafter; if you are already over 65, it is assumed active from the start. Enrollment before 65 or after the year you turn 65 is not modeled. Eligibility estimates use modeled W-2 income and payroll deductions only. Other income, tax adjustments, and other part-year HSA coverage are not modeled.</p>
             <div className="two-cols">
               {(["traditionalIra", "rothIra", "backdoorRoth", "megaBackdoor"] as const).map((key) => (
                 <NumberField key={key} label={`${label} annual ${({ traditionalIra: "traditional IRA", rothIra: "Roth IRA", backdoorRoth: "backdoor Roth IRA", megaBackdoor: "mega backdoor Roth" })[key]} target`} value={target[key]} onChange={(value) => setTarget({ ...target, [key]: value })} />
@@ -312,6 +313,7 @@ export function BenefitsEditor({
             k.startsWith("benefits") ||
             k.startsWith("spouseBenefits") ||
             k.startsWith("employerMatch") ||
+            k.startsWith("spouseEmployerMatch") ||
             k.startsWith("retirementTargets") ||
             k.startsWith("retirementProfiles"),
         ) || undefined
@@ -389,6 +391,21 @@ export function BenefitsEditor({
             }}
           />
         </fieldset>
+        {s.taxProfile.filing === "joint" && <fieldset className="benefits-group">
+          <legend>Spouse employer match</legend>
+          <p className="hint">One spouse employer is modeled throughout the projection; spouse job changes and prior service are not modeled.</p>
+          <EmployerMatchFields
+            match={s.spouseEmployerMatch}
+            prefix="spouseEmployerMatch"
+            errors={errors}
+            onChange={(spouseEmployerMatch) => onChange({ ...s, spouseEmployerMatch })}
+            baseSalary={Number(s.taxProfile.spouseWages)}
+            employeeRate={s.retirementTargets.spouse.workplace401k.mode === "percent"
+              ? Number(s.retirementTargets.spouse.workplace401k.amount)
+              : Number(s.taxProfile.spouseWages) > 0
+                ? Number(s.retirementTargets.spouse.workplace401k.amount) / Number(s.taxProfile.spouseWages) * 100 : 0}
+          />
+        </fieldset>}
         <SelectField
           label="HSA eligible coverage (full year)"
           value={s.taxProfile.hsaCoverage}
