@@ -70,8 +70,12 @@ export function downloadCsv(
   contents: string,
   filename = "careerworth-projection.csv",
 ) {
+  downloadText(contents, filename, "text/csv;charset=utf-8;");
+}
+
+export function downloadText(contents: string, filename: string, contentType: string) {
   const url = URL.createObjectURL(
-    new Blob([contents], { type: "text/csv;charset=utf-8;" }),
+    new Blob([contents], { type: contentType }),
   );
   const a = document.createElement("a");
   a.href = url;

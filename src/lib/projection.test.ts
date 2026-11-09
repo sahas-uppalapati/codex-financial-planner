@@ -186,6 +186,30 @@ describe("monthly career and investment engine", () => {
     s.benefits.hsa = "4401";
     expect(plannerScenarioErrors(s, p.shared)["benefits.hsa"]).toBeTruthy();
   });
+  it("stops HSA contributions in the Medicare enrollment month and all later years", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "3";
+    s.base = "100000";
+    s.taxProfile.hsaCoverage = "self";
+    s.benefits.hsa = "4400";
+    s.retirementProfiles.primary.ageConfirmed = true;
+    s.retirementProfiles.primary.ageAtFirstYearEnd = "65";
+    s.retirementProfiles.primary.medicareMonth = "7";
+    const rows = projectScenario(s, p.shared).rows;
+    expect(rows[0].hsaContribution).toBeCloseTo(2200);
+    expect(rows[1].hsaContribution).toBe(0);
+    expect(rows[2].hsaContribution).toBe(0);
+  });
+  it("reserves a family HSA catch-up for the eligible owner's account", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.base = "100000";
+    s.taxProfile.filing = "joint";
+    s.taxProfile.hsaCoverage = "family";
+    s.retirementProfiles.spouse.ageConfirmed = true;
+    s.retirementProfiles.spouse.ageAtFirstYearEnd = "55";
+    s.benefits.hsa = "9750";
+    expect(projectScenario(s, p.shared).rows[0].hsaContribution).toBeCloseTo(8750);
+  });
   it("does not create benefit assets when there is no cash pay", () => {
     const p = fixture(),
       s = p.scenarios[0];
@@ -244,6 +268,32 @@ describe("monthly career and investment engine", () => {
     expect(limited.deductibleIraContribution).toBe(0);
     expect(limited.unfundedIraContribution).toBeGreaterThan(0);
   });
+  it("does not fund an IRA in earlier months with a year-end bonus", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "1";
+    s.bonus = "12000";
+    s.retirementProfiles.primary.workplacePlanCoverage = false;
+    s.retirementTargets.primary.traditionalIra = "7500";
+    const projection = projectScenario(s, p.shared);
+    expect(projection.months[0].traditionalIraContribution).toBe(0);
+    expect(projection.months[0].balances.taxable).toBe(0);
+    expect(projection.months[11].traditionalIraContribution).toBeCloseTo(625, 8);
+    expect(projection.rows[0].deductibleIraContribution).toBeCloseTo(625, 8);
+    expect(projection.rows[0].unfundedIraContribution).toBeCloseTo(6875, 8);
+  });
+  it("does not fund mega backdoor contributions from savings without monthly payroll", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "1";
+    p.shared.starting = "10000";
+    s.bonus = "12000";
+    s.retirementTargets.primary.megaBackdoor = "12000";
+    s.retirementTargets.primary.megaBackdoorSupported = true;
+    s.retirementTargets.primary.megaBackdoorRoute = "in-plan";
+    const projection = projectScenario(s, p.shared);
+    expect(projection.months[0].megaBackdoorContribution).toBe(0);
+    expect(projection.months[11].megaBackdoorContribution).toBeCloseTo(1000, 8);
+    expect(projection.rows[0].megaBackdoorContribution).toBeCloseTo(1000, 8);
+  });
   it("routes catch-up dollars to Roth when prior-year sponsoring-employer wages exceed the threshold", () => {
     const p = fixture(), s = p.scenarios[0];
     s.base = "200000";
@@ -298,6 +348,36 @@ describe("monthly career and investment engine", () => {
     expect(proj.rows[0].employerMatch).toBeCloseTo(3000, 5);
     expect(proj.rows[1].employerMatch).toBeCloseTo(4000, 5);
   });
+  it("tracks a spouse match separately through the primary worker's job change", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "2";
+    s.base = "100000";
+    s.taxProfile.filing = "joint";
+    s.taxProfile.spouseWages = "100000";
+    s.retirementTargets.spouse.workplace401k.mode = "percent";
+    s.retirementTargets.spouse.workplace401k.amount = "6";
+    s.spouseEmployerMatch = { type: "simple", rate: "50", payPercent: "6", cap: "2000", tiers: [], vestingType: "cliff-2", vestingSchedule: ["0", "100"] };
+    s.events = [event(p, { kind: "job", month: "2027-01", base: "100000", bonus: "0", growth: "0" })];
+    const result = projectScenario(s, p.shared);
+    expect(result.rows[0].employerMatch).toBeCloseTo(2000);
+    expect(result.rows[0].unvestedMatch).toBeCloseTo(2000);
+    expect(result.rows[1].employerMatch).toBeCloseTo(2000);
+    expect(result.rows[1].forfeitedMatch).toBe(0);
+    expect(result.rows[1].unvestedMatch).toBe(0);
+    expect(result.rows[1].balances.retirement).toBeCloseTo(16000);
+  });
+  it("applies each employer's annual match cap separately after a midyear change", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "1";
+    s.base = "120000";
+    s.bonus = "0";
+    s.retirementTargets.primary.workplace401k.mode = "percent";
+    s.retirementTargets.primary.workplace401k.amount = "6";
+    s.employerMatch = { type: "simple", rate: "100", payPercent: "6", cap: "2000", tiers: [], vestingType: "immediate", vestingSchedule: ["100"] };
+    s.events = [event(p, { id: "job-change", kind: "job", month: "2026-07", base: "120000", bonus: "0", growth: "0", employerMatch: { ...s.employerMatch } })];
+    const row = projectScenario(s, p.shared).rows[0];
+    expect(row.employerMatch).toBeCloseTo(4000, 8);
+  });
   it("tracks unvested match and forfeits unvested employer match upon job departure before vesting", () => {
     const p = fixture(), s = p.scenarios[0];
     p.shared.years = "2";
@@ -338,9 +418,28 @@ describe("monthly career and investment engine", () => {
     const proj = projectScenario(s, p.shared);
     expect(proj.rows[0].employerMatch).toBeCloseTo(7200, 5);
     expect(proj.rows[0].unvestedMatch).toBeCloseTo(7200, 5);
-    expect(proj.rows[0].accountBalances["traditional-401k"]).toBeCloseTo(14400, 5);
+    expect(proj.rows[0].accountBalances["traditional-401k"]).toBeCloseTo(7200, 5);
+    expect(proj.rows[0].balances.retirement).toBeCloseTo(7200, 5);
     expect(proj.rows[1].forfeitedMatch).toBeCloseTo(7200, 5);
     expect(proj.rows[1].accountBalances["traditional-401k"]).toBeCloseTo(14400, 5);
+  });
+  it("excludes unvested match from owned balances and forfeits it at a midyear job change", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "1";
+    p.shared.returns = "0";
+    s.base = "120000";
+    s.bonus = "0";
+    s.growth = "0";
+    s.retirementTargets.primary.workplace401k.mode = "percent";
+    s.retirementTargets.primary.workplace401k.amount = "6";
+    s.employerMatch = { type: "simple", rate: "100", payPercent: "6", cap: "0", tiers: [], vestingType: "cliff-2", vestingSchedule: ["0", "100"] };
+    s.events = [event(p, { id: "job-change", kind: "job", month: "2026-07", base: "120000", bonus: "0", growth: "0", employerMatch: { type: "none", rate: "0", payPercent: "0", cap: "0", tiers: [], vestingType: "immediate", vestingSchedule: ["100"] } })];
+    const proj = projectScenario(s, p.shared);
+    expect(proj.months[5].unvestedMatch).toBeCloseTo(3600, 5);
+    expect(proj.months[5].accountBalances["traditional-401k"]).toBeCloseTo(3600, 5);
+    expect(proj.months[6].forfeitedMatch).toBeCloseTo(3600, 5);
+    expect(proj.months[6].balances.retirement).toBeCloseTo(4200, 5);
+    expect(proj.rows[0].accountBalances["traditional-401k"]).toBeCloseTo(7200, 5);
   });
   it("rejects malformed numeric inputs rather than returning non-finite values", () => {
     const p = fixture();

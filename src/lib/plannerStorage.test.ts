@@ -15,6 +15,18 @@ const memory = () => {
   };
 };
 describe("v3 persistence and migration", () => {
+  it("restores pre-spouse-match saves with an unsure zero-match default", () => {
+    const storage = memory(), p = defaultPlanner();
+    delete (p.scenarios[0] as Partial<typeof p.scenarios[0]>).spouseEmployerMatch;
+    delete (p.scenarios[1] as Partial<typeof p.scenarios[1]>).spouseEmployerMatch;
+    const raw = JSON.stringify(p);
+    storage.setItem(PLANNER_KEY, raw);
+    const loaded = loadPlanner(storage);
+    expect(loaded.state.scenarios[0].spouseEmployerMatch.type).toBe("unsure");
+    expect(storage.getItem(PLANNER_KEY)).toBe(raw);
+    expect(savePlanner(storage, loaded.state)).toBe(true);
+    expect(loadPlanner(storage).state).toEqual(loaded.state);
+  });
   it("preserves customized v2 profiles, employers, benefits and assumptions", () => {
     const storage = memory(),
       p = defaultPlanner();
