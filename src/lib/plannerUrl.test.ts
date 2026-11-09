@@ -36,7 +36,7 @@ describe("plannerUrl", () => {
   it("builds search string cleanly omitting defaults", () => {
     const p = defaultPlanner();
     const query = buildPlannerSearchString(p, true);
-    expect(query).toBe("");
+    expect(query).toBe("?share=1&mode=quick");
 
     p.scenarios[0].base = "180000";
     const queryUpdated = buildPlannerSearchString(p, false);
@@ -44,9 +44,18 @@ describe("plannerUrl", () => {
     expect(queryUpdated).toContain("salary=180000");
   });
 
+  it("marks even a default estimate as a share that can be loaded independently", () => {
+    const parsed = parsePlannerUrlParams(buildPlannerSearchString(defaultPlanner(), true));
+    expect(parsed.hasCustomParams).toBe(true);
+    expect(parsed.mode).toBe("quick");
+    const loaded = parsed.applyTo(defaultPlanner());
+    expect(loaded.scenarios[0].base).toBe(defaultPlanner().scenarios[0].base);
+  });
+
   it("safely ignores invalid locations or malformed numbers", () => {
     const search = "?salary=invalid&location=atlantis";
-    const { applyTo } = parsePlannerUrlParams(search);
+    const { applyTo, valid } = parsePlannerUrlParams(search);
+    expect(valid).toBe(false);
     const base = defaultPlanner();
     const updated = applyTo(base);
     expect(updated.scenarios[0].base).toBe(base.scenarios[0].base);

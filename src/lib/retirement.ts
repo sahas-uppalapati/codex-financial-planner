@@ -93,7 +93,7 @@ export function annualRetirementLimits(
     },
     hsaSelf: indexed(base.hsaSelf),
     hsaFamily: indexed(base.hsaFamily),
-    hsaCatchUp: indexed(base.hsaCatchUp),
+    hsaCatchUp: base.hsaCatchUp,
     medicareAge: base.medicareAge,
   };
 }

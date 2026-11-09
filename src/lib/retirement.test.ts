@@ -12,6 +12,10 @@ import {
 describe("retirement rule calculations", () => {
   const limits = annualRetirementLimits(2026, 2.5);
 
+  it("keeps the statutory HSA catch-up fixed in future-year projections", () => {
+    expect(annualRetirementLimits(2030, 5).hsaCatchUp).toBe(1000);
+  });
+
   it("applies workplace catch-up limits only after age and plan confirmation", () => {
     expect(employeeDeferralLimit(limits, 49, true)).toBe(24500);
     expect(employeeDeferralLimit(limits, 50, false)).toBe(24500);
