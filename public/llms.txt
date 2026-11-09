@@ -1,0 +1,14 @@
+# CareerWorth
+
+> A private, browser-based planner for comparing job offers, compensation, living costs, estimated taxes, equity, and projected savings.
+
+## Public pages
+
+- [How CareerWorth works](/guide/): model scope, share links, privacy, agent use, and limitations.
+- [Open the planner](/): compare offers and project cash and investment balances.
+
+## Agent integration
+
+- Share links can prefill supported planning inputs through URL query parameters. Values in a share link are visible to anyone who receives that URL; do not put in information you would not share with its recipient.
+- The optional local MCP server accepts a plan explicitly supplied by the user and returns deterministic projections. It cannot read the browser's saved plan. See [MCP setup and tool details](https://github.com/sahas-uppalapati/codex-financial-planner/blob/master/MCP.md).
+- Financial inputs and results are estimates under documented model assumptions, not tax, legal, or personalized investment advice.
