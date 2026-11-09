@@ -10,12 +10,14 @@ export function QuickEstimate({
   onScenarioChange,
   onAssumptionsChange,
   errors,
+  allowInitialPreset,
 }: {
   scenario: ScenarioV2;
   assumptions: AssumptionsV2;
   onScenarioChange: (scenario: ScenarioV2) => void;
   onAssumptionsChange: (assumptions: AssumptionsV2) => void;
   errors: Record<string, string>;
+  allowInitialPreset: boolean;
 }) {
   const [expenses, setExpenses] = useState(() => String(monthlyExpenses(scenario)));
   const [showSignOn, setShowSignOn] = useState(false);
@@ -58,7 +60,14 @@ export function QuickEstimate({
 
   return (
     <div className="quick-estimate-form">
+      <p className="hint">
+        Quick estimate starts in 2026 and uses 2.5% tax-threshold inflation. It
+        excludes detailed tax adjustments, payroll health premiums, spouse
+        contributions, and recurring equity refresher rules. Open the detailed
+        planner to include those settings; your saved inputs are retained.
+      </p>
       <TechEstimatorHero
+        allowInitialPreset={allowInitialPreset}
         scenario={scenario}
         assumptions={assumptions}
         onScenarioChange={onScenarioChange}

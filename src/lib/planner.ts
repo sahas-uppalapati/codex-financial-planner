@@ -151,6 +151,7 @@ export interface ScenarioV2 extends Scenario {
   refreshers: RefresherRule[];
   events: CareerEvent[];
   employerMatch: EmployerMatch;
+  spouseEmployerMatch: EmployerMatch;
   retirementProfiles: { primary: PersonRetirementProfile; spouse: PersonRetirementProfile };
   retirementTargets: { primary: RetirementTargets; spouse: RetirementTargets };
   signOnY1?: string;
@@ -264,6 +265,7 @@ export function upgradeScenario(
     refreshers: [],
     events: [],
     employerMatch: defaultEmployerMatch(),
+    spouseEmployerMatch: defaultEmployerMatch(),
     retirementProfiles: { primary: profile(), spouse: profile() },
     retirementTargets: { primary: target(), spouse: target() },
     signOnY1: s.signOnY1 ?? "0",
@@ -474,6 +476,7 @@ export function plannerScenarioErrors(
         "Exceeds the projected annual 401(k) employee limit (under age 50).";
   }
   validateEmployerMatch(s.employerMatch, "employerMatch", errors, check);
+  validateEmployerMatch(s.spouseEmployerMatch, "spouseEmployerMatch", errors, check);
   for (const owner of ["primary", "spouse"] as const) {
     const profile = s.retirementProfiles?.[owner];
     if (!profile) {
