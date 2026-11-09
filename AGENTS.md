@@ -18,7 +18,7 @@ CareerWorth is a private, browser-only career and compensation planner. It uses 
 
 ## Verification
 
-Do **not** run tests, builds, or E2E suites (`npm test`, `npm run build`, `npm run test:e2e`) during iterative development or after making intermediate edits. Run verification only when explicitly instructed or right before preparing a commit.
+Do **not** run tests or builds (`npm test`, `npm run build`) during iterative development or after making intermediate edits. Verify after implementation is complete, when explicitly requested, or before preparing a commit. If a check or other task is likely to take a while, either start it in the background and continue independent work or defer it until implementation is complete; do not block iteration waiting for it. Collect its result before reporting verification status.
 
 When verification is requested:
 Run from the repository root with Node.js 22.12+ or Node 24 LTS:
@@ -26,12 +26,11 @@ Run from the repository root with Node.js 22.12+ or Node 24 LTS:
 ```bash
 npm test
 npm run build
-npm run test:e2e
 ```
 
 On WSL, use the Linux Node/npm installation from `nvm` (`nvm use 24`). Before running checks, confirm `command -v node` and `command -v npm` resolve under `$HOME/.nvm/versions/node/.../bin`, not to Windows executables under `/mnt/c`. Codex may run noninteractive shells, so keep `nvm` initialization above `.bashrc`'s noninteractive-shell guard.
 
-For a focused change, run the relevant test file first, then the broader checks above when practical. Browser tests require Playwright Chromium; see `README.md` for setup and the WSL-specific invocation. Do not commit generated `dist/`, `test-results/`, or local dependency directories.
+For a focused change, run the relevant test file first, then the broader checks above when practical. Do not commit generated `dist/`, `test-results/`, or local dependency directories.
 
 ## Important project references
 

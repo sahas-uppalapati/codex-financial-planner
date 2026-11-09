@@ -751,6 +751,7 @@ export default function App() {
                 : "Only valid inputs are saved.")}
           </p>
           <span>CareerWorth · A planning tool, not financial advice.</span>
+          <a href="/guide/">How CareerWorth works</a>
         </footer>
       </main>
     </>

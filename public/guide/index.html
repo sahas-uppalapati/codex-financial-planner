@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href="https://careerworth.vercel.app/guide/" />
+    <meta property="og:type" content="article" />
+    <meta property="og:site_name" content="CareerWorth" />
+    <meta property="og:url" content="https://careerworth.vercel.app/guide/" />
+    <meta
+      name="description"
+      content="Learn how CareerWorth compares job offers and estimates take-home cash, taxes, RSUs, retirement savings, and projected investment balances."
+    />
+    <title>How CareerWorth works | Job offer and savings planner</title>
+    <meta property="og:title" content="How CareerWorth works | Job offer and savings planner" />
+    <meta property="og:description" content="Learn how CareerWorth compares job offers and estimates take-home cash, taxes, RSUs, retirement savings, and projected investment balances." />
+    <style>
+      :root { color-scheme: light; font: 16px/1.65 system-ui, sans-serif; color: #202820; background: #f6f7f2; }
+      body { max-width: 760px; margin: 0 auto; padding: 32px 22px 64px; }
+      main { background: white; border: 1px solid #dfe5dc; border-radius: 16px; padding: clamp(24px, 6vw, 52px); }
+      h1, h2 { line-height: 1.2; }
+      h1 { font-size: clamp(2rem, 6vw, 3rem); letter-spacing: -.04em; }
+      h2 { margin-top: 2rem; font-size: 1.3rem; }
+      a { color: #235b43; }
+      .cta { display: inline-block; margin: 8px 0 20px; padding: 11px 17px; border-radius: 8px; background: #235b43; color: white; text-decoration: none; font-weight: 650; }
+      .note { border-left: 3px solid #79a68c; padding-left: 14px; }
+      footer { margin-top: 28px; color: #58635a; font-size: .92rem; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><a href="/">CareerWorth</a></p>
+      <h1>Compare job offers by what you may be able to save</h1>
+      <p>CareerWorth is a browser-based career and compensation planner. Compare pay and living costs across offers, then explore how taxes, bonuses, restricted stock units (RSUs), retirement benefits, and investment assumptions could affect projected cash and balances.</p>
+      <a class="cta" href="/">Open the planner</a>
+
+      <h2>What the planner models</h2>
+      <ul>
+        <li>Salary, bonus, career changes, and employer changes over a monthly timeline.</li>
+        <li>Estimated federal, state, local, and payroll taxes for supported locations, or a user-entered effective rate.</li>
+        <li>RSU grant and vesting schedules, selling or holding shares, and modeled taxes on vested stock.</li>
+        <li>Living costs, investment growth assumptions, and taxable, 401(k), IRA, and HSA balances and contributions.</li>
+        <li>Shareable links that can prefill an estimate. Query parameters are inputs for a new estimate; the planner does not read another person's saved browser plan.</li>
+      </ul>
+
+      <h2>How to use a shared estimate</h2>
+      <p>Open a CareerWorth link to load the values encoded in its URL. Review the assumptions in the planner and change them to match your situation. Shared links can contain sensitive salary, savings, or household information, so only share them with people you trust.</p>
+
+      <h2>Privacy and agent use</h2>
+      <p>Calculations run in the browser and plan data is saved locally on that device. CareerWorth has an optional local Model Context Protocol (MCP) server for compatible agents. The user explicitly supplies a plan to that agent; the server does not access the browser's saved data or send it anywhere by itself. An agent may transmit supplied plan data to its own model provider according to that provider's settings.</p>
+
+      <h2>Estimates and limitations</h2>
+      <p>Results are planning estimates based on the selected assumptions and bundled 2026 tax rules. The supported tax model covers full-year W-2 scenarios in six listed locations and has exclusions; it is not a tax return, payroll withholding calculation, personalized financial advice, or a guarantee of future returns. Confirm current tax law, employer benefit terms, and grant documents before making decisions.</p>
+      <p>See the <a href="https://github.com/sahas-uppalapati/codex-financial-planner/blob/master/README.md">model and coverage details</a>, <a href="https://github.com/sahas-uppalapati/codex-financial-planner/blob/master/TAX_SOURCES.md">tax sources</a>, <a href="https://github.com/sahas-uppalapati/codex-financial-planner/blob/master/DATA_SOURCES.md">budget and compensation sources</a>, and <a href="https://github.com/sahas-uppalapati/codex-financial-planner/blob/master/MCP.md">local agent interface documentation</a>.</p>
+      <p class="note">This guide explains the product; it does not replace the calculator's detailed disclosures or source notes.</p>
+      <footer>CareerWorth · A planning tool, not financial advice.</footer>
+    </main>
+  </body>
+</html>
