@@ -22,6 +22,7 @@ import { PlannerBackup } from "./components/PlannerBackup";
 import { retirementAccountLabels } from "./lib/retirement";
 import type { RetirementAccountType } from "./lib/retirement";
 import { money } from "./lib/format";
+import { analyticsConfigured, analyticsConsent, disableAnalytics, enableAnalytics, track } from "./lib/analytics";
 function initial() {
   let loadedState: PlannerV2;
   let message = "";
@@ -46,6 +47,7 @@ function initialMode(): boolean {
   }
 }
 export default function App() {
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(analyticsConsent);
   const [loaded] = useState(initial),
     [state, setState] = useState<PlannerV2>(loaded.state),
     [active, setActive] = useState(0),
@@ -322,7 +324,10 @@ export default function App() {
         <details className="cash-panel prose">
           <summary>Share a partial estimate</summary>
           <p>A link includes salary, expenses, savings and some other assumptions in its address. Anyone with the link can see them. It omits detailed accounts, grants, events and the second scenario; expense categories are approximated. Use a backup to transfer a complete plan.</p>
-          <button type="button" disabled={!valid} onClick={() => setSharedLink(`${window.location.origin}${window.location.pathname}${buildPlannerSearchString(state, quickMode)}`)}>Create share link</button>
+          <button type="button" disabled={!valid} onClick={() => {
+            setSharedLink(`${window.location.origin}${window.location.pathname}${buildPlannerSearchString(state, quickMode)}`);
+            track("share_link_created");
+          }}>Create share link</button>
           {sharedLink && <p><label htmlFor="share-link">Partial estimate link</label><br /><input id="share-link" type="text" readOnly value={sharedLink} onFocus={(event) => event.currentTarget.select()} /></p>}
         </details>
         <div className="calculator-layout">
@@ -334,7 +339,7 @@ export default function App() {
                   role="tab"
                   className={`view-mode-pill ${quickMode ? "active" : ""}`}
                   aria-selected={quickMode}
-                  onClick={switchToQuick}
+                  onClick={() => { switchToQuick(); track("view_mode_changed", { mode: "quick" }); }}
                 >
                   Quick Estimate
                 </button>
@@ -343,7 +348,7 @@ export default function App() {
                   role="tab"
                   className={`view-mode-pill ${!quickMode ? "active" : ""}`}
                   aria-selected={!quickMode}
-                  onClick={switchToDetailed}
+                  onClick={() => { switchToDetailed(); track("view_mode_changed", { mode: "detailed" }); }}
                 >
                   Detailed View
                 </button>
@@ -408,6 +413,7 @@ export default function App() {
                   onClick={() => {
                     setState((s) => ({ ...s, comparison: true }));
                     setActive(1);
+                    track("comparison_added");
                   }}
                 >
                   + Add comparison
@@ -741,9 +747,23 @@ export default function App() {
         <RetirementGuide />
         <footer>
           <p>
-            ◈ Your inputs stay in this browser. No accounts, analytics, or data
-            uploads.
+            ◈ Your planner inputs stay in this browser. Optional analytics only
+            records basic actions; it never sends salary, balance, tax, company,
+            scenario, or share-link data.
           </p>
+          {analyticsConfigured() && (
+            <p className="analytics-preference">
+              Analytics are {analyticsEnabled ? "on" : "off"}.{" "}
+              <button type="button" className="text-button" onClick={() => {
+                if (analyticsEnabled) {
+                  disableAnalytics();
+                  setAnalyticsEnabled(false);
+                } else {
+                  setAnalyticsEnabled(enableAnalytics());
+                }
+              }}>{analyticsEnabled ? "Turn off analytics" : "Allow anonymous analytics"}</button>
+            </p>
+          )}
           <p className={storageMessage ? "storage-warning" : ""} role="status">
             {storageMessage ||
               (ready
