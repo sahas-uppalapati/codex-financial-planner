@@ -200,7 +200,10 @@ label {
 .info-tooltip-trigger:hover,
 .info-tooltip-trigger:focus-visible {
   color: var(--green);
-  outline: none;
+}
+.info-tooltip-trigger:focus-visible {
+  outline: 3px solid #497a5a;
+  outline-offset: 3px;
 }
 .info-tooltip-bubble {
   display: none;
