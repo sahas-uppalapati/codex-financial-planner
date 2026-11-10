@@ -2940,3 +2940,7 @@ table small {
   }
 }
 
+
+.share-compact { display: flex; align-items: baseline; flex-wrap: wrap; gap: .15rem .65rem; padding: 0 0 .75rem; margin-bottom: .9rem; border-bottom: 1px solid #dce5df; font-size: .78rem; color: #52635c; }
+.share-compact button { padding: 0; font-weight: 700; }
+.share-compact small { flex-basis: 100%; font-size: .75rem; }

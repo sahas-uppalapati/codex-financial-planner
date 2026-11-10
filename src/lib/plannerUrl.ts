@@ -1,5 +1,6 @@
 import type { PlannerV2, TaxLocation } from "./planner";
 import { defaultPlanner } from "./planner";
+import { loadPlanner, PLANNER_KEY } from "./plannerStorage";
 
 export const VALID_LOCATIONS = new Set<TaxLocation>([
   "columbus",
@@ -206,4 +207,29 @@ export function buildPlannerSearchString(
 
   const query = params.toString();
   return query ? `?${query}` : "";
+}
+
+/** Full links retain all planner inputs and the selected view. */
+export function readFullPlannerLink(search: string): { state: PlannerV2; quickMode: boolean } | null {
+  const params = new URLSearchParams(search);
+  const raw = params.get("plan");
+  if (raw === null) return null;
+  try {
+    const parsed: unknown = JSON.parse(raw);
+    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
+    const data = parsed as Record<string, unknown>;
+    if (data.format !== 1 || typeof data.quickMode !== "boolean" || !data.planner || typeof data.planner !== "object") throw new Error();
+    const result = loadPlanner({ getItem: (key) => key === PLANNER_KEY ? JSON.stringify(data.planner) : null, setItem: () => {} });
+    if (result.message.startsWith("Saved inputs could not")) throw new Error();
+    return { state: result.state, quickMode: data.quickMode };
+  } catch {
+    throw new Error("This plan link is invalid. Your saved plan was kept.");
+  }
+}
+
+export function fullPlannerUrl(url: string, state: PlannerV2 | null, quickMode: boolean): string {
+  const next = new URL(url);
+  next.search = "";
+  if (state) next.searchParams.set("plan", JSON.stringify({ format: 1, quickMode, planner: state }));
+  return next.toString();
 }
