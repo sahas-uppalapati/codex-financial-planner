@@ -41,6 +41,7 @@ export interface EmployerMatch {
   rate: string;
   payPercent: string;
   cap: string;
+  capBasis?: "fixed" | "half-basic-deferral-limit";
   tiers: MatchTier[];
   vestingType?: MatchVestingType;
   vestingSchedule?: string[];
@@ -360,6 +361,8 @@ export function validateEmployerMatch(
   check(`${prefix}.rate`, match.rate, 0, 100);
   check(`${prefix}.payPercent`, match.payPercent, 0, 100);
   check(`${prefix}.cap`, match.cap, 0, 10_000_000);
+  if (match.capBasis !== undefined && !["fixed", "half-basic-deferral-limit"].includes(match.capBasis))
+    errors[`${prefix}.capBasis`] = "Choose a valid employer match cap basis.";
   if (!Array.isArray(match.tiers) || match.tiers.length > 20) {
     errors[prefix] = "Use at most 20 employer match tiers.";
   } else {

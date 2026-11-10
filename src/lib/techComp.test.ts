@@ -86,8 +86,8 @@ describe("techComp calculations", () => {
     // Supplemental tax gap: California tech earner with $453k TC has a marginal rate > statutory withholding (~33.68%)
     expect(result.annualSurpriseTaxBill).toBeGreaterThan(0);
 
-    // Google 50% match on 401k up to $11,750 cap
-    expect(result.annualEmployerMatch).toBe(11750);
+    // No exact current official Google formula was verified.
+    expect(result.annualEmployerMatch).toBe(0);
 
     // Year 4 cliff percentage reflects $176k / $453k (~39%)
     expect(result.year4CliffPercentage).toBeGreaterThanOrEqual(35);
@@ -117,6 +117,36 @@ describe("techComp calculations", () => {
 
     // Amazon 401k match: 50% of first 4% of base pay = 2% of $134,000 = $2,680
     expect(result.annualEmployerMatch).toBe(2680);
+  });
+
+  it("limits Amazon match to 50% of the first 4% of eligible pay and applies the employee contribution", () => {
+    const result = computeTechReality({
+      base: 100000,
+      annualRsu: 0,
+      bonus: 0,
+      rent: 0,
+      otherLivingExpenses: 0,
+      locationId: "seattle",
+      filing: "single",
+      companyId: "amazon",
+      employee401kAnnual: 2000,
+    });
+    expect(result.annualEmployerMatch).toBe(1000);
+  });
+
+  it("uses Microsoft's 50% match capped at half the annual basic deferral limit", () => {
+    const result = computeTechReality({
+      base: 200000,
+      annualRsu: 0,
+      bonus: 0,
+      rent: 0,
+      otherLivingExpenses: 0,
+      locationId: "seattle",
+      filing: "single",
+      companyId: "microsoft",
+      max401k: true,
+    });
+    expect(result.annualEmployerMatch).toBe(12250);
   });
 
   it("flags equity-dependent housing when rent consumes over 50% of base take-home", () => {

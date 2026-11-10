@@ -504,6 +504,24 @@ h1 {
 .quick-estimate-form .two-cols {
   gap: 9px;
 }
+.quick-401k-panel {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  padding-top: 12px;
+}
+.quick-401k-panel .section-label {
+  margin-bottom: 8px;
+}
+.quick-401k-panel h3 {
+  font-size: 13px;
+  margin: 0;
+}
+.match-source-note {
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.5;
+  margin: 4px 0 10px;
+}
 .assumption-group {
   border-top: 1px solid var(--border);
   padding-top: 10px;
@@ -2221,6 +2239,20 @@ table small {
   margin-bottom: 12px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
+.tech-estimator-hero > summary {
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  list-style-position: inside;
+}
+.tech-estimator-hero[open] > summary {
+  margin-bottom: 10px;
+}
+.tech-estimator-hero .optional {
+  color: var(--muted);
+  font-weight: 400;
+  margin-left: 4px;
+}
 .hero-selector-grid {
   display: flex;
   flex-direction: column;
@@ -2230,6 +2262,40 @@ table small {
   display: flex;
   flex-direction: column;
   gap: 4px;
+}
+.quick-401k-summary {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin: 0 0 18px;
+  padding: 14px 18px;
+}
+.quick-401k-summary .panel-heading {
+  margin-bottom: 8px;
+}
+.quick-401k-summary .panel-heading h2 {
+  font-size: 14px;
+  margin: 0;
+}
+.quick-401k-summary-row {
+  align-items: baseline;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 24px;
+  font-size: 12px;
+}
+.quick-401k-summary-row > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.quick-401k-summary-row > span strong {
+  color: var(--text);
+  font-size: 15px;
+}
+.quick-401k-summary > .hint {
+  margin-bottom: 0;
+  margin-top: 8px;
 }
 .hero-label {
   font-size: 11px;

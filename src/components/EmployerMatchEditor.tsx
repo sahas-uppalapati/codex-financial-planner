@@ -13,6 +13,7 @@ export function EmployerMatchFields({
   errors = {},
   onChange,
   baseSalary,
+  annualBasicDeferralLimit = 24500,
   employeeRate,
   onApplyTarget,
   onMaximizeTarget,
@@ -22,14 +23,19 @@ export function EmployerMatchFields({
   errors?: Record<string, string>;
   onChange: (m: EmployerMatch) => void;
   baseSalary?: number;
+  annualBasicDeferralLimit?: number;
   employeeRate?: number;
   onApplyTarget?: (rate: number) => void;
   onMaximizeTarget?: () => void;
 }) {
   const eligiblePay = baseSalary ?? 0;
   const rate = employeeRate ?? 0;
-  const fullMatchRate = requiredEmployeeRateForFullMatch(match);
-  const cap = Number(match.cap) > 0 ? Number(match.cap) : Infinity;
+  const fullMatchRate = match.capBasis === "half-basic-deferral-limit" && eligiblePay > 0
+    ? Math.min(100, (annualBasicDeferralLimit / eligiblePay) * 100)
+    : requiredEmployeeRateForFullMatch(match);
+  const cap = match.capBasis === "half-basic-deferral-limit"
+    ? annualBasicDeferralLimit / 2
+    : Number(match.cap) > 0 ? Number(match.cap) : Infinity;
 
   let maximumMatch = 0;
   if (match.type === "simple") {
@@ -85,6 +91,7 @@ export function EmployerMatchFields({
                     rate: preset.rate,
                     payPercent: preset.payPercent,
                     cap: preset.cap,
+                    capBasis: "fixed",
                   });
                 } else {
                   onChange({
@@ -92,6 +99,7 @@ export function EmployerMatchFields({
                     type: "tiered",
                     tiers: [...preset.tiers],
                     cap: preset.cap,
+                    capBasis: "fixed",
                   });
                 }
               }}
@@ -109,6 +117,7 @@ export function EmployerMatchFields({
           onChange({
             ...match,
             type: value as EmployerMatch["type"],
+            capBasis: "fixed",
           })
         }
         hint="Unsure adds no assumed match. Check your plan document or offer letter for details."
@@ -208,13 +217,17 @@ export function EmployerMatchFields({
         </>
       )}
 
-      <NumberField
-        label="Optional annual employer match cap"
-        value={match.cap}
-        onChange={(v) => onChange({ ...match, cap: v })}
-        hint="Enter 0 when there is no dollar cap. The cap applies to the total annual match."
-        error={errors[`${prefix}.cap`]}
-      />
+      {match.capBasis === "half-basic-deferral-limit" ? (
+        <p className="hint">Annual match cap: half of that year’s basic IRS employee deferral limit.</p>
+      ) : (
+        <NumberField
+          label="Optional annual employer match cap"
+          value={match.cap}
+          onChange={(v) => onChange({ ...match, cap: v, capBasis: "fixed" })}
+          hint="Enter 0 when there is no dollar cap. The cap applies to the total annual match."
+          error={errors[`${prefix}.cap`]}
+        />
+      )}
 
       <SelectField
         label="Match vesting schedule"

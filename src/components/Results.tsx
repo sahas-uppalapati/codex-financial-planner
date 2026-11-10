@@ -8,7 +8,6 @@ import { ProjectionChart } from "./ProjectionChart";
 import { SelectField } from "./EditorFields";
 import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
-import { TechRealityCard } from "./TechRealityCard";
 import { track } from "../lib/analytics";
 interface ResultSeries {
   name: string;
@@ -84,7 +83,7 @@ export function Results({
                     title={`Base: ${money(row.base)} · Stock: ${money(row.stockGross)}${row.bonus > 0 ? ` · Bonus / Sign-on: ${money(row.bonus)}` : ""}`}
                   >
                     <span className="quick-metric-label">
-                      <span className="quick-metric-title">Total Comp (TC)</span>
+                      <span className="quick-metric-title">Annual income</span>
                     </span>
                     <strong className="quick-metric-val" data-testid={`quick-tc-${s.index}`}>
                       {money(row.grossIncome)}<span className="unit">/ yr</span>
@@ -149,7 +148,28 @@ export function Results({
         </div>
       </section>
       {quickMode && (
-        <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />
+        <section className="quick-401k-summary" aria-label="401(k) projection summary">
+          <div className="panel-heading">
+            <h2>401(k) in your projection</h2>
+            <span className="muted small-text">Year 1 and end of projection</span>
+          </div>
+          {series.map((s, i) => {
+            const firstYear = s.projection.rows[0];
+            const lastYear = final[i];
+            const annualEmployee = firstYear.retirementContribution + firstYear.roth401kContribution;
+            const annualMatch = firstYear.employerMatch;
+            const ending401k = lastYear.accountBalances["traditional-401k"] + lastYear.accountBalances["roth-401k"];
+            return (
+              <div className="quick-401k-summary-row" key={s.index}>
+                {series.length > 1 && <strong>{s.name}</strong>}
+                <span>Your annual contributions <strong>{money(annualEmployee)}</strong></span>
+                <span>Employer match in year 1 <strong>{money(annualMatch)}</strong></span>
+                <span>Projected 401(k) balance <strong>{money(ending401k)}</strong></span>
+              </div>
+            );
+          })}
+          <p className="hint">Includes the starting 401(k) balance, contributions, matching, and modeled investment growth. Nominal dollars; before future withdrawal taxes.</p>
+        </section>
       )}
       <section
         className="projection-panel"
@@ -158,7 +178,7 @@ export function Results({
         <div className="panel-heading">
           <div>
             <p className="eyebrow">THE BIGGER PICTURE</p>
-            <h2 id="projection-heading">Your career, over time</h2>
+            <h2 id="projection-heading">Your balance, over time</h2>
           </div>
           <span className="period-tag">{years}-year projection</span>
         </div>
