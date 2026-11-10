@@ -3,6 +3,7 @@ import type { AssumptionsV2, ScenarioV2 } from "../lib/planner";
 import { categoryKeys, fieldError, monthlyExpenses } from "../lib/model";
 import { Field } from "./Field";
 import { TechEstimatorHero } from "./TechEstimatorHero";
+import { QuickAssumptions } from "./QuickAssumptions";
 
 export function QuickEstimate({
   scenario,
@@ -60,12 +61,6 @@ export function QuickEstimate({
 
   return (
     <div className="quick-estimate-form">
-      <p className="hint">
-        Quick estimate starts in 2026 and uses 2.5% tax-threshold inflation. It
-        excludes detailed tax adjustments, payroll health premiums, spouse
-        contributions, and recurring equity refresher rules. Open the detailed
-        planner to include those settings; your saved inputs are retained.
-      </p>
       <TechEstimatorHero
         allowInitialPreset={allowInitialPreset}
         scenario={scenario}
@@ -89,7 +84,8 @@ export function QuickEstimate({
             const updatedGrants =
               scenario.grants &&
               scenario.grants.length === 1 &&
-              scenario.grants[0].employmentId === "initial"
+              scenario.grants[0].employmentId === "initial" &&
+              scenario.grants[0].presetCompensation === "tech-quick"
                 ? [{ ...scenario.grants[0], value: String(annualVal * 4) }]
                 : scenario.grants;
             onScenarioChange({
@@ -100,7 +96,7 @@ export function QuickEstimate({
             });
           }}
           error={errors.stock}
-          hint="Annual RSU vesting value (USD / year, e.g. 4-year grant divided by 4)."
+          hint={scenario.grants.some((grant) => grant.presetCompensation !== "tech-quick") ? "Detailed stock grants are in use. Edit them in Detailed View; this field does not replace them." : "Annual RSU vesting value (USD / year, e.g. 4-year grant divided by 4)."}
         />
       </div>
       {hasSignOn || showSignOn ? (
@@ -155,6 +151,13 @@ export function QuickEstimate({
         error={errors.years}
         integer
       />
+      <QuickAssumptions scenario={scenario} assumptions={assumptions} />
+      <p className="hint">
+        Detailed View adds account, tax, career and stock controls. Your inputs
+        carry over; if you have annual stock but no grant, it creates an
+        estimated four-year quarterly grant. The detailed projection may differ
+        because it includes settings omitted here.
+      </p>
     </div>
   );
 }
