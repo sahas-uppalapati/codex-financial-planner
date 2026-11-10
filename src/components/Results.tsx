@@ -57,100 +57,6 @@ export function Results({
   }));
   return (
     <div className="results-content">
-      <section className="quick-read" aria-labelledby="quick-read-heading">
-        <div className="quick-read-heading">
-          <div>
-            <p className="eyebrow">AT A GLANCE</p>
-            <h2 id="quick-read-heading">Your summary</h2>
-          </div>
-          <span className="period-tag">
-            {series[0].projection.rows[activeYear].calendarYear}
-          </span>
-        </div>
-        <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
-          {series.map((s) => {
-            const row = s.projection.rows[activeYear];
-            return (
-              <article className="quick-read-card" key={s.index}>
-                {series.length > 1 && (
-                  <h3>
-                    <i className={`dot series-${s.index}`} />
-                    {s.name}
-                  </h3>
-                )}
-                <div className="quick-metrics-row">
-                  <div
-                    className="quick-metric-box"
-                    title={`Base: ${money(row.base)} · Stock: ${money(row.stockGross)}${row.bonus > 0 ? ` · Bonus / Sign-on: ${money(row.bonus)}` : ""}`}
-                  >
-                    <span className="quick-metric-label">
-                      <span className="quick-metric-title">Total Comp (TC)</span>
-                    </span>
-                    <strong className="quick-metric-val" data-testid={`quick-tc-${s.index}`}>
-                      {money(row.grossIncome)}<span className="unit">/ yr</span>
-                    </strong>
-                    <span className="quick-metric-sub">{money(row.grossIncome / 12)} / mo</span>
-                  </div>
-
-                  <div
-                    className="quick-metric-box"
-                    title="Estimated for your location. Includes housing, food, transportation, healthcare and other spending."
-                  >
-                    <span className="quick-metric-label">
-                      <span className="quick-metric-title">Living Costs</span>
-                    </span>
-                    <strong className="quick-metric-val" data-testid={`quick-expenses-${s.index}`}>
-                      {money(row.expenses)}<span className="unit">/ yr</span>
-                    </strong>
-                    <span className="quick-metric-sub">{money(row.expenses / 12)} / mo</span>
-                  </div>
-
-                  {(() => {
-                    const retirementSaved =
-                      (row.retirementContribution || 0) +
-                      (row.roth401kContribution || 0) +
-                      (row.employerMatch || 0) +
-                      (row.hsaContribution || 0) +
-                      (row.traditionalIraContribution || 0) +
-                      (row.rothIraContribution || 0) +
-                      (row.megaBackdoorContribution || 0);
-                    const totalAnnualSaved = row.surplus + retirementSaved;
-                    const hasPretax = retirementSaved > 0;
-
-                    const titleBreakdown = hasPretax
-                      ? `Total Saved: ${money(totalAnnualSaved)}/yr (Cash: ${money(row.surplus)} · 401(k): ${money((row.retirementContribution || 0) + (row.roth401kContribution || 0))} · Match: ${money(row.employerMatch || 0)}${row.hsaContribution > 0 ? ` · HSA: ${money(row.hsaContribution)}` : ""})`
-                      : "Net cash savings after modeled taxes, payroll benefits and living costs.";
-
-                    return (
-                      <div className="quick-metric-box highlight" title={titleBreakdown}>
-                        <span className="quick-metric-label">
-                          <span className="quick-metric-title">
-                            {hasPretax ? "Total Saved (Cash + 401k)" : "Saved Each Year"}
-                          </span>
-                        </span>
-                        <strong
-                          className={`quick-metric-val ${totalAnnualSaved < 0 ? "negative" : "positive"}`}
-                          data-testid={`quick-savings-${s.index}`}
-                        >
-                          {totalAnnualSaved >= 0 ? "+" : ""}{money(totalAnnualSaved)}<span className="unit">/ yr</span>
-                        </strong>
-                        <span className="quick-metric-sub">
-                          {hasPretax
-                            ? `${money(row.surplus)} cash · ${money(retirementSaved)} 401(k)/match`
-                            : `${money(row.surplus / 12)} / mo`}
-                        </span>
-                      </div>
-                    );
-                  })()}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      </section>
-      {quickMode && (
-        <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />
-      )}
       <section
         className="projection-panel"
         aria-labelledby="projection-heading"
@@ -183,14 +89,14 @@ export function Results({
             ))}
           </div>
           <p className="hint">
-            End of {startYear + years - 1} · before future sale / withdrawal
-            taxes · nominal dollars
+            End of {startYear + years - 1} · estimated investments and vested stock, before future sale or withdrawal taxes · future dollars
           </p>
         </div>
         <ProjectionChart
           series={chartSeries}
           starting={series[0].projection.startingTotal}
         />
+        {series.length === 1 && <div className="forecast-endpoints"><span>Starting balance <strong>{money(series[0].projection.startingTotal)}</strong></span><span>End of {startYear + years - 1} <strong>{money(final[0].endingBalance)}</strong></span></div>}
         <div className="chart-legend">
           {series.map((s) => (
             <span key={s.index}>
@@ -220,17 +126,72 @@ export function Results({
           </p>
         )}
       </section>
-      {!quickMode && (
-        <details
+      <section className="quick-read" aria-labelledby="monthly-picture-heading">
+        <div className="quick-read-heading">
+          <div>
+            <p className="eyebrow">YOUR MONEY TODAY</p>
+            <h2 id="monthly-picture-heading">Your monthly picture</h2>
+          </div>
+          <span className="period-tag">{first.calendarYear} average</span>
+        </div>
+        <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
+          {series.map((s) => {
+            const row = s.projection.rows[activeYear];
+            const items = [
+              ["Take-home pay", row.takeHome, "After estimated taxes and payroll deductions"],
+              ["Living costs", row.expenses, "After any payroll healthcare adjustment"],
+              ["Cash left from pay", row.surplus, "After living costs and account contributions"],
+              ["Cash left including stock sold", row.surplus + row.stockContribution, "After estimated stock taxes"],
+            ] as const;
+            return <article className="quick-read-card" key={s.index}>
+              {series.length > 1 && <h3><i className={`dot series-${s.index}`} />{s.name}</h3>}
+              <div className="quick-metrics-row monthly-metrics">
+                {items.map(([label, value, description], i) => <div className={`quick-metric-box ${i === 3 ? "highlight" : ""}`} key={label}>
+                  <span className="quick-metric-label">{label}</span>
+                  <strong className={`quick-metric-val ${value < 0 ? "negative" : ""}`} data-testid={i === 2 ? `quick-cash-${s.index}` : i === 3 ? `quick-cash-stock-${s.index}` : undefined}>{money(value / 12)}<span className="unit">/ mo</span></strong>
+                  <span className="monthly-metric-note">{description}</span>
+                </div>)}
+              </div>
+            </article>;
+          })}
+        </div>
+        <p className="hint">Monthly averages can differ from actual payments. Bonuses and stock may arrive unevenly. Stock you keep, retirement contributions, and employer match are not spendable cash here. Any stock tax that exceeds the shares sold to cover it is deducted from cash.</p>
+      </section>
+      {quickMode && <details className="cash-panel quick-account-breakdown">
+        <summary>What makes up the projected balance</summary>
+        <p className="hint">At the end of {startYear + years - 1}. These accounts have different access and tax rules; future sale or withdrawal taxes are not deducted.</p>
+        {series.map((s, i) => {
+          const row = final[i];
+          const categories = [
+            ["Taxable investments / shortfall", row.balances.taxable],
+            ["Vested employer shares", row.balances.employerStock],
+            ["Retirement and health accounts", Object.values(row.accountBalances).reduce((sum, value) => sum + value, 0)],
+          ] as const;
+          const total = categories.reduce((sum, [, value]) => sum + value, 0);
+          return <div key={s.index} className="account-breakdown">
+            {series.length > 1 && <h3>{s.name}</h3>}
+            {categories.every(([, value]) => value >= 0) && total > 0 && <div className="account-stack" aria-hidden="true">{categories.map(([label, value], j) => <span key={label} className={`account-stack-${j}`} style={{ width: `${100 * value / total}%` }} />)}</div>}
+            <table><caption className="sr-only">Projected account balances for {s.name}</caption><tbody>
+              {categories.map(([label, value], j) => <tr key={label}><th scope="row"><i aria-hidden="true" className={`account-key account-stack-${j}`} />{label}</th><td className={value < 0 ? "negative" : ""}>{money(value)}</td></tr>)}
+              <tr><th scope="row">Total</th><td>{money(row.endingBalance)}</td></tr>
+            </tbody></table>
+          </div>;
+        })}
+      </details>}
+      {quickMode && <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />}
+      <details
           className="more-results"
           open={detailsExpanded}
           onToggle={(e) => setDetailsExpanded(e.currentTarget.open)}
         >
         <summary>
-          Explore detailed results{" "}
+          Explore the numbers{" "}
           <span className="optional">Account, tax and monthly breakdowns</span>
         </summary>
         <div className="more-results-content">
+      <div className="cash-panel" aria-label="Annual compensation summary">
+        {series.map((s) => <p key={s.index} className="hint">{series.length > 1 ? `${s.name}: ` : ""}Total compensation <strong data-testid={`quick-tc-${s.index}`}>{money(s.projection.rows[activeYear].grossIncome)}</strong> · Living costs <strong data-testid={`quick-expenses-${s.index}`}>{money(s.projection.rows[activeYear].expenses)}</strong> / year</p>)}
+      </div>
       <section className="cash-panel" aria-labelledby="assets-heading">
         <div className="panel-heading">
           <h2 id="assets-heading">What makes up that balance</h2>
@@ -787,6 +748,8 @@ export function Results({
           </details>
         )}
       </section>
+      </div>
+      </details>
       {warnings.length > 0 && (
         <div className="model-notes">
           {warnings.map((w) => (
@@ -795,9 +758,6 @@ export function Results({
             </p>
           ))}
         </div>
-      )}
-      </div>
-      </details>
       )}
     </div>
   );

@@ -29,6 +29,10 @@ export function TechEstimatorHero({
   onAssumptionsChange,
 }: TechEstimatorHeroProps) {
   const initialized = useRef(false);
+  // Ownership is deliberately session-only. On reload, saved values have no
+  // trustworthy provenance and are therefore preserved until explicitly applied.
+  const baseline = useRef<{ scenario: ScenarioV2; assumptions: AssumptionsV2; owned: Set<string> } | null>(null);
+  const [preview, setPreview] = useState<{ scenario: ScenarioV2; assumptions: AssumptionsV2 } | null>(null);
   // Check if an actual tech preset is already applied (legacy default "Columbus offer" has company: "Meta" from model.ts)
   const isPresetApplied =
     scenario.name !== "Columbus offer" &&
@@ -59,24 +63,14 @@ export function TechEstimatorHero({
   });
 
   useEffect(() => {
-    if (initialCompany) {
-      setSelectedCompanyId(initialCompany);
-      const levels = techLevels[initialCompany] || techLevels.google;
-      const matchedLvl = levels.find((l) =>
-        scenario.name?.toLowerCase().includes(l.level.toLowerCase()) ||
-        scenario.role?.toLowerCase().includes(l.title.toLowerCase()),
-      )?.id || levels[2]?.id || levels[0]?.id || "l5";
-      setSelectedLevelId(matchedLvl);
-    } else {
-      setSelectedCompanyId("google");
-      setSelectedLevelId("l5");
-      if (!initialized.current && allowInitialPreset) {
-        const defaultLoc = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
-        applyTechPreset("google", "l5", defaultLoc, scenario.taxProfile.filing, activeGrowthId, true);
-      }
+    if (!initialized.current && allowInitialPreset && !initialCompany) {
+      const location = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
+      applyTechPreset("google", "l5", location, scenario.taxProfile.filing, activeGrowthId, true, true);
     }
     initialized.current = true;
-  }, [scenario.name, scenario.role, initialCompany]);
+  }, []); // Initial sample only; never infer ownership from an existing save.
+
+  useEffect(() => setPreview(null), [scenario, assumptions]);
 
   const selectedLocationId = scenario.taxProfile.location;
   const selectedFiling = scenario.taxProfile.filing;
@@ -123,30 +117,18 @@ export function TechEstimatorHero({
   function handleProgressionToggle(enabled: boolean) {
     setIncludeProgression(enabled);
     if (selectedCompanyId) {
-      applyTechPreset(selectedCompanyId, selectedLevelId || "l5", selectedLocationId, selectedFiling, activeGrowthId, enabled);
+      applyTechPreset(selectedCompanyId, selectedLevelId || "l5", selectedLocationId, selectedFiling, activeGrowthId, enabled, false, false, ["events"]);
     }
   }
 
   function handleGrowthChange(growthId: GrowthPreset["id"]) {
-    const preset = growthPresets.find((g) => g.id === growthId);
-    if (!preset) return;
-
-    onAssumptionsChange({
-      ...assumptions,
-      returns: String(preset.returns),
-      inflation: String(preset.inflation),
-    });
-
-    // Update employer stock appreciation if issuer exists
-    if (scenario.issuers && scenario.issuers.length > 0) {
-      onScenarioChange({
-        ...scenario,
-        issuers: scenario.issuers.map((issuer) => ({
-          ...issuer,
-          appreciation: String(preset.stockAppreciation),
-        })),
-      });
+    const growth = growthPresets.find((item) => item.id === growthId);
+    if (!growth) return;
+    const shared = { ...assumptions, returns: String(growth.returns) };
+    if (baseline.current) {
+      baseline.current = { ...baseline.current, assumptions: shared, owned: new Set([...baseline.current.owned, "returns"]) };
     }
+    onAssumptionsChange(shared);
   }
 
   function applyTechPreset(
@@ -156,6 +138,9 @@ export function TechEstimatorHero({
     filing: "single" | "joint",
     growthId: GrowthPreset["id"],
     progressionEnabled: boolean = includeProgression,
+    fullApply = false,
+    previewOnly = false,
+    forced: string[] = [],
   ) {
     const company = techCompanies.find((c) => c.id === companyId) || techCompanies[0];
     const levels = techLevels[companyId] || techLevels.google;
@@ -195,6 +180,7 @@ export function TechEstimatorHero({
       template: vestingTemplate,
       treatment: "sell" as const,
       keepOnDeparture: false,
+      presetCompensation: "tech-quick",
     };
 
     const events = progressionEnabled
@@ -249,12 +235,50 @@ export function TechEstimatorHero({
       },
     };
 
-    onScenarioChange(updatedScenario);
-    onAssumptionsChange({
+    const updatedAssumptions = {
       ...assumptions,
       returns: String(growth.returns),
       inflation: String(growth.inflation),
-    });
+    };
+    if (previewOnly) {
+      setPreview({ scenario: updatedScenario, assumptions: updatedAssumptions });
+      return;
+    }
+    applyCandidate(updatedScenario, updatedAssumptions, fullApply, forced);
+  }
+
+  function applyCandidate(candidate: ScenarioV2, nextAssumptions: AssumptionsV2, fullApply: boolean, forced: string[] = []) {
+    const keys = ["name", "role", "company", "base", "bonus", "stock", "signOnY1", "signOnY2", "stockMode", "includeStock", "employerId", "issuers", "grants", "events", "expenses", "employerMatch"] as const;
+    const old = baseline.current;
+    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+    const owned = new Set<string>();
+    const result = { ...scenario };
+    for (const key of keys) {
+      if (fullApply || forced.includes(key) || (old?.owned.has(key) && same(scenario[key], old.scenario[key]))) {
+        // Keep linked stock settings together when the corresponding grants or
+        // issuer have been customized, rather than orphaning a user's grant.
+        const linkedStock = ["stock", "stockMode", "includeStock", "employerId", "issuers", "grants"].includes(key);
+        const stockSafe = fullApply || !linkedStock || (["stock", "stockMode", "includeStock", "employerId", "issuers", "grants"] as const).every(
+          (field) => old?.owned.has(field) && same(scenario[field], old.scenario[field]),
+        );
+        if (stockSafe) {
+          Object.assign(result, { [key]: candidate[key] });
+          owned.add(key);
+        }
+      }
+    }
+    // Location and household are explicit controls, not inferred preset edits.
+    result.taxProfile = { ...scenario.taxProfile, location: candidate.taxProfile.location, filing: candidate.taxProfile.filing };
+    const shared = { ...assumptions };
+    for (const key of ["returns", "inflation"] as const) {
+      if (fullApply || forced.includes(key) || (old?.owned.has(key) && same(assumptions[key], old.assumptions[key]))) {
+        shared[key] = nextAssumptions[key];
+        owned.add(key);
+      }
+    }
+    baseline.current = { scenario: result, assumptions: shared, owned };
+    onScenarioChange(result);
+    onAssumptionsChange(shared);
   }
 
   const currentLevels = techLevels[selectedCompanyId] || techLevels.google;
@@ -378,6 +402,31 @@ export function TechEstimatorHero({
           </label>
         </div>
       </div>
+      <p className="hint">Preset changes keep values you have customized. Saved values are kept unless you choose to replace them. Market outlook changes the investment return only.</p>
+      <button type="button" className="secondary small" onClick={() => applyTechPreset(selectedCompanyId, selectedLevelId, selectedLocationId, selectedFiling, activeGrowthId, includeProgression, false, true)}>
+        Preview full preset
+      </button>
+      {preview && (
+        <div className="preset-preview" role="region" aria-label="Full preset preview">
+          <strong>Replace values with this preset?</strong>
+          <p>This replaces the scenario name, pay, bonuses, stock grants and employers (including any starting shares and cost basis), living costs, match, generated promotions, and market assumptions. Review these estimates before applying.</p>
+          <ul>
+            <li>Annual salary: {scenario.base} → {preview.scenario.base}</li>
+            <li>Annual bonus: {scenario.bonus} → {preview.scenario.bonus}</li>
+            <li>Annual stock: {scenario.stock} → {preview.scenario.stock}</li>
+            <li>Sign-on bonuses (years 1 / 2): {scenario.signOnY1} / {scenario.signOnY2} → {preview.scenario.signOnY1} / {preview.scenario.signOnY2}</li>
+            <li>Employer: {scenario.issuers.map((i) => i.name).join(", ") || "None"} → {preview.scenario.issuers.map((i) => i.name).join(", ") || "None"}</li>
+            <li>Stock grants: {scenario.grants.length} → {preview.scenario.grants.length} (existing grants will be replaced)</li>
+            <li>Career events: {scenario.events.length} → {preview.scenario.events.length} (manual events are retained)</li>
+            <li>Employer match: {scenario.employerMatch.type} → {preview.scenario.employerMatch.rate}% up to {preview.scenario.employerMatch.payPercent}% of pay</li>
+            <li>Monthly living costs: {Object.values(scenario.expenses).reduce((n, v) => n + (Number(v) || 0), 0)} → {Object.values(preview.scenario.expenses).reduce((n, v) => n + (Number(v) || 0), 0)}</li>
+            <li>Investment return: {assumptions.returns}% → {preview.assumptions.returns}%</li>
+            <li>Expense inflation: {assumptions.inflation}% → {preview.assumptions.inflation}%</li>
+          </ul>
+          <button type="button" onClick={() => { applyCandidate(preview.scenario, preview.assumptions, true); setPreview(null); }}>Apply full preset</button>{" "}
+          <button type="button" className="text-button" onClick={() => setPreview(null)}>Cancel</button>
+        </div>
+      )}
     </div>
   );
 }

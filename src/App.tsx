@@ -123,11 +123,6 @@ export default function App() {
       return {
         ...s,
         scenarios: nextScenarios,
-        shared: {
-          ...s.shared,
-          startYear: "2026",
-          taxInflation: "2.5",
-        },
       };
     });
     setQuickMode(false);
@@ -742,7 +737,12 @@ export default function App() {
           setActive(0);
           setResetVersion((version) => version + 1);
         }} />
-        <RetirementGuide />
+        {quickMode ? (
+          <details className="cash-panel prose">
+            <summary>Learn about retirement accounts</summary>
+            <RetirementGuide />
+          </details>
+        ) : <RetirementGuide />}
         <footer>
           <p>
             ◈ Your planner inputs stay in this browser. Optional analytics only
