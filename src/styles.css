@@ -1652,6 +1652,17 @@ footer > span {
   footer p {
     margin-bottom: 7px;
   }
+  footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  footer nav a,
+  footer > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+  }
   footer > span {
     display: block;
     margin-top: 12px;
