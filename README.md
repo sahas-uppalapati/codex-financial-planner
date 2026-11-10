@@ -23,7 +23,6 @@ Create a PostHog project, then set `VITE_POSTHOG_KEY` and (optionally) `VITE_POS
 Analytics are off until a visitor opts in using the control in the footer. Only action names and fixed labels are sent. Autocapture, exception capture, pageviews, session replay, surveys, feature flags, IP processing, and person profiles are disabled; event persistence stays in memory. URL query strings and fragments are stripped before events are sent because shared estimate links can contain planner values. Do not add planner values, names, URLs, or other user-entered data to analytics events.
 
 The deployed site includes privacy, use and copyright, and accessibility notices under `public/`. Keep them aligned with actual storage, analytics, hosting, and product behavior. The accessibility notice sets WCAG 2.2 AA as a target and does not claim verified conformance.
-
 ## CI and deployment
 
 GitHub Actions runs `npm ci`, the unit and browser test suites, and the production build for every pull request and every push to `master`. It installs Chromium for the Playwright desktop and mobile browser projects. To make CI a merge gate, require the **CI / verify** check in the repository's branch protection or ruleset settings.
