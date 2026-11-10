@@ -9,6 +9,7 @@ import type { CareerEvent, Grant, PlannerV2 } from "./planner";
 import { projectScenario } from "./projection";
 import { buildEquity } from "./equity";
 import { templateSchedule, vestingTemplates } from "../data/vesting";
+import { employerMatchForCompany, techCompanies } from "../data/techCompPresets";
 function fixture(): PlannerV2 {
   const p = defaultPlanner();
   p.shared = {
@@ -347,6 +348,40 @@ describe("monthly career and investment engine", () => {
     const proj = projectScenario(s, p.shared);
     expect(proj.rows[0].employerMatch).toBeCloseTo(3000, 5);
     expect(proj.rows[1].employerMatch).toBeCloseTo(4000, 5);
+  });
+  it("applies Amazon's published 50%-up-to-4% match and three-year vesting", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "3";
+    s.base = "100000";
+    s.retirementTargets.primary.workplace401k.mode = "percent";
+    s.retirementTargets.primary.workplace401k.amount = "4";
+    s.employerMatch = employerMatchForCompany(techCompanies.find((company) => company.id === "amazon")!);
+    const result = projectScenario(s, p.shared);
+    expect(result.rows[0].employerMatch).toBeCloseTo(2000, 8);
+    expect(result.rows[1].employerMatch).toBeCloseTo(2000, 8);
+    expect(result.rows[2].employerMatch).toBeCloseTo(2000, 8);
+    expect(result.rows[0].unvestedMatch).toBeCloseTo(2000, 8);
+    expect(result.rows[1].unvestedMatch).toBeCloseTo(4000, 8);
+    expect(result.rows[2].unvestedMatch).toBe(0);
+    expect(result.rows[2].balances.retirement).toBeCloseTo(18000, 8);
+  });
+  it("caps Microsoft's match at half of each year's indexed basic deferral limit", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "2";
+    p.shared.taxInflation = "2.5";
+    s.base = "200000";
+    s.retirementTargets.primary.workplace401k.mode = "percent";
+    s.retirementTargets.primary.workplace401k.amount = "20";
+    s.employerMatch = employerMatchForCompany(techCompanies.find((company) => company.id === "microsoft")!);
+    const result = projectScenario(s, p.shared);
+    expect(result.rows[0].employerMatch).toBeCloseTo(12250, 8);
+    expect(result.rows[1].employerMatch).toBeCloseTo(12556.25, 8);
+    expect(result.rows[0].retirementContribution).toBeCloseTo(24500, 8);
+    expect(result.rows[1].retirementContribution).toBeCloseTo(25112.5, 8);
+  });
+  it("does not assume an unverified Google match formula", () => {
+    const company = techCompanies.find((item) => item.id === "google")!;
+    expect(employerMatchForCompany(company).type).toBe("none");
   });
   it("tracks a spouse match separately through the primary worker's job change", () => {
     const p = fixture(), s = p.scenarios[0];

@@ -133,7 +133,13 @@ interface CashMonth {
   unfundedIra: number;
 }
 const sum = (items: number[]) => items.reduce((a, b) => a + b, 0);
-function calculateEmployerMatch(match: EmployerMatch, pay: number, contribution: number, used: number): number {
+function calculateEmployerMatch(
+  match: EmployerMatch,
+  pay: number,
+  contribution: number,
+  used: number,
+  annualBasicDeferralLimit: number,
+): number {
   const employeeRate = pay > 0 ? contribution / pay * 100 : 0;
   let amount = 0;
   if (match.type === "simple") {
@@ -146,7 +152,10 @@ function calculateEmployerMatch(match: EmployerMatch, pay: number, contribution:
       start = end;
     }
   }
-  return Number(match.cap) > 0 ? Math.min(amount, Math.max(0, Number(match.cap) - used)) : amount;
+  const annualCap = match.capBasis === "half-basic-deferral-limit"
+    ? annualBasicDeferralLimit / 2
+    : Number(match.cap);
+  return annualCap > 0 ? Math.min(amount, Math.max(0, annualCap - used)) : amount;
 }
 const accountTotal = (a: AccountBalances) =>
   a.taxable + a.employerStock + a.retirement + a.hsa;
@@ -375,8 +384,20 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         monthlyRetirementTarget(s.retirementTargets.spouse, spouseCash),
       );
       const match = activeMatch;
-      const matchAmount = calculateEmployerMatch(match, base, primary.retirement + (primary.roth401k ?? 0), annualMatchUsed);
-      const spouseMatch = calculateEmployerMatch(s.spouseEmployerMatch, spouseCash, spouse.retirement + (spouse.roth401k ?? 0), annualSpouseMatchUsed);
+      const matchAmount = calculateEmployerMatch(
+        match,
+        base,
+        primary.retirement + (primary.roth401k ?? 0),
+        annualMatchUsed,
+        retirementLimits.employeeDeferral,
+      );
+      const spouseMatch = calculateEmployerMatch(
+        s.spouseEmployerMatch,
+        spouseCash,
+        spouse.retirement + (spouse.roth401k ?? 0),
+        annualSpouseMatchUsed,
+        retirementLimits.employeeDeferral,
+      );
       annualMatchUsed += matchAmount;
       annualSpouseMatchUsed += spouseMatch;
       cashMonths.push({

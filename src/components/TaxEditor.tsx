@@ -336,6 +336,7 @@ export function BenefitsEditor({
             errors={errors}
             onChange={(employerMatch) => onChange({ ...s, employerMatch })}
             baseSalary={eligibleAnnualPay}
+            annualBasicDeferralLimit={annualRetirementLimits(Number(a.startYear), Number(a.taxInflation)).employeeDeferral}
             employeeRate={employeeRate}
             onApplyTarget={(requiredRate) => {
               const target = s.retirementTargets.primary;
@@ -400,6 +401,7 @@ export function BenefitsEditor({
             errors={errors}
             onChange={(spouseEmployerMatch) => onChange({ ...s, spouseEmployerMatch })}
             baseSalary={Number(s.taxProfile.spouseWages)}
+            annualBasicDeferralLimit={annualRetirementLimits(Number(a.startYear), Number(a.taxInflation)).employeeDeferral}
             employeeRate={s.retirementTargets.spouse.workplace401k.mode === "percent"
               ? Number(s.retirementTargets.spouse.workplace401k.amount)
               : Number(s.taxProfile.spouseWages) > 0

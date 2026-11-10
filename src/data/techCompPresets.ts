@@ -1,4 +1,4 @@
-import type { TaxLocation, CareerEvent } from "../lib/planner";
+import type { TaxLocation, CareerEvent, EmployerMatch } from "../lib/planner";
 import { monthLabel, uid } from "../lib/planner";
 
 export interface CompanyPreset {
@@ -7,11 +7,18 @@ export interface CompanyPreset {
   ticker: string;
   defaultVestingTemplate: string;
   matchPolicy: {
-    type: "percent_of_contribution" | "percent_of_pay";
+    type: "unverified" | "percent_of_contribution" | "percent_of_pay";
     rate: number;
     payPercentCap?: number;
     dollarCap?: number;
+    capBasis?: "half-basic-deferral-limit";
+    vestingType?: "immediate" | "cliff-3";
     description: string;
+    sourceStatus: "verified" | "existence-only" | "unverified";
+    sourceTitle: string;
+    sourceUrl: string;
+    sourceYear?: number;
+    verifiedOn: string;
   };
 }
 
@@ -66,10 +73,13 @@ export const techCompanies: CompanyPreset[] = [
     ticker: "GOOGL",
     defaultVestingTemplate: "google-quarterly",
     matchPolicy: {
-      type: "percent_of_contribution",
-      rate: 50,
-      dollarCap: 11750, // 50% match up to statutory IRS employee contribution limit
-      description: "50% match up to IRS contribution limit (~$11,750/yr)",
+      type: "unverified",
+      rate: 0,
+      description: "No current official match formula was verified; this estimate includes $0 match.",
+      sourceStatus: "unverified",
+      sourceTitle: "Google Careers benefits overview",
+      sourceUrl: "https://careers.google.com/how-we-care-for-googlers/?hl=en-US",
+      verifiedOn: "2026-11-09",
     },
   },
   {
@@ -78,10 +88,13 @@ export const techCompanies: CompanyPreset[] = [
     ticker: "META",
     defaultVestingTemplate: "quarterly",
     matchPolicy: {
-      type: "percent_of_contribution",
-      rate: 50,
-      dollarCap: 11750,
-      description: "50% match up to IRS limit (~$11,750/yr)",
+      type: "unverified",
+      rate: 0,
+      description: "No current official match formula was verified; this estimate includes $0 match.",
+      sourceStatus: "unverified",
+      sourceTitle: "Meta Careers benefits overview",
+      sourceUrl: "https://www.metacareers.com/benefits",
+      verifiedOn: "2026-11-09",
     },
   },
   {
@@ -93,7 +106,13 @@ export const techCompanies: CompanyPreset[] = [
       type: "percent_of_pay",
       rate: 50,
       payPercentCap: 4, // 50% on first 4% of pay = 2% total match
-      description: "50% match on first 4% of base pay (2% max)",
+      vestingType: "cliff-3",
+      description: "Published 2024 U.S. terms: 50% match on contributions up to 4% of eligible pay (2% of pay maximum); match vests after three years of vesting service. Confirm current plan terms.",
+      sourceStatus: "verified",
+      sourceTitle: "Amazon Benefits Overview for U.S. Employees",
+      sourceUrl: "https://www.amazon.jobs/it/landing_pages/benefitsoverview-us",
+      sourceYear: 2024,
+      verifiedOn: "2026-11-09",
     },
   },
   {
@@ -102,10 +121,13 @@ export const techCompanies: CompanyPreset[] = [
     ticker: "AAPL",
     defaultVestingTemplate: "semiannual",
     matchPolicy: {
-      type: "percent_of_pay",
-      rate: 50,
-      payPercentCap: 6, // 50% on first 6% of base = 3% match
-      description: "50% match on first 6% of base pay (3% max)",
+      type: "unverified",
+      rate: 0,
+      description: "Apple confirms that its U.S. 401(k) includes matching, but does not publish the formula on this page; this estimate includes $0 match.",
+      sourceStatus: "existence-only",
+      sourceTitle: "Apple Employee Benefits",
+      sourceUrl: "https://www.apple.com/careers/us/life-at-apple/benefits.html",
+      verifiedOn: "2026-11-09",
     },
   },
   {
@@ -116,11 +138,43 @@ export const techCompanies: CompanyPreset[] = [
     matchPolicy: {
       type: "percent_of_contribution",
       rate: 50,
-      dollarCap: 11750,
-      description: "50% match up to IRS contribution limit (~$11,750/yr)",
+      capBasis: "half-basic-deferral-limit",
+      vestingType: "immediate",
+      description: "50% match on pretax/Roth contributions up to the annual basic employee deferral limit; matching contributions vest immediately.",
+      sourceStatus: "verified",
+      sourceTitle: "Microsoft 401(k) Savings Plan and contribution options",
+      sourceUrl: "https://usbenefits.microsoft.com/us/en/401k-plan.html",
+      sourceYear: 2026,
+      verifiedOn: "2026-11-09",
     },
   },
 ];
+
+export function employerMatchForCompany(company: CompanyPreset): EmployerMatch {
+  const policy = company.matchPolicy;
+  if (policy.type === "unverified") {
+    return {
+      type: "none",
+      rate: "0",
+      payPercent: "0",
+      cap: "0",
+      capBasis: "fixed",
+      tiers: [],
+      vestingType: "immediate",
+      vestingSchedule: ["100"],
+    };
+  }
+  return {
+    type: "simple",
+    rate: String(policy.rate),
+    payPercent: String(policy.type === "percent_of_pay" ? policy.payPercentCap ?? 0 : 100),
+    cap: String(policy.dollarCap ?? 0),
+    capBasis: policy.capBasis ?? "fixed",
+    tiers: [],
+    vestingType: policy.vestingType ?? "immediate",
+    vestingSchedule: policy.vestingType === "cliff-3" ? ["0", "0", "100"] : ["100"],
+  };
+}
 
 export const techLevels: Record<string, TechLevelPreset[]> = {
   google: [

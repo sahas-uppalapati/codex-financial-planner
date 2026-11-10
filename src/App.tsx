@@ -26,9 +26,7 @@ import { analyticsConfigured, analyticsConsent, disableAnalytics, enableAnalytic
 function initial() {
   let loadedState: PlannerV2;
   let message = "";
-  let fresh = false;
   try {
-    fresh = !["careerworth:v1", "careerworth:v2", "careerworth:v3"].some((key) => window.localStorage.getItem(key) !== null);
     const res = loadPlanner(window.localStorage);
     loadedState = res.state;
     message = res.message;
@@ -37,7 +35,7 @@ function initial() {
     message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
 
-  return { state: loadedState, message, fresh };
+  return { state: loadedState, message };
 }
 function initialMode(): boolean {
   try {
@@ -54,7 +52,6 @@ export default function App() {
     [quickMode, setQuickModeState] = useState(initialMode),
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message),
-    [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
     [sharedLink, setSharedLink] = useState(""),
     [linkError, setLinkError] = useState(""),
     [pendingLink, setPendingLink] = useState(() => {
@@ -75,7 +72,6 @@ export default function App() {
   };
 
   useEffect(() => setSharedLink(""), [state, quickMode]);
-  useEffect(() => setAllowInitialPreset(false), []);
 
   const switchToQuick = () => {
     setQuickMode(true);
@@ -191,7 +187,7 @@ export default function App() {
       issuers,
       grants: original.grants || [],
       refreshers: [],
-      events: original.events || [],
+      events: [],
     };
     return {
       ...state,
@@ -359,7 +355,6 @@ export default function App() {
               <>
                 <QuickEstimate
                   key={resetVersion}
-                  allowInitialPreset={allowInitialPreset}
                   scenario={state.scenarios[0]}
                   assumptions={state.shared}
                   onScenarioChange={(scenario) => setState((s) => ({ ...s, scenarios: [scenario, s.scenarios[1]] }))}

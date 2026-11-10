@@ -70,27 +70,46 @@ test("quick estimate mode defaults, inputs, assumptions and transitions", async 
   await expect(
     page.getByRole("heading", { name: "Get a quick view of your financial future" }),
   ).toBeVisible();
-  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("241000");
-  await expect(page.getByLabel("Monthly living costs")).toHaveValue("4500");
+  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("100000");
+  await expect(page.getByLabel("Monthly living costs")).toHaveValue("3000");
   await expect(page.getByLabel("Current invested savings")).toHaveValue("20000");
   await expect(page.getByLabel("Years to project")).toHaveValue("10");
-  await expect(page.getByTestId("quick-tc-0")).toContainText("$544,520");
-  await expect(page.getByTestId("quick-expenses-0")).toContainText("$54,000");
+  await expect(page.getByLabel("Current 401(k) balance")).toHaveValue("0");
+  await expect(page.getByLabel("Tax residence and work location")).toHaveValue("columbus");
+  await expect(page.getByTestId("quick-tc-0")).toContainText("$100,000");
+  await expect(page.getByTestId("quick-expenses-0")).toContainText("$36,000");
 
   // Edit quick input
-  await page.getByLabel("Annual salary before tax").fill("260000");
-  await expect(page.getByTestId("quick-tc-0")).toContainText("$563,520");
+  await page.getByLabel("Annual salary before tax").fill("110000");
+  await expect(page.getByTestId("quick-tc-0")).toContainText("$110,000");
 
   // Transition to detailed view
   await page.getByRole("button", { name: "Add more detail" }).click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("260000");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("110000");
   await expect(
     page.getByRole("button", { name: "← Back to quick estimate" }),
   ).toBeVisible();
 
   // Return to quick view
   await page.getByRole("button", { name: "← Back to quick estimate" }).click();
-  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("260000");
+  await expect(page.getByLabel("Annual salary before tax")).toHaveValue("110000");
+});
+
+test("tech shortcuts preserve general assumptions and include sourced Amazon match", async ({ page }) => {
+  await page.evaluate(() => window.localStorage.clear());
+  await page.addInitScript(() => window.sessionStorage.setItem("careerworth:mode", "quick"));
+  await page.goto("/");
+  await page.getByLabel("Monthly living costs").fill("4500");
+  await page.getByLabel("Tax residence and work location").selectOption("columbus");
+  await page.locator(".tech-estimator-hero > summary").click();
+  await page.getByRole("button", { name: "Amazon", exact: true }).click();
+  await expect(page.getByLabel("Monthly living costs")).toHaveValue("4500");
+  await expect(page.getByLabel("Tax residence and work location")).toHaveValue("columbus");
+  await page.getByLabel("Annual salary before tax").fill("100000");
+  await page.getByRole("textbox", { name: "Your contribution % of salary" }).fill("4");
+  await expect(page.locator(".quick-401k-summary")).toContainText("$2,000");
+  await expect(page.locator(".quick-401k-panel")).toContainText("three years");
+  await expect(page.getByLabel("Employer match")).toHaveValue("custom");
 });
 test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   page,

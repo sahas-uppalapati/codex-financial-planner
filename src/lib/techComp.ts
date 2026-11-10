@@ -2,6 +2,7 @@ import type { FilingStatus, TaxLocation, TaxProfile } from "./planner";
 import { calculateTaxes } from "./tax";
 import type { WorkerTaxInput } from "./tax";
 import { techCompanies } from "../data/techCompPresets";
+import { retirementRules2026 } from "../data/retirementRules";
 
 export interface TechRealityInput {
   base: number;
@@ -98,7 +99,7 @@ export function computeVestingSchedule(
   });
 }
 
-export const IRS_401K_LIMIT_2026 = 23500;
+export const IRS_401K_LIMIT_2026 = 24500;
 
 export function getStatutoryStateSupplementalRate(location: TaxLocation): number {
   switch (location) {
@@ -235,12 +236,18 @@ export function computeTechReality(input: TechRealityInput): TechRealityOutput {
   if (company) {
     if (company.matchPolicy.type === "percent_of_contribution") {
       const match = employee401kAnnual * (company.matchPolicy.rate / 100);
-      annualEmployerMatch = company.matchPolicy.dollarCap
-        ? Math.min(match, company.matchPolicy.dollarCap)
+      const cap = company.matchPolicy.capBasis === "half-basic-deferral-limit"
+        ? retirementRules2026.employeeDeferral / 2
+        : company.matchPolicy.dollarCap;
+      annualEmployerMatch = cap
+        ? Math.min(match, cap)
         : match;
     } else if (company.matchPolicy.type === "percent_of_pay") {
-      const eligiblePay = base * ((company.matchPolicy.payPercentCap ?? 6) / 100);
-      annualEmployerMatch = eligiblePay * (company.matchPolicy.rate / 100);
+      const eligibleEmployeeContribution = Math.min(
+        employee401kAnnual,
+        base * ((company.matchPolicy.payPercentCap ?? 0) / 100),
+      );
+      annualEmployerMatch = eligibleEmployeeContribution * (company.matchPolicy.rate / 100);
     }
   }
 
