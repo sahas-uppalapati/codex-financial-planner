@@ -1,6 +1,6 @@
 # CareerWorth
 
-A private, browser-only career and compensation planner built with React, TypeScript, Vite, plain CSS, and a custom SVG chart. Compare two scenarios with calculated taxes, actual RSU grant schedules, promotions, employer changes, benefits, and separate investment accounts. No backend, accounts, API keys, analytics, or runtime financial-data requests.
+A browser-only career and compensation planner built with React, TypeScript, Vite, plain CSS, and a custom SVG chart. Compare two scenarios with calculated taxes, actual RSU grant schedules, promotions, employer changes, benefits, and separate investment accounts. The planner has no backend or accounts. Optional PostHog analytics records a small set of anonymous actions only after the visitor opts in; planner values are not included.
 
 ## Run and verify
 
@@ -15,6 +15,12 @@ npm run preview
 ```
 
 Open [http://localhost:5180](http://localhost:5180). On WSL use the Linux Node/npm installation (`nvm use 24`), not Windows npm. The development server binds to `0.0.0.0` for WSL localhost forwarding. Dependencies are pinned and a lockfile is included.
+
+## Optional analytics
+
+Create a PostHog project, then set `VITE_POSTHOG_KEY` and (optionally) `VITE_POSTHOG_HOST` in `.env.local` or deployment settings. `VITE_POSTHOG_HOST` defaults to `https://us.i.posthog.com`; use your project's region host if it differs. These are public browser settings, not secrets. Restart Vite after changing them.
+
+Analytics are off until a visitor opts in using the control in the footer. Only action names and fixed labels are sent. Autocapture, exception capture, pageviews, session replay, surveys, feature flags, IP processing, and person profiles are disabled; event persistence stays in memory. URL query strings and fragments are stripped before events are sent because shared estimate links can contain planner values. Do not add planner values, names, URLs, or other user-entered data to analytics events.
 
 ## CI and deployment
 

@@ -9,6 +9,7 @@ import { SelectField } from "./EditorFields";
 import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
 import { TechRealityCard } from "./TechRealityCard";
+import { track } from "../lib/analytics";
 interface ResultSeries {
   name: string;
   index: number;
@@ -480,7 +481,7 @@ export function Results({
           <button
             type="button"
             className="secondary small"
-            onClick={() => exportProjection(series)}
+            onClick={() => { exportProjection(series); track("csv_exported", { period: "annual" }); }}
           >
             <span aria-hidden="true">↓ </span>Export CSV
           </button>
@@ -681,7 +682,7 @@ export function Results({
               <button
                 type="button"
                 className="secondary small"
-                onClick={() => exportProjection(series, true)}
+                onClick={() => { exportProjection(series, true); track("csv_exported", { period: "monthly" }); }}
               >
                 Export monthly CSV
               </button>

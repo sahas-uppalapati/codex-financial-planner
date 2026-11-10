@@ -1261,6 +1261,11 @@ footer {
 footer p {
   max-width: 420px;
 }
+.analytics-preference {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 footer > span {
   margin-left: auto;
   padding-top: 2px;
