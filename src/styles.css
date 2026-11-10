@@ -2940,3 +2940,24 @@ table small {
   }
 }
 
+
+/* Compact forecast and account summaries */
+.forecast-endpoints { display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); font-size: 12px; }
+.forecast-endpoints span { display: grid; gap: 3px; }
+.forecast-endpoints span:last-child { text-align: right; }
+.forecast-endpoints strong { color: var(--text); }
+.monthly-metrics { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.monthly-metric-note { color: var(--muted); font-size: 11px; line-height: 1.35; }
+.quick-account-breakdown { margin-bottom: 18px; }
+.quick-account-breakdown > .hint { margin: 12px 0; }
+.account-stack { display: flex; height: 12px; overflow: hidden; border-radius: 8px; margin: 12px 0; background: var(--border); }
+.account-stack-0 { background: #377e65; }
+.account-stack-1 { background: #7ba5c7; }
+.account-stack-2 { background: #e3b36d; }
+.account-key { display: inline-block; width: 9px; height: 9px; margin-right: 8px; border-radius: 2px; }
+.account-breakdown table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.account-breakdown th, .account-breakdown td { padding: 7px 0; border-bottom: 1px solid var(--border); }
+.account-breakdown th { text-align: left; font-weight: 500; }
+.account-breakdown td { text-align: right; font-weight: 600; }
+@media (max-width: 800px) { .monthly-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 420px) { .monthly-metrics { grid-template-columns: 1fr; } }
