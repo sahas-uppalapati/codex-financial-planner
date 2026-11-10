@@ -1,3 +1,5 @@
+/// <reference types="vite/client" />
+
 import posthog from "posthog-js";
 import type { CaptureResult } from "posthog-js";
 
