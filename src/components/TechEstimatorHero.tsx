@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { ScenarioV2 } from "../lib/planner";
+import type { Grant, ScenarioV2 } from "../lib/planner";
 import {
   techCompanies,
   techLevels,
@@ -13,6 +13,10 @@ interface TechEstimatorHeroProps {
   scenario: ScenarioV2;
   startYear: string;
   onScenarioChange: (scenario: ScenarioV2) => void;
+}
+
+export function preserveUserGrants(grants: Grant[]): Grant[] {
+  return grants.filter((grant) => !grant.presetCompensation);
 }
 
 export function presetCompanyFor(scenario: ScenarioV2) {
@@ -85,9 +89,7 @@ export function TechEstimatorHero({ scenario, startYear, onScenarioChange }: Tec
       startingBasis: "0",
     };
     const employerMatch = employerMatchForCompany(company);
-    const preservedGrants = scenario.grants.filter((grant) =>
-      !grant.presetCompensation && grant.name !== "Initial 4-Year New Hire Grant",
-    );
+    const preservedGrants = preserveUserGrants(scenario.grants);
     onScenarioChange({
       ...scenario,
       employerId: finalIssuerId,
