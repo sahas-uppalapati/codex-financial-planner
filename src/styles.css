@@ -200,7 +200,10 @@ label {
 .info-tooltip-trigger:hover,
 .info-tooltip-trigger:focus-visible {
   color: var(--green);
-  outline: none;
+}
+.info-tooltip-trigger:focus-visible {
+  outline: 3px solid #497a5a;
+  outline-offset: 3px;
 }
 .info-tooltip-bubble {
   display: none;
@@ -1648,6 +1651,17 @@ footer > span {
   }
   footer p {
     margin-bottom: 7px;
+  }
+  footer nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 12px;
+  }
+  footer nav a,
+  footer > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
   }
   footer > span {
     display: block;

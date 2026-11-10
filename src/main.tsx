@@ -9,7 +9,6 @@ if (window.location.search) {
   const robots = document.querySelector<HTMLMetaElement>('meta[name="robots"]');
   if (robots) robots.content = "noindex,nofollow";
 }
-
 if (analyticsConsent()) track("app_opened");
 createRoot(document.getElementById("root")!).render(
   <StrictMode>

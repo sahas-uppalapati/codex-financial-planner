@@ -333,21 +333,19 @@ export default function App() {
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
             <div className="inputs-heading">
-              <div className="view-mode-toggle" role="tablist" aria-label="Calculator mode">
+              <div className="view-mode-toggle" role="group" aria-label="Calculator view">
                 <button
                   type="button"
-                  role="tab"
                   className={`view-mode-pill ${quickMode ? "active" : ""}`}
-                  aria-selected={quickMode}
+                  aria-pressed={quickMode}
                   onClick={() => { switchToQuick(); track("view_mode_changed", { mode: "quick" }); }}
                 >
                   Quick Estimate
                 </button>
                 <button
                   type="button"
-                  role="tab"
                   className={`view-mode-pill ${!quickMode ? "active" : ""}`}
-                  aria-selected={!quickMode}
+                  aria-pressed={!quickMode}
                   onClick={() => { switchToDetailed(); track("view_mode_changed", { mode: "detailed" }); }}
                 >
                   Detailed View
@@ -770,7 +768,12 @@ export default function App() {
                 ? "Valid inputs are saved automatically on this device."
                 : "Only valid inputs are saved.")}
           </p>
-          <span>CareerWorth · A planning tool, not financial advice.</span>
+          <p>CareerWorth · Planning estimates only. Not financial, investment, tax, legal, or benefits advice.</p>
+          <nav aria-label="Policies">
+            <a href="/privacy.html">Privacy</a>
+            <a href="/terms.html">Terms and copyright</a>
+            <a href="/accessibility.html">Accessibility</a>
+          </nav>
           <a href="/guide/">How CareerWorth works</a>
         </footer>
       </main>
