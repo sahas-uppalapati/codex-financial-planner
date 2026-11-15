@@ -28,6 +28,8 @@ export function Results({
   const [selected, setSelected] = useState(0),
     activeYear = Math.min(selected, Number(state.shared.years) - 1);
   const [detailsExpanded, setDetailsExpanded] = useState(!quickMode);
+  const [detailTab, setDetailTab] = useState<"all" | "cash" | "taxes" | "yearly">("all");
+  const [tableColumnsMode, setTableColumnsMode] = useState<"full" | "summary">("full");
   useEffect(() => {
     setDetailsExpanded(!quickMode);
   }, [quickMode]);
@@ -56,6 +58,26 @@ export function Results({
       label: `${e.month}: ${e.kind === "job" ? "Change employer" : "Promotion"} · ${e.role}`,
     })),
   }));
+
+  const accountDefs = [
+    ["Taxable investments / shortfall", "taxable", "aggregate"] as const,
+    ["Vested employer shares", "employerStock", "aggregate"] as const,
+    ...(Object.entries(retirementAccountLabels) as [RetirementAccountType, string][]).map(
+      ([type, label]) => [label, type, "account"] as const,
+    ),
+  ];
+
+  const getAccountVal = (key: string, kind: "aggregate" | "account", i: number) =>
+    kind === "account"
+      ? final[i].accountBalances[key as RetirementAccountType]
+      : final[i].balances[key as "taxable" | "employerStock"];
+
+  const activeAccounts = accountDefs.filter(
+    ([, key, kind]) => key === "taxable" || series.some((_, i) => Math.abs(getAccountVal(key, kind, i)) > 0.005),
+  );
+  const inactiveAccounts = accountDefs.filter(
+    ([, key, kind]) => key !== "taxable" && !series.some((_, i) => Math.abs(getAccountVal(key, kind, i)) > 0.005),
+  );
   return (
     <div className="results-content">
       <section
@@ -64,13 +86,12 @@ export function Results({
       >
         <div className="panel-heading">
           <div>
-            <p className="eyebrow">THE BIGGER PICTURE</p>
-            <h2 id="projection-heading">Your career, over time</h2>
+            <p className="eyebrow">PORTFOLIO & WEALTH</p>
+            <h2 id="projection-heading">Your portfolio, over time</h2>
           </div>
           <span className="period-tag">{years}-year projection</span>
         </div>
         <div className="balance-heading">
-          <p>Projected investment balance</p>
           <div className="ending-balances">
             {series.map((s, i) => (
               <div className="ending-value" key={s.index}>
@@ -126,6 +147,81 @@ export function Results({
             retirement assets are not automatically sold to fund spending.
           </p>
         )}
+        <div className="portfolio-breakdown" aria-labelledby="assets-heading">
+          <div className="portfolio-breakdown-heading">
+            <h3 id="assets-heading">What makes up that balance</h3>
+            <span className="muted small-text">End of projection</span>
+          </div>
+          <div
+            className="metrics-table"
+            style={{ "--scenario-count": series.length } as React.CSSProperties}
+          >
+            {series.length === 2 && (
+              <div className="metric-row metric-head">
+                <span>Account</span>
+                {series.map((s) => (
+                  <strong key={s.index}>
+                    <i className={`dot series-${s.index}`} />
+                    <span>{s.name}</span>
+                  </strong>
+                ))}
+              </div>
+            )}
+            {activeAccounts.map(([label, key, kind]) => (
+              <div className="metric-row" key={key}>
+                <span>{label}</span>
+                {series.map((s, i) => (
+                  <strong
+                    className={getAccountVal(key, kind, i) < 0 ? "negative" : ""}
+                    key={s.index}
+                    data-testid={`${key}-${s.index}`}
+                  >
+                    {money(getAccountVal(key, kind, i))}
+                  </strong>
+                ))}
+              </div>
+            ))}
+            {series.some((_, i) => Math.abs(final[i].unrealizedGain) > 0.005) && (
+              <div className="metric-row">
+                <span>
+                  Unrealized employer-stock gain
+                  <small>Already included above</small>
+                </span>
+                {series.map((s, i) => (
+                  <strong key={s.index}>{money(final[i].unrealizedGain)}</strong>
+                ))}
+              </div>
+            )}
+            {inactiveAccounts.length > 0 && (
+              <details className="empty-accounts-details">
+                <summary className="empty-accounts-summary">
+                  Show other account types ({inactiveAccounts.length} empty at $0)
+                </summary>
+                <div className="empty-accounts-list">
+                  {inactiveAccounts.map(([label, key, kind]) => (
+                    <div className="metric-row" key={key}>
+                      <span>{label}</span>
+                      {series.map((s, i) => (
+                        <strong
+                          className={getAccountVal(key, kind, i) < 0 ? "negative" : ""}
+                          key={s.index}
+                          data-testid={`${key}-${s.index}`}
+                        >
+                          {money(getAccountVal(key, kind, i))}
+                        </strong>
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              </details>
+            )}
+          </div>
+          <p className="hint monthly-note">
+            These accounts have different access and tax rules. Totals do not
+            deduct future liquidation or retirement withdrawal taxes. Unvested
+            awards are excluded.
+          </p>
+        </div>
       </section>
       <section className="quick-read" aria-labelledby="monthly-picture-heading">
         <div className="quick-read-heading">
@@ -191,63 +287,53 @@ export function Results({
           <span className="optional">Account, tax and monthly breakdowns</span>
         </summary>
         <div className="more-results-content">
-      <div className="cash-panel" aria-label="Annual compensation summary">
-        {series.map((s) => <p key={s.index} className="hint">{series.length > 1 ? `${s.name}: ` : ""}Total compensation <strong data-testid={`quick-tc-${s.index}`}>{money(s.projection.rows[activeYear].grossIncome)}</strong> · Living costs <strong data-testid={`quick-expenses-${s.index}`}>{money(s.projection.rows[activeYear].expenses)}</strong> / year</p>)}
-      </div>
-      <section className="cash-panel" aria-labelledby="assets-heading">
-        <div className="panel-heading">
-          <h2 id="assets-heading">What makes up that balance</h2>
-          <span className="muted small-text">End of projection</span>
-        </div>
-        <div
-          className="metrics-table"
-          style={{ "--scenario-count": series.length } as React.CSSProperties}
-        >
-          {series.length === 2 && (
-            <div className="metric-row metric-head">
-              <span>Account</span>
-              {series.map((s) => (
-                <strong key={s.index}>
-                  <i className={`dot series-${s.index}`} />
-                  <span>{s.name}</span>
-                </strong>
-              ))}
-            </div>
-          )}
-          {([
-            ["Taxable investments / shortfall", "taxable", "aggregate"],
-            ["Vested employer shares", "employerStock", "aggregate"],
-            ...(Object.entries(retirementAccountLabels) as [RetirementAccountType, string][]).map(([type, label]) => [label, type, "account"] as const),
-          ] as const).map(([label, key, kind]) => (
-            <div className="metric-row" key={key}>
-              <span>{label}</span>
-              {series.map((s, i) => (
-                <strong
-                  className={(kind === "account" ? final[i].accountBalances[key as RetirementAccountType] : final[i].balances[key as "taxable" | "employerStock"]) < 0 ? "negative" : ""}
-                  key={s.index}
-                  data-testid={`${key}-${s.index}`}
-                >
-                  {money(kind === "account" ? final[i].accountBalances[key as RetirementAccountType] : final[i].balances[key as "taxable" | "employerStock"])}
-                </strong>
-              ))}
-            </div>
-          ))}
-          <div className="metric-row">
-            <span>
-              Unrealized employer-stock gain
-              <small>Already included above</small>
-            </span>
-            {series.map((s, i) => (
-              <strong key={s.index}>{money(final[i].unrealizedGain)}</strong>
+          <div className="cash-panel" aria-label="Annual compensation summary">
+            {series.map((s) => (
+              <p key={s.index} className="hint">
+                {series.length > 1 ? `${s.name}: ` : ""}Total compensation <strong data-testid={`quick-tc-${s.index}`}>{money(s.projection.rows[activeYear].grossIncome)}</strong> · Living costs <strong data-testid={`quick-expenses-${s.index}`}>{money(s.projection.rows[activeYear].expenses)}</strong> / year
+              </p>
             ))}
           </div>
-        </div>
-        <p className="hint monthly-note">
-          These accounts have different access and tax rules. Totals do not
-          deduct future liquidation or retirement withdrawal taxes. Unvested
-          awards are excluded.
-        </p>
-      </section>
+          <div className="detail-tabs-bar" role="tablist" aria-label="Detailed results categories">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={detailTab === "all"}
+              className={`detail-tab-pill ${detailTab === "all" ? "active" : ""}`}
+              onClick={() => setDetailTab("all")}
+            >
+              All Details
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={detailTab === "cash"}
+              className={`detail-tab-pill ${detailTab === "cash" ? "active" : ""}`}
+              onClick={() => setDetailTab("cash")}
+            >
+              Cash Flow & Budget
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={detailTab === "taxes"}
+              className={`detail-tab-pill ${detailTab === "taxes" ? "active" : ""}`}
+              onClick={() => setDetailTab("taxes")}
+            >
+              Tax Breakdown
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={detailTab === "yearly"}
+              className={`detail-tab-pill ${detailTab === "yearly" ? "active" : ""}`}
+              onClick={() => setDetailTab("yearly")}
+            >
+              Annual Schedule
+            </button>
+          </div>
+
+          {(detailTab === "all" || detailTab === "cash") && (
       <section className="cash-panel" aria-labelledby="cash-heading">
         <div className="panel-heading">
           <h2 id="cash-heading">The cash & compensation picture</h2>
@@ -288,7 +374,7 @@ export function Results({
           )}
           <div className="metric-row">
             <span>
-              Cash take-home<small>After taxes and payroll benefits</small>
+              Cash take-home<span className="freq-badge monthly">/ mo</span><small>After taxes and payroll benefits</small>
             </span>
             {series.map((s) => (
               <strong key={s.index} data-testid={`take-home-${s.index}`}>
@@ -296,35 +382,48 @@ export function Results({
               </strong>
             ))}
           </div>
-          <div className="metric-row">
-            <span>Budgeted living expenses</span>
-            {series.map((s) => (
-              <strong key={s.index}>
-                {money(s.projection.rows[activeYear].budgetExpenses / 12)}
-              </strong>
-            ))}
-          </div>
-          <div className="metric-row">
-            <span>
-              Healthcare already paid in payroll
-              <small>Removed once from living expenses</small>
-            </span>
-            {series.map((s) => (
-              <strong key={s.index}>
-                {money(s.projection.rows[activeYear].healthcareOffset / 12)}
-              </strong>
-            ))}
-          </div>
-          <div className="metric-row">
-            <span>Post-payroll living expenses</span>
-            {series.map((s) => (
-              <strong key={s.index}>
-                {money(s.projection.rows[activeYear].expenses / 12)}
-              </strong>
-            ))}
-          </div>
+          {series.some((s) => s.projection.rows[activeYear].healthcareOffset > 0) ? (
+            <>
+              <div className="metric-row">
+                <span>Budgeted living expenses<span className="freq-badge monthly">/ mo</span></span>
+                {series.map((s) => (
+                  <strong key={s.index}>
+                    {money(s.projection.rows[activeYear].budgetExpenses / 12)}
+                  </strong>
+                ))}
+              </div>
+              <div className="metric-row">
+                <span>
+                  Healthcare already paid in payroll<span className="freq-badge monthly">/ mo</span>
+                  <small>Removed once from living expenses</small>
+                </span>
+                {series.map((s) => (
+                  <strong key={s.index}>
+                    {money(s.projection.rows[activeYear].healthcareOffset / 12)}
+                  </strong>
+                ))}
+              </div>
+              <div className="metric-row">
+                <span>Post-payroll living expenses<span className="freq-badge monthly">/ mo</span></span>
+                {series.map((s) => (
+                  <strong key={s.index}>
+                    {money(s.projection.rows[activeYear].expenses / 12)}
+                  </strong>
+                ))}
+              </div>
+            </>
+          ) : (
+            <div className="metric-row">
+              <span>Living expenses<span className="freq-badge monthly">/ mo</span></span>
+              {series.map((s) => (
+                <strong key={s.index}>
+                  {money(s.projection.rows[activeYear].expenses / 12)}
+                </strong>
+              ))}
+            </div>
+          )}
           <div className="metric-row savings-row">
-            <span>Cash savings / shortfall</span>
+            <span>Cash savings / shortfall<span className="freq-badge monthly">/ mo</span></span>
             {series.map((s) => {
               const r = s.projection.rows[activeYear];
               return (
@@ -355,8 +454,10 @@ export function Results({
           </div>
           <div className="metric-row stock-row">
             <span>
-              Gross vested equity
-              <small>Annual · includes retained shares</small>
+              Gross vested equity<span className="freq-badge annual">/ yr</span>
+              {series.some((s) => s.projection.rows[activeYear].stockGross > 0) && (
+                <small>Annual · includes retained shares</small>
+              )}
             </span>
             {series.map((s) => (
               <strong key={s.index} data-testid={`stock-${s.index}`}>
@@ -364,42 +465,49 @@ export function Results({
               </strong>
             ))}
           </div>
-          <div className="metric-row">
-            <span>
-              Stock proceeds invested
-              <small>Annual · after attributed equity taxes</small>
-            </span>
-            {series.map((s) => (
-              <strong key={s.index}>
-                {money(s.projection.rows[activeYear].stockContribution)}
-              </strong>
-            ))}
-          </div>
-          <div className="metric-row">
-            <span>
-              Equity retained at vest<small>Annual · after sell-to-cover</small>
-            </span>
-            {series.map((s) => (
-              <strong key={s.index}>
-                {money(s.projection.rows[activeYear].heldContribution)}
-              </strong>
-            ))}
-          </div>
-          <div className="metric-row">
-            <span>
-              Employer match
-              <small>Annual · deposited in the traditional 401(k)</small>
-            </span>
-            {series.map((s) => (
-              <strong key={s.index}>
-                {money(s.projection.rows[activeYear].employerMatch)}
-              </strong>
-            ))}
-          </div>
+          {series.some((s) => s.projection.rows[activeYear].stockGross > 0) && (
+            <>
+              <div className="metric-row">
+                <span>
+                  Stock proceeds invested<span className="freq-badge annual">/ yr</span>
+                  <small>Annual · after attributed equity taxes</small>
+                </span>
+                {series.map((s) => (
+                  <strong key={s.index}>
+                    {money(s.projection.rows[activeYear].stockContribution)}
+                  </strong>
+                ))}
+              </div>
+              <div className="metric-row">
+                <span>
+                  Equity retained at vest<span className="freq-badge annual">/ yr</span>
+                  <small>Annual · after sell-to-cover</small>
+                </span>
+                {series.map((s) => (
+                  <strong key={s.index}>
+                    {money(s.projection.rows[activeYear].heldContribution)}
+                  </strong>
+                ))}
+              </div>
+            </>
+          )}
+          {series.some((s) => s.projection.rows[activeYear].employerMatch > 0) && (
+            <div className="metric-row">
+              <span>
+                Employer match<span className="freq-badge annual">/ yr</span>
+                <small>Annual · deposited in the traditional 401(k)</small>
+              </span>
+              {series.map((s) => (
+                <strong key={s.index}>
+                  {money(s.projection.rows[activeYear].employerMatch)}
+                </strong>
+              ))}
+            </div>
+          )}
           {series.some((s) => s.projection.rows[activeYear].unvestedMatch > 0) && (
             <div className="metric-row">
               <span>
-                Unvested employer match
+                Unvested employer match<span className="freq-badge annual">/ yr</span>
                 <small>Vesting in progress · unvested balance forfeits on departure</small>
               </span>
               {series.map((s) => (
@@ -412,7 +520,7 @@ export function Results({
           {series.some((s) => s.projection.rows[activeYear].forfeitedMatch > 0) && (
             <div className="metric-row">
               <span>
-                Forfeited unvested match
+                Forfeited unvested match<span className="freq-badge annual">/ yr</span>
                 <small>Deducted on job departure before vesting</small>
               </span>
               {series.map((s) => (
@@ -422,25 +530,29 @@ export function Results({
               ))}
             </div>
           )}
-          <div className="metric-row">
-            <span>
-              401(k) + HSA contributions
-              <small>Annual · transferred into their accounts</small>
-            </span>
-            {series.map((s) => {
-              const r = s.projection.rows[activeYear];
-              return (
-                <strong key={s.index}>
-                  {money(r.retirementContribution + r.hsaContribution)}
-                </strong>
-              );
-            })}
-          </div>
+          {series.some((s) => (s.projection.rows[activeYear].retirementContribution + s.projection.rows[activeYear].hsaContribution) > 0) && (
+            <div className="metric-row">
+              <span>
+                401(k) + HSA contributions<span className="freq-badge annual">/ yr</span>
+                <small>Annual · transferred into their accounts</small>
+              </span>
+              {series.map((s) => {
+                const r = s.projection.rows[activeYear];
+                return (
+                  <strong key={s.index}>
+                    {money(r.retirementContribution + r.hsaContribution)}
+                  </strong>
+                );
+              })}
+            </div>
+          )}
         </div>
       </section>
+      )}
+      {(detailTab === "all" || detailTab === "taxes" || detailTab === "yearly" || detailTab === "cash") && (
       <section className="yearly-section">
         <div className="table-toolbar">
-          <h2>Look a little closer</h2>
+          <h2>Detailed Breakdown</h2>
           <button
             type="button"
             className="secondary small"
@@ -449,82 +561,294 @@ export function Results({
             <span aria-hidden="true">↓ </span>Export CSV
           </button>
         </div>
-        <details>
+        {(detailTab === "all" || detailTab === "taxes") && (
+        <details open={detailTab === "taxes" ? true : undefined}>
           <summary>
             Tax breakdown{" "}
             <span className="optional">
-              {first.calendarYear} · annual liability
+              {series[0].projection.rows[activeYear].calendarYear} · annual liability
             </span>
           </summary>
           <div className="details-body">
-            <p className="hint">
-              Equity-attributed tax is total liability with vesting minus
-              liability on cash compensation alone. Monthly reserves allocate
-              these annual estimates, not actual paycheck withholding.
-            </p>
-            <div
-              className="tax-comparison"
-              style={
-                { "--scenario-count": series.length } as React.CSSProperties
-              }
-            >
-              {(
-                [
-                  ["Gross compensation", "gross"],
-                  ["Federal taxable income", "federalTaxable"],
-                  ["State taxable income", "stateTaxable"],
-                  ["Federal income tax", "federalIncome"],
-                  ["State income tax", "stateIncome"],
-                  ["Local income tax", "localIncome"],
-                  ["Social Security", "socialSecurity"],
-                  ["Medicare", "medicare"],
-                  ["Additional Medicare", "additionalMedicare"],
-                  ["Employee leave/disability premiums", "employeePremiums"],
-                  ["Manual rate component", "manual"],
-                  ["Total estimated tax", "total"],
-                ] as const
-              ).map(([label, key]) => (
-                <div className="metric-row" key={key}>
-                  <span>{label}</span>
-                  {series.map((s) => (
-                    <strong key={s.index}>
-                      {money(s.projection.rows[activeYear].taxBreakdown[key])}
-                    </strong>
+            <div className="table-header-controls">
+              <p className="hint">
+                Equity-attributed tax is total liability with vesting minus
+                liability on cash compensation alone. Monthly reserves allocate
+                these annual estimates, not actual paycheck withholding.
+              </p>
+              <div className="result-year">
+                <SelectField
+                  label="Tax year"
+                  value={String(activeYear)}
+                  onChange={(v) => setSelected(Number(v))}
+                >
+                  {series[0].projection.rows.map((r, i) => (
+                    <option value={i} key={i}>
+                      {r.calendarYear} · Year {r.year}
+                    </option>
                   ))}
-                </div>
-              ))}
-              <div className="metric-row">
-                <span>Effective rate on gross compensation</span>
-                {series.map((s) => (
-                  <strong key={s.index}>
-                    {percent(
-                      s.projection.rows[activeYear].taxBreakdown.effective,
+                </SelectField>
+              </div>
+            </div>
+            <div className="tax-table-container table-scroll" tabIndex={0} role="region" aria-label="Tax breakdown table">
+              <table className="tax-table">
+                <thead>
+                  <tr>
+                    <th scope="col">Tax Component</th>
+                    {series.map((s) => (
+                      <th scope="col" key={s.index}>
+                        {series.length > 1 && <i className={`dot series-${s.index}`} />}
+                        {series.length > 1 ? s.name : "Amount"}
+                      </th>
+                    ))}
+                    {series.length === 1 && <th scope="col">% of Gross</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  <tr className="tax-group-header">
+                    <th colSpan={series.length === 1 ? 3 : 1 + series.length} scope="colgroup">
+                      Income & Taxable Bases
+                    </th>
+                  </tr>
+                  <tr>
+                    <th scope="row">Gross compensation</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.gross)}</td>
+                    ))}
+                    {series.length === 1 && <td>100.0%</td>}
+                  </tr>
+                  <tr>
+                    <th scope="row">Federal taxable income</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.federalTaxable)}</td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].taxBreakdown.federalTaxable /
+                            (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                        )}
+                      </td>
                     )}
-                  </strong>
-                ))}
-              </div>
-              <div className="metric-row">
-                <span>Tax attributable to vested equity</span>
-                {series.map((s) => (
-                  <strong key={s.index} data-testid={`equity-tax-${s.index}`}>
-                    {money(s.projection.rows[activeYear].stockTaxes)}
-                  </strong>
-                ))}
-              </div>
+                  </tr>
+                  <tr>
+                    <th scope="row">State taxable income</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.stateTaxable)}</td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].taxBreakdown.stateTaxable /
+                            (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                        )}
+                      </td>
+                    )}
+                  </tr>
+
+                  <tr className="tax-group-header">
+                    <th colSpan={series.length === 1 ? 3 : 1 + series.length} scope="colgroup">
+                      Taxes Owed
+                    </th>
+                  </tr>
+                  <tr>
+                    <th scope="row">Federal income tax</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.federalIncome)}</td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].taxBreakdown.federalIncome /
+                            (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                  <tr>
+                    <th scope="row">State income tax</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.stateIncome)}</td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].taxBreakdown.stateIncome /
+                            (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                  {series.some((s) => s.projection.rows[activeYear].taxBreakdown.localIncome > 0) && (
+                    <tr>
+                      <th scope="row">Local income tax</th>
+                      {series.map((s) => (
+                        <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.localIncome)}</td>
+                      ))}
+                      {series.length === 1 && (
+                        <td>
+                          {percent(
+                            series[0].projection.rows[activeYear].taxBreakdown.localIncome /
+                              (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )}
+                  <tr>
+                    <th scope="row">Social Security (FICA)</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.socialSecurity)}</td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].taxBreakdown.socialSecurity /
+                            (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                  <tr>
+                    <th scope="row">Medicare</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.medicare)}</td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].taxBreakdown.medicare /
+                            (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                  {series.some((s) => s.projection.rows[activeYear].taxBreakdown.additionalMedicare > 0) && (
+                    <tr>
+                      <th scope="row">Additional Medicare</th>
+                      {series.map((s) => (
+                        <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.additionalMedicare)}</td>
+                      ))}
+                      {series.length === 1 && (
+                        <td>
+                          {percent(
+                            series[0].projection.rows[activeYear].taxBreakdown.additionalMedicare /
+                              (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )}
+                  {series.some((s) => s.projection.rows[activeYear].taxBreakdown.employeePremiums > 0) && (
+                    <tr>
+                      <th scope="row">Employee leave/disability premiums</th>
+                      {series.map((s) => (
+                        <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.employeePremiums)}</td>
+                      ))}
+                      {series.length === 1 && (
+                        <td>
+                          {percent(
+                            series[0].projection.rows[activeYear].taxBreakdown.employeePremiums /
+                              (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )}
+                  {series.some((s) => s.projection.rows[activeYear].taxBreakdown.manual > 0) && (
+                    <tr>
+                      <th scope="row">Manual rate component</th>
+                      {series.map((s) => (
+                        <td key={s.index}>{money(s.projection.rows[activeYear].taxBreakdown.manual)}</td>
+                      ))}
+                      {series.length === 1 && (
+                        <td>
+                          {percent(
+                            series[0].projection.rows[activeYear].taxBreakdown.manual /
+                              (series[0].projection.rows[activeYear].taxBreakdown.gross || 1),
+                          )}
+                        </td>
+                      )}
+                    </tr>
+                  )}
+                </tbody>
+                <tfoot>
+                  <tr className="tax-total-row">
+                    <th scope="row">Total estimated tax</th>
+                    {series.map((s) => (
+                      <td key={s.index}>
+                        <strong>{money(s.projection.rows[activeYear].taxBreakdown.total)}</strong>
+                      </td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        <strong>{percent(series[0].projection.rows[activeYear].taxBreakdown.effective)}</strong>
+                      </td>
+                    )}
+                  </tr>
+                  <tr className="tax-sub-row">
+                    <th scope="row">Effective rate on gross compensation</th>
+                    {series.map((s) => (
+                      <td key={s.index}>{percent(s.projection.rows[activeYear].taxBreakdown.effective)}</td>
+                    ))}
+                    {series.length === 1 && <td />}
+                  </tr>
+                  <tr className="tax-sub-row">
+                    <th scope="row">Tax attributable to vested equity</th>
+                    {series.map((s) => (
+                      <td key={s.index} data-testid={`equity-tax-${s.index}`}>
+                        {money(s.projection.rows[activeYear].stockTaxes)}
+                      </td>
+                    ))}
+                    {series.length === 1 && (
+                      <td>
+                        {percent(
+                          series[0].projection.rows[activeYear].stockGross > 0
+                            ? series[0].projection.rows[activeYear].stockTaxes /
+                                series[0].projection.rows[activeYear].stockGross
+                            : 0,
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                </tfoot>
+              </table>
             </div>
           </div>
         </details>
-        <details>
+        )}
+        {(detailTab === "all" || detailTab === "yearly") && (
+        <details open={detailTab === "yearly" ? true : undefined}>
           <summary>
             Year-by-year projection{" "}
             <span className="optional">{years} years</span>
           </summary>
           <div className="details-body">
-            <p className="hint">
-              All values are nominal USD. Gross includes vested equity whether
-              sold or held. Portfolio balance excludes unvested awards. CSV
-              contains full precision and detailed tax components.
-            </p>
+            <div className="table-header-controls">
+              <p className="hint">
+                All values are nominal USD. Gross includes vested equity whether
+                sold or held. Portfolio balance excludes unvested awards. CSV
+                contains full precision and detailed tax components.
+              </p>
+              <div className="table-density-switch" role="group" aria-label="Table column density">
+                <button
+                  type="button"
+                  className={`density-pill ${tableColumnsMode === "summary" ? "active" : ""}`}
+                  aria-pressed={tableColumnsMode === "summary"}
+                  onClick={() => setTableColumnsMode("summary")}
+                >
+                  Key summary (11 cols)
+                </button>
+                <button
+                  type="button"
+                  className={`density-pill ${tableColumnsMode === "full" ? "active" : ""}`}
+                  aria-pressed={tableColumnsMode === "full"}
+                  onClick={() => setTableColumnsMode("full")}
+                >
+                  Full detail (27 cols)
+                </button>
+              </div>
+            </div>
             {series.map((s) => (
               <div className="yearly-table-block" key={s.index}>
                 <h3>
@@ -543,34 +867,49 @@ export function Results({
                     </caption>
                     <thead>
                       <tr>
-                        {[
-                          "Year / role",
-                          "Base",
-                          "Bonus",
-                          "Spouse cash",
-                          "Vested equity",
-                          "Gross income",
-                          "Est. taxes",
-                          "Cash take-home",
-                          "Expenses",
-                          "Cash surplus",
-                          "401(k)",
-                          "Employer match",
-                          "HSA",
-                          "Traditional IRA",
-                          "Roth IRA",
-                          "Backdoor conversion",
-                          "Mega backdoor Roth",
-                          "IRA deduction",
-                          "Unfunded IRA target",
-                          "Stock invested",
-                          "Equity retained",
-                          "Forfeited awards",
-                          "Taxable balance",
-                          "Employer stock",
-                          ...Object.values(retirementAccountLabels).map((label) => `${label} balance`),
-                          "Total balance",
-                        ].map((h) => (
+                        {(tableColumnsMode === "summary"
+                          ? [
+                              "Year / role",
+                              "Base",
+                              "Bonus",
+                              "Vested equity",
+                              "Gross income",
+                              "Est. taxes",
+                              "Cash take-home",
+                              "Expenses",
+                              "Cash surplus",
+                              "401(k) + Match",
+                              "Total balance",
+                            ]
+                          : [
+                              "Year / role",
+                              "Base",
+                              "Bonus",
+                              "Spouse cash",
+                              "Vested equity",
+                              "Gross income",
+                              "Est. taxes",
+                              "Cash take-home",
+                              "Expenses",
+                              "Cash surplus",
+                              "401(k)",
+                              "Employer match",
+                              "HSA",
+                              "Traditional IRA",
+                              "Roth IRA",
+                              "Backdoor conversion",
+                              "Mega backdoor Roth",
+                              "IRA deduction",
+                              "Unfunded IRA target",
+                              "Stock invested",
+                              "Equity retained",
+                              "Forfeited awards",
+                              "Taxable balance",
+                              "Employer stock",
+                              ...Object.values(retirementAccountLabels).map((label) => `${label} balance`),
+                              "Total balance",
+                            ]
+                        ).map((h) => (
                           <th scope="col" key={h}>
                             {h}
                           </th>
@@ -580,51 +919,76 @@ export function Results({
                     <tbody>
                       <tr>
                         <th scope="row">Start</th>
-                        <td colSpan={21}>Starting owned assets</td>
-                        <td>{money(s.projection.starting.taxable)}</td>
-                        <td>{money(s.projection.starting.employerStock)}</td>
-                        {Object.keys(retirementAccountLabels).map((key) => <td key={key}>{money(s.projection.startingAccountBalances[key as RetirementAccountType])}</td>)}
-                        <td>{money(s.projection.startingTotal)}</td>
+                        {tableColumnsMode === "summary" ? (
+                          <>
+                            <td colSpan={9}>Starting owned assets</td>
+                            <td>{money(s.projection.startingTotal)}</td>
+                          </>
+                        ) : (
+                          <>
+                            <td colSpan={21}>Starting owned assets</td>
+                            <td>{money(s.projection.starting.taxable)}</td>
+                            <td>{money(s.projection.starting.employerStock)}</td>
+                            {Object.keys(retirementAccountLabels).map((key) => <td key={key}>{money(s.projection.startingAccountBalances[key as RetirementAccountType])}</td>)}
+                            <td>{money(s.projection.startingTotal)}</td>
+                          </>
+                        )}
                       </tr>
-                      {s.projection.rows.map((r) => (
-                        <tr key={r.year}>
-                          <th scope="row">
-                            {r.calendarYear}
-                            <small>{r.role}</small>
-                          </th>
-                          {[
-                            r.base,
-                            r.bonus,
-                            r.spouseCash,
-                            r.stockGross,
-                            r.grossIncome,
-                            r.taxes,
-                            r.takeHome,
-                            r.expenses,
-                            r.surplus,
-                            r.retirementContribution,
-                            r.employerMatch,
-                            r.hsaContribution,
-                            r.traditionalIraContribution,
-                            r.rothIraContribution,
-                            r.backdoorRothConversion,
-                            r.megaBackdoorContribution,
-                            r.deductibleIraContribution,
-                            r.unfundedIraContribution,
-                            r.stockContribution,
-                            r.heldContribution,
-                            r.forfeitedEquity,
-                            r.balances.taxable,
-                            r.balances.employerStock,
-                            ...Object.keys(retirementAccountLabels).map((key) => r.accountBalances[key as RetirementAccountType]),
-                            r.endingBalance,
-                          ].map((v, i) => (
-                            <td key={i} className={v < 0 ? "negative" : ""}>
-                              {money(v)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))}
+                      {s.projection.rows.map((r) => {
+                        const rowVals = tableColumnsMode === "summary"
+                          ? [
+                              r.base,
+                              r.bonus,
+                              r.stockGross,
+                              r.grossIncome,
+                              r.taxes,
+                              r.takeHome,
+                              r.expenses,
+                              r.surplus,
+                              r.retirementContribution + r.employerMatch,
+                              r.endingBalance,
+                            ]
+                          : [
+                              r.base,
+                              r.bonus,
+                              r.spouseCash,
+                              r.stockGross,
+                              r.grossIncome,
+                              r.taxes,
+                              r.takeHome,
+                              r.expenses,
+                              r.surplus,
+                              r.retirementContribution,
+                              r.employerMatch,
+                              r.hsaContribution,
+                              r.traditionalIraContribution,
+                              r.rothIraContribution,
+                              r.backdoorRothConversion,
+                              r.megaBackdoorContribution,
+                              r.deductibleIraContribution,
+                              r.unfundedIraContribution,
+                              r.stockContribution,
+                              r.heldContribution,
+                              r.forfeitedEquity,
+                              r.balances.taxable,
+                              r.balances.employerStock,
+                              ...Object.keys(retirementAccountLabels).map((key) => r.accountBalances[key as RetirementAccountType]),
+                              r.endingBalance,
+                            ];
+                        return (
+                          <tr key={r.year}>
+                            <th scope="row">
+                              {r.calendarYear}
+                              <small>{r.role}</small>
+                            </th>
+                            {rowVals.map((v, i) => (
+                              <td key={i} className={v < 0 ? "negative" : ""}>
+                                {money(v)}
+                              </td>
+                            ))}
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
@@ -632,6 +996,8 @@ export function Results({
             ))}
           </div>
         </details>
+        )}
+        {(detailTab === "all" || detailTab === "cash") && (
         <details>
           <summary>
             Monthly cash flows & vesting{" "}
@@ -723,6 +1089,7 @@ export function Results({
             ))}
           </div>
         </details>
+        )}
         {state.scenarios
           .slice(0, state.comparison ? 2 : 1)
           .some((s) => s.events.length > 0) && (
@@ -750,6 +1117,7 @@ export function Results({
           </details>
         )}
       </section>
+        )}
       </div>
       </details>
       {warnings.length > 0 && (

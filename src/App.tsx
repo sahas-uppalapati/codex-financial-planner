@@ -45,6 +45,12 @@ function initial() {
     message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
 
+  if (message.startsWith("Saved inputs upgraded") || message.startsWith("Saved inputs could not be restored")) {
+    return { state: loadedState, message, fresh, linkedMode: undefined };
+  }
+
+  if (linked) return { state: linked.state, message: linkMessage || message, fresh: false, linkedMode: linked.quickMode };
+
   return { state: loadedState, message: linkMessage || message, fresh, linkedMode: undefined };
 }
 function initialMode(): boolean {
@@ -63,7 +69,6 @@ export default function App() {
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message),
     [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
-    [copyMessage, setCopyMessage] = useState(""),
     [linkError, setLinkError] = useState(""),
     [pendingLink, setPendingLink] = useState(() => {
       if (new URLSearchParams(window.location.search).has("plan")) return null;
@@ -256,17 +261,7 @@ export default function App() {
   useEffect(() => {
     if (pendingLink) return;
     window.history.replaceState({ ...(window.history.state || {}), ownPlan: true }, "", fullPlannerUrl(window.location.href, shareReady ? state : null, quickMode));
-    setCopyMessage("");
   }, [state, quickMode, shareReady, pendingLink]);
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(fullPlannerUrl(window.location.href, state, quickMode));
-      setCopyMessage("Copied!");
-      track("share_link_created");
-    } catch {
-      setCopyMessage("Copy the address from your browser.");
-    }
-  };
 
   const shared = (key: keyof PlannerV2["shared"], value: string) =>
     setState((s) => ({ ...s, shared: { ...s.shared, [key]: value } }));
@@ -343,11 +338,6 @@ export default function App() {
         )}
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
-            <div className="share-compact">
-              <button type="button" className="text-button" onClick={copyLink} disabled={!shareReady}>Copy plan link</button>
-              <span role="status">{copyMessage || (shareReady ? "Your address bar also contains your plan." : "Fix invalid inputs to share.")}</span>
-              <small>Anyone with the link can see your inputs.</small>
-            </div>
             <div className="inputs-heading">
               <div className="view-mode-toggle" role="group" aria-label="Calculator view">
                 <button
@@ -466,7 +456,7 @@ export default function App() {
             />
             <section className="shared-inputs" aria-labelledby="shared-heading">
               <div className="section-label">
-                <h3 id="shared-heading">The starting point</h3>
+                <h3 id="shared-heading">Starting investments & balances</h3>
                 {state.comparison && <span className="status-tag">Shared</span>}
               </div>
               <div className="two-cols">
@@ -486,11 +476,12 @@ export default function App() {
                   integer
                 />
               </div>
-              <div className="section-label">
-                <h3>Starting balances</h3>
-                {state.comparison && <span className="status-tag">Shared</span>}
-              </div>
-              <div className="metric-row starting-total"><span>Starting assets <small>Taxable + retirement accounts; employer shares shown in the results</small></span><strong>{Number.isFinite(startingAccountTotal) ? money(startingAccountTotal) : "Check balances"}</strong></div>
+              {state.shared.startingAccounts.length > 0 && (
+                <div className="metric-row starting-total">
+                  <span>Starting assets <small>Taxable + retirement accounts; employer shares shown in the results</small></span>
+                  <strong>{Number.isFinite(startingAccountTotal) ? money(startingAccountTotal) : "Check balances"}</strong>
+                </div>
+              )}
               {state.shared.startingAccounts.map((account, index) => (
                 <div className="starting-account-row" key={account.id}>
                   <SelectField
@@ -511,9 +502,9 @@ export default function App() {
                   <button type="button" className="text-button small-text" aria-label={`Remove ${retirementAccountLabels[account.type]} starting balance`} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: current.shared.startingAccounts.filter((row) => row.id !== account.id) } }))}>Remove</button>
                 </div>
               ))}
-              <button type="button" className="secondary small" disabled={state.shared.startingAccounts.length >= 40} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: [...current.shared.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] } }))}>Add account balance</button>
+              <button type="button" className="secondary small" disabled={state.shared.startingAccounts.length >= 40} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: [...current.shared.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] } }))}>+ Add retirement account balance</button>
               {errors.startingAccounts && <p className="error">{errors.startingAccounts}</p>}
-              <p className="hint">Include balances from past employers. <a href="#starting-employer-shares">Edit starting shares</a> in equity.</p>
+              <p className="hint">Include 401(k) / IRA balances from past employers. <a href="#starting-employer-shares">Edit starting shares</a> in equity.</p>
               <AutoDetails
                 hasErrors={
                   !!(

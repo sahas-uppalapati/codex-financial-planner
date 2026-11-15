@@ -1033,27 +1033,52 @@ details[open] > summary:before {
 }
 .table-scroll {
   max-width: 100%;
+  max-height: 540px;
   overflow: auto;
   border: 1px solid var(--border);
-  border-radius: 6px;
+  border-radius: 8px;
   background: #fff;
+  position: relative;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 table {
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   white-space: nowrap;
   font-size: 11px;
   width: 100%;
 }
 th,
 td {
-  padding: 12px 14px;
+  padding: 11px 13px;
   border-bottom: 1px solid #e8ede4;
   text-align: right;
 }
 thead th {
+  position: sticky;
+  top: 0;
   background: #edf2e9;
   font-size: 10px;
   font-weight: 600;
+  z-index: 5;
+  box-shadow: 0 1px 0 var(--border);
+}
+tbody th[scope="row"] {
+  position: sticky;
+  left: 0;
+  background: #ffffff;
+  z-index: 6;
+  box-shadow: 1px 0 0 var(--border);
+}
+thead th:first-child {
+  position: sticky;
+  left: 0;
+  top: 0;
+  z-index: 10;
+  box-shadow: 1px 1px 0 var(--border);
+}
+tbody tr:hover th[scope="row"] {
+  background: #fafbf7;
 }
 th:first-child,
 td[colspan] {
@@ -2940,6 +2965,238 @@ table small {
   }
 }
 
+/* --- Usability & Polish: Segmented Detail Tabs --- */
+.detail-tabs-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 20px;
+  padding: 4px;
+  background: #edf0eb;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+.detail-tab-pill {
+  flex: 1 1 auto;
+  min-width: max-content;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  padding: 7px 14px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+}
+.detail-tab-pill:hover {
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.5);
+}
+.detail-tab-pill.active {
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Frequency Badges (Monthly vs Annual) --- */
+.freq-badge {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 9.5px;
+  font-weight: 650;
+  letter-spacing: 0.4px;
+  margin-left: 8px;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+.freq-badge.monthly {
+  background: #e9f2ee;
+  color: #1e5a40;
+  border: 1px solid #d3e4dc;
+}
+.freq-badge.annual {
+  background: #f0f3f6;
+  color: #435b6f;
+  border: 1px solid #d8e1e8;
+}
+
+/* --- Table Controls & Density Switch --- */
+.table-header-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.table-header-controls .hint {
+  margin: 0;
+  flex: 1 1 280px;
+}
+.table-density-switch {
+  display: inline-flex;
+  gap: 2px;
+  background: #edf1ec;
+  padding: 2px;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+.density-pill {
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  padding: 4px 9px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--muted);
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+.density-pill:hover {
+  color: var(--text);
+}
+.density-pill.active {
+  background: #ffffff;
+  color: var(--text);
+  font-weight: 600;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* --- Quick Estimate Footnote --- */
+.quick-estimate-footnote {
+  margin-top: 18px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+/* --- Modern Card Elevation & Polish --- */
+.quick-read-card {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  transition: box-shadow 0.2s ease;
+}
+.quick-metric-box {
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+.quick-metric-box:hover {
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.06);
+}
+
+/* --- Inactive Account Collapsible --- */
+.empty-accounts-details {
+  margin-top: 10px;
+  border-top: 1px dashed #dce2d9;
+  padding-top: 8px;
+}
+.empty-accounts-summary {
+  font-size: 11px;
+  color: var(--muted);
+  cursor: pointer;
+  padding: 4px 0;
+  user-select: none;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  text-decoration: underline;
+  text-decoration-color: transparent;
+  transition: all 0.15s ease;
+}
+.empty-accounts-summary:hover {
+  color: var(--green);
+  text-decoration-color: currentColor;
+}
+.empty-accounts-list {
+  padding-top: 6px;
+}
+.empty-accounts-list .metric-row {
+  opacity: 0.85;
+}
+
+/* --- Portfolio Breakdown Inside Key Projection Panel --- */
+.portfolio-breakdown {
+  margin-top: 24px;
+  padding-top: 20px;
+  border-top: 1px solid var(--border);
+}
+.portfolio-breakdown-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 12px;
+}
+.portfolio-breakdown-heading h3 {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin: 0;
+}
+
+/* --- Tax Breakdown Table --- */
+.tax-table-container {
+  margin-top: 14px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow-x: auto;
+  background: #ffffff;
+}
+
+.tax-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 12px;
+}
+
+.tax-table th,
+.tax-table td {
+  padding: 9px 13px;
+  border-bottom: 1px solid #edf1ea;
+}
+
+.tax-table thead th {
+  background: #edf2e9;
+  font-size: 11px;
+  font-weight: 600;
+  text-align: right;
+}
+
+.tax-table thead th:first-child {
+  text-align: left;
+}
+
+.tax-group-header th {
+  background: #f5f8f3;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.7px;
+  padding: 7px 13px;
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  text-align: left;
+}
+
+.tax-total-row th,
+.tax-total-row td {
+  background: #f7faf5;
+  font-weight: 700;
+  font-size: 12.5px;
+  border-top: 2px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  color: var(--text);
+}
+
+.tax-sub-row th,
+.tax-sub-row td {
+  background: #ffffff;
+  color: var(--muted);
+  font-size: 11.5px;
+}
 
 /* Compact forecast and account summaries */
 .forecast-endpoints { display: flex; justify-content: space-between; gap: 1rem; color: var(--muted); font-size: 12px; }
