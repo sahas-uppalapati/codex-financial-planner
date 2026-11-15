@@ -11,7 +11,6 @@ test("the address bar shares the current plan with a fresh browser", async ({ pa
   await expect(recipient.getByLabel("Annual salary before tax")).toHaveValue("185000");
   await expect(recipient.getByLabel("Monthly living costs")).toHaveValue("5000");
   await page.getByLabel("Annual salary before tax").fill("");
-  await expect(page.getByRole("button", { name: "Copy plan link" })).toBeDisabled();
   await expect.poll(() => new URL(page.url()).searchParams.has("plan")).toBe(false);
   await context.close();
 });

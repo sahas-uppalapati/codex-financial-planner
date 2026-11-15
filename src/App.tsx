@@ -15,14 +15,14 @@ import { Field } from "./components/Field";
 import { AutoDetails, NumberField, SelectField } from "./components/EditorFields";
 import { Results } from "./components/Results";
 import { QuickEstimate } from "./components/QuickEstimate";
-import { locationPresets } from "./data/presets";
 import { templateSchedule } from "./data/vesting";
 import { RetirementGuide } from "./components/RetirementGuide";
 import { PlannerBackup } from "./components/PlannerBackup";
+import { AppFooter } from "./components/AppFooter";
 import { retirementAccountLabels } from "./lib/retirement";
 import type { RetirementAccountType } from "./lib/retirement";
 import { money } from "./lib/format";
-import { analyticsConfigured, analyticsConsent, disableAnalytics, enableAnalytics, track } from "./lib/analytics";
+import { analyticsConsent, track } from "./lib/analytics";
 function initial() {
   let linked: ReturnType<typeof readFullPlannerLink> = null;
   let linkMessage = "";
@@ -45,6 +45,10 @@ function initial() {
     message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
 
+  if (message.startsWith("Saved inputs upgraded") || message.startsWith("Saved inputs could not be restored")) {
+    return { state: loadedState, message, fresh, linkedMode: undefined };
+  }
+
   return { state: loadedState, message: linkMessage || message, fresh, linkedMode: undefined };
 }
 function initialMode(): boolean {
@@ -63,7 +67,6 @@ export default function App() {
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message),
     [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
-    [copyMessage, setCopyMessage] = useState(""),
     [linkError, setLinkError] = useState(""),
     [pendingLink, setPendingLink] = useState(() => {
       if (new URLSearchParams(window.location.search).has("plan")) return null;
@@ -71,7 +74,7 @@ export default function App() {
       return parsed.hasCustomParams ? parsed : null;
     });
   const setQuickMode = (value: boolean | ((prev: boolean) => boolean)) => {
-    setQuickModeState((prev) => {
+    setQuickModeState((prev: boolean) => {
       const next = typeof value === "function" ? value(prev) : value;
       try {
         window.sessionStorage?.setItem(
@@ -256,17 +259,7 @@ export default function App() {
   useEffect(() => {
     if (pendingLink) return;
     window.history.replaceState({ ...(window.history.state || {}), ownPlan: true }, "", fullPlannerUrl(window.location.href, shareReady ? state : null, quickMode));
-    setCopyMessage("");
   }, [state, quickMode, shareReady, pendingLink]);
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(fullPlannerUrl(window.location.href, state, quickMode));
-      setCopyMessage("Copied!");
-      track("share_link_created");
-    } catch {
-      setCopyMessage("Copy the address from your browser.");
-    }
-  };
 
   const shared = (key: keyof PlannerV2["shared"], value: string) =>
     setState((s) => ({ ...s, shared: { ...s.shared, [key]: value } }));
@@ -315,6 +308,7 @@ export default function App() {
               setActive(0);
               setResetVersion((v) => v + 1);
               setStorageMessage("");
+              setAllowInitialPreset(true);
             }}
           >
             ↺ Reset inputs
@@ -343,11 +337,6 @@ export default function App() {
         )}
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
-            <div className="share-compact">
-              <button type="button" className="text-button" onClick={copyLink} disabled={!shareReady}>Copy plan link</button>
-              <span role="status">{copyMessage || (shareReady ? "Your address bar also contains your plan." : "Fix invalid inputs to share.")}</span>
-              <small>Anyone with the link can see your inputs.</small>
-            </div>
             <div className="inputs-heading">
               <div className="view-mode-toggle" role="group" aria-label="Calculator view">
                 <button
@@ -466,7 +455,7 @@ export default function App() {
             />
             <section className="shared-inputs" aria-labelledby="shared-heading">
               <div className="section-label">
-                <h3 id="shared-heading">The starting point</h3>
+                <h3 id="shared-heading">Starting investments & balances</h3>
                 {state.comparison && <span className="status-tag">Shared</span>}
               </div>
               <div className="two-cols">
@@ -486,11 +475,12 @@ export default function App() {
                   integer
                 />
               </div>
-              <div className="section-label">
-                <h3>Starting balances</h3>
-                {state.comparison && <span className="status-tag">Shared</span>}
-              </div>
-              <div className="metric-row starting-total"><span>Starting assets <small>Taxable + retirement accounts; employer shares shown in the results</small></span><strong>{Number.isFinite(startingAccountTotal) ? money(startingAccountTotal) : "Check balances"}</strong></div>
+              {state.shared.startingAccounts.length > 0 && (
+                <div className="metric-row starting-total">
+                  <span>Starting assets <small>Taxable + retirement accounts; employer shares shown in the results</small></span>
+                  <strong>{Number.isFinite(startingAccountTotal) ? money(startingAccountTotal) : "Check balances"}</strong>
+                </div>
+              )}
               {state.shared.startingAccounts.map((account, index) => (
                 <div className="starting-account-row" key={account.id}>
                   <SelectField
@@ -511,9 +501,9 @@ export default function App() {
                   <button type="button" className="text-button small-text" aria-label={`Remove ${retirementAccountLabels[account.type]} starting balance`} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: current.shared.startingAccounts.filter((row) => row.id !== account.id) } }))}>Remove</button>
                 </div>
               ))}
-              <button type="button" className="secondary small" disabled={state.shared.startingAccounts.length >= 40} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: [...current.shared.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] } }))}>Add account balance</button>
+              <button type="button" className="secondary small" disabled={state.shared.startingAccounts.length >= 40} onClick={() => setState((current) => ({ ...current, shared: { ...current.shared, startingAccounts: [...current.shared.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] } }))}>+ Add retirement account balance</button>
               {errors.startingAccounts && <p className="error">{errors.startingAccounts}</p>}
-              <p className="hint">Include balances from past employers. <a href="#starting-employer-shares">Edit starting shares</a> in equity.</p>
+              <p className="hint">Include 401(k) / IRA balances from past employers. <a href="#starting-employer-shares">Edit starting shares</a> in equity.</p>
               <AutoDetails
                 hasErrors={
                   !!(
@@ -594,163 +584,6 @@ export default function App() {
                 </p>
               </section>
             )}
-            <div className="disclosures">
-              <details>
-                <summary>How this works</summary>
-                <div className="details-body prose">
-                  <p>
-                    The model starts January 1 of the chosen year. Career
-                    changes take effect at the beginning of their selected
-                    month. Base pay grows on role anniversaries; explicit
-                    promotion pay replaces that month’s raise. Annual bonus
-                    targets accrue for active months and are paid in December.
-                    Spouse wages are spread evenly across months in joint-filing
-                    household scenarios.
-                  </p>
-                  <p>
-                    Each nonnegative opening investment balance earns the
-                    monthly equivalent of your annual return assumption. Cash
-                    surplus, sold-equity proceeds, and retirement/HSA
-                    contributions and estimated employer matching enter at month-end. Unfunded cash shortfalls
-                    earn no return and are not modeled loans. Held shares and
-                    retirement assets are never automatically liquidated to fund
-                    living costs.
-                  </p>
-                  <p>
-                    Each RSU award has a fixed share count established from a
-                    total grant value and grant-date price, or entered directly.
-                    Month 1 means the end of its grant month; month 12 means the
-                    end of the 12th month. Historical vests are excluded from
-                    new contributions. New grants, refreshers and old grants can
-                    overlap; unvested awards are forfeited on departure unless
-                    individually retained.
-                  </p>
-                  <p>
-                    All vested RSUs enter taxable compensation, whether sold or
-                    held. Annual tax liability is calculated with and without
-                    equity; the difference is allocated across vests by value.
-                    Hold treatment sells enough shares to cover this estimated
-                    liability and retains the remainder. Price appreciation on
-                    held shares is unrealized and is included once in their
-                    value. Grant value is not added again.
-                  </p>
-                  <p>
-                    Calculated taxes cover the selected full-year resident/work
-                    location, standard deductions, single or married-joint
-                    filing, and the disclosed W-2 assumptions. Future indexed
-                    parameters use your inflation assumption; other thresholds
-                    stay fixed. This projects 2026 law, not future enacted laws.
-                    Tax reserves are not paycheck withholding. Manual mode
-                    retains a user-entered total effective rate.
-                  </p>
-                  <p>
-                    Qualifying payroll health/HSA and traditional 401(k)
-                    contributions have distinct tax bases and annual limits.
-                    Healthcare budgets include premiums; premiums already paid
-                    through payroll are removed once from living expenses.
-                    Contribution targets are limited to available monthly cash
-                    wages. California adds HSA deductions back for state income
-                    tax and SDI.
-                  </p>
-                  <p>
-                    Balances are nominal future dollars before future sale or
-                    withdrawal taxes. The model excludes options, later stock
-                    sales, investment dividends/realized gains, HSA
-                    reimbursements, retirement withdrawals,
-                    itemized or family/earned-income credits, self-employment,
-                    interstate income allocation, other assets/liabilities and
-                    Monte Carlo simulation. Returns, share appreciation and
-                    career progression are assumptions, not guarantees.
-                  </p>
-                </div>
-              </details>
-              <details>
-                <summary>About these estimates</summary>
-                <div className="details-body prose">
-                  <p>
-                    Company cash-pay references are a small static snapshot of
-                    reported US-wide software engineer averages from{" "}
-                    <a
-                      href="https://www.levels.fyi"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Levels.fyi
-                    </a>
-                    , accessed October 27, 2026. They are not city-specific
-                    offers or guaranteed pay. Annualized stock averages do not
-                    establish actual grant amounts; those must be entered
-                    separately. Google and some level compensation presets
-                    remain omitted where comparable recurring figures could not
-                    be verified.
-                  </p>
-                  <p>
-                    Vesting presets are reported examples with source dates and
-                    editable schedules. Multiple schedules can exist at one
-                    company. Historical Amazon 5/15/40/40 and front-loaded
-                    Google examples are clearly labeled; your grant agreement
-                    determines your actual terms. CareerWorth is not affiliated
-                    with Levels.fyi or the companies.
-                  </p>
-                  <p>
-                    Location budgets are derived 2026 minimum-needs estimates
-                    from the{" "}
-                    <a
-                      href="https://livingwage.mit.edu"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      Living Wage Institute
-                    </a>
-                    , updated February 15, 2026 and accessed October 27, 2026.
-                    They describe one renting adult without children and are not
-                    average discretionary spending. Joint households should edit
-                    these amounts. Budgets use county data; New York uses
-                    Manhattan.
-                  </p>
-                  <ul className="source-list">
-                    {locationPresets.map((p) => (
-                      <li key={p.id}>
-                        <a href={p.source} target="_blank" rel="noreferrer">
-                          {p.label}
-                        </a>{" "}
-                        — {p.scope}
-                      </li>
-                    ))}
-                  </ul>
-                  <p>
-                    Housing combines published housing and internet/mobile
-                    costs; other combines civic and other necessities.
-                    Categories are converted from annual amounts to monthly
-                    cents. Income-tax rows are excluded. Applying a budget
-                    changes expenses only; tax location and compensation remain
-                    independent. Default $3,000/$4,500 budgets are illustrative
-                    until a preset is explicitly applied.
-                  </p>
-                  <p>
-                    Official tax sources and coverage are listed in the Taxes
-                    editor. See the{" "}
-                    <a
-                      href="https://livingwage.mit.edu/pages/methodology"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      budget methodology
-                    </a>{" "}
-                    and{" "}
-                    <a
-                      href="https://livingwage.mit.edu/pages/faqs"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      reuse guidance
-                    </a>
-                    . Six source locations are used; no scraper or runtime data
-                    feed is included.
-                  </p>
-                </div>
-              </details>
-            </div>
           </div>
         </div>
         <PlannerBackup state={state} onRestore={(restored) => {
@@ -758,45 +591,13 @@ export default function App() {
           setActive(0);
           setResetVersion((version) => version + 1);
         }} />
-        {quickMode ? (
-          <details className="cash-panel prose">
-            <summary>Learn about retirement accounts</summary>
-            <RetirementGuide />
-          </details>
-        ) : <RetirementGuide />}
-        <footer>
-          <p>
-            ◈ Your planner inputs stay in this browser. Optional analytics only
-            records basic actions; it never sends salary, balance, tax, company,
-            scenario, or share-link data.
-          </p>
-          {analyticsConfigured() && (
-            <p className="analytics-preference">
-              Analytics are {analyticsEnabled ? "on" : "off"}.{" "}
-              <button type="button" className="text-button" onClick={() => {
-                if (analyticsEnabled) {
-                  disableAnalytics();
-                  setAnalyticsEnabled(false);
-                } else {
-                  setAnalyticsEnabled(enableAnalytics());
-                }
-              }}>{analyticsEnabled ? "Turn off analytics" : "Allow anonymous analytics"}</button>
-            </p>
-          )}
-          <p className={storageMessage ? "storage-warning" : ""} role="status">
-            {storageMessage ||
-              (ready
-                ? "Valid inputs are saved automatically on this device."
-                : "Only valid inputs are saved.")}
-          </p>
-          <p>CareerWorth · Planning estimates only. Not financial, investment, tax, legal, or benefits advice.</p>
-          <nav aria-label="Policies">
-            <a href="/privacy.html">Privacy</a>
-            <a href="/terms.html">Terms and copyright</a>
-            <a href="/accessibility.html">Accessibility</a>
-          </nav>
-          <a href="/guide/">How CareerWorth works</a>
-        </footer>
+        <RetirementGuide />
+        <AppFooter
+          ready={ready}
+          storageMessage={storageMessage}
+          analyticsEnabled={analyticsEnabled}
+          onAnalyticsToggle={setAnalyticsEnabled}
+        />
       </main>
     </>
   );

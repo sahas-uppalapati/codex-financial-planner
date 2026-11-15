@@ -129,14 +129,9 @@ export function TechRealityCard({ scenario, assumptions: _assumptions }: TechRea
               IRS supplemental RSU withholding is 22% federal (+state), but your estimated marginal bracket is ~{Math.round(reality.actualEffectiveTaxOnStock * 100)}%.
               Estimated tax gap: <strong>{money(reality.annualSurpriseTaxBill)}</strong> due at tax time.
             </p>
-            <div className="alert-disclaimers">
-              <h4>Planning Disclaimers & Assumptions</h4>
-              <ul>
-                <li>Planning estimates only; not a formal tax return or CPA counsel.</li>
-                <li>Actual withholding varies by employer payroll elections and Form W-4 settings.</li>
-                <li>Calculations use 2026 statutory tax brackets without future speculation.</li>
-              </ul>
-            </div>
+            <p className="hint alert-footnote">
+              Estimate based on 2026 statutory brackets and 22% federal supplemental withholding; actual payroll withholding varies by employer and W-4 elections.
+            </p>
           </div>
         )}
       </div>

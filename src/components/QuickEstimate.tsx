@@ -152,7 +152,7 @@ export function QuickEstimate({
         integer
       />
       <QuickAssumptions scenario={scenario} assumptions={assumptions} />
-      <p className="hint">
+      <p className="hint quick-estimate-footnote">
         Detailed View adds account, tax, career and stock controls. Your inputs
         carry over; if you have annual stock but no grant, it creates an
         estimated four-year quarterly grant. The detailed projection may differ

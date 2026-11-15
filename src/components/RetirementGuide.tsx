@@ -14,20 +14,23 @@ const accounts = [
 
 export function RetirementGuide() {
   return (
-    <section className="cash-panel prose" aria-labelledby="retirement-guide-heading">
-      <div className="panel-heading">
-        <h2 id="retirement-guide-heading">Which retirement accounts can I use?</h2>
+    <details className="cash-panel prose retirement-guide" aria-labelledby="retirement-guide-heading">
+      <summary id="retirement-guide-heading" className="retirement-guide-summary">
+        <span className="retirement-guide-title">Which retirement accounts can I use?</span>
+        <span className="optional">Account rules, limits & official sources</span>
+      </summary>
+      <div className="retirement-guide-content">
+        <p className="hint">A brief orientation, not individualized tax or investment advice. Contribution limits and eligibility rules depend on the tax year and your circumstances. The planner estimates accumulation, not withdrawal taxes or a complete tax return. Sources checked October 27, 2026.</p>
+        <div className="guide-list">
+          {accounts.map(([name, status, description, url]) => (
+            <article key={name}>
+              <h3>{name} <span className="status-tag">{status}</span></h3>
+              <p>{description}</p>
+              <a href={url} target="_blank" rel="noreferrer">Official source ↗</a>
+            </article>
+          ))}
+        </div>
       </div>
-      <p className="hint">A brief orientation, not individualized tax or investment advice. Contribution limits and eligibility rules depend on the tax year and your circumstances. The planner estimates accumulation, not withdrawal taxes or a complete tax return. Sources checked October 27, 2026.</p>
-      <div className="guide-list">
-        {accounts.map(([name, status, description, url]) => (
-          <article key={name}>
-            <h3>{name} <span className="status-tag">{status}</span></h3>
-            <p>{description}</p>
-            <a href={url} target="_blank" rel="noreferrer">Official source ↗</a>
-          </article>
-        ))}
-      </div>
-    </section>
+    </details>
   );
 }
