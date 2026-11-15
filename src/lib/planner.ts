@@ -187,7 +187,7 @@ export const emptyBenefits = (): Benefits => ({
 });
 export function defaultEmployerMatch(): EmployerMatch {
   return {
-    type: "unsure",
+    type: "simple",
     rate: "50",
     payPercent: "6",
     cap: "0",

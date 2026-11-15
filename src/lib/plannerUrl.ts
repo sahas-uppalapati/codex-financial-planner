@@ -192,8 +192,12 @@ export function buildPlannerSearchString(
     params.set("spouse_salary", s0.taxProfile.spouseWages);
   }
   if (s0.employerMatch?.type === "simple") {
-    if (s0.employerMatch.rate) params.set("match_rate", s0.employerMatch.rate);
-    if (s0.employerMatch.payPercent) params.set("match_percent", s0.employerMatch.payPercent);
+    if (s0.employerMatch.rate && s0.employerMatch.rate !== defaultS0.employerMatch.rate) {
+      params.set("match_rate", s0.employerMatch.rate);
+    }
+    if (s0.employerMatch.payPercent && s0.employerMatch.payPercent !== defaultS0.employerMatch.payPercent) {
+      params.set("match_percent", s0.employerMatch.payPercent);
+    }
   }
   if (planner.shared.years !== defaultShared.years) {
     params.set("years", planner.shared.years);
