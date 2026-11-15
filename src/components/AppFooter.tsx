@@ -164,9 +164,7 @@ export function AppFooter({
       </div>
       <footer>
         <p>
-          ◈ Your planner inputs stay in this browser. Optional analytics only
-          records basic actions; it never sends salary, balance, tax, company,
-          scenario, or share-link data.
+          ◈ Your planner inputs stay securely in this browser. Optional analytics only records basic actions and never transmits sensitive user data. CareerWorth provides deterministic planning estimates only and does not constitute formal financial, investment, tax, legal, or benefits advice.
         </p>
         {analyticsConfigured() && (
           <p className="analytics-preference">
@@ -194,10 +192,6 @@ export function AppFooter({
             (ready
               ? "Valid inputs are saved automatically on this device."
               : "Only valid inputs are saved.")}
-        </p>
-        <p>
-          CareerWorth · Planning estimates only. Not financial, investment, tax,
-          legal, or benefits advice.
         </p>
         <nav aria-label="Policies">
           <a href="/privacy.html">Privacy</a>

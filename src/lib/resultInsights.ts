@@ -7,7 +7,7 @@ export function incomeBreakdown(row: AnnualRow) {
     { label: "Payroll benefits and contributions", value: -row.benefits },
     { label: "Living costs after payroll premiums", value: -row.expenses },
     { label: "IRA and after-tax contributions", value: -(row.traditionalIraContribution + row.rothIraContribution + row.megaBackdoorContribution) },
-    { label: "Remaining cash / shortfall", value: row.surplus },
+    { label: "Remaining cash", value: row.surplus },
   ];
 }
 

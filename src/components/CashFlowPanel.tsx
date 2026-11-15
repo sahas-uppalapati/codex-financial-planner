@@ -122,7 +122,7 @@ export function CashFlowPanel({
         )}
         <div className="metric-row savings-row">
           <span>
-            Cash savings / shortfall
+            Cash savings
             <span className="freq-badge monthly">/ mo</span>
           </span>
           {series.map((s) => {
