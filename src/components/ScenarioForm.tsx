@@ -56,7 +56,6 @@ export function ScenarioForm({
     (p) => p.id === s.appliedCompensation,
   );
   const location = locationPresets.find((p) => p.id === s.location);
-  const appliedBudget = locationPresets.find((p) => p.id === s.appliedLocation);
   const set = <K extends keyof Scenario>(key: K, value: Scenario[K]) =>
     onChange({ ...s, [key]: value });
   function setTotal(value: string) {
@@ -136,7 +135,6 @@ export function ScenarioForm({
       stockMode: presetGrant.length ? "grants" : s.stockMode,
     });
   }
-  const totalValid = !["base", "bonus"].some((k) => errors[k]);
   return (
     <div className="scenario-form">
       <div className="field">
@@ -305,7 +303,6 @@ export function ScenarioForm({
         value={s.base}
         onChange={(v) => set("base", v)}
         error={errors.base}
-        hint="Annual base pay before taxes (USD / year)."
       />
       <div className="two-cols">
         <Field
@@ -313,7 +310,6 @@ export function ScenarioForm({
           value={s.bonus}
           onChange={(v) => set("bonus", v)}
           error={errors.bonus}
-          hint="Annual performance or cash bonus (USD / year)."
         />
         <Field
           label="Annual salary growth"
@@ -329,27 +325,14 @@ export function ScenarioForm({
           value={s.signOnY1 ?? "0"}
           onChange={(v) => set("signOnY1", v)}
           error={errors.signOnY1}
-          hint="First-year cash sign-on bonus (USD in Year 1)."
         />
         <Field
           label="Year 2 sign-on bonus"
           value={s.signOnY2 ?? "0"}
           onChange={(v) => set("signOnY2", v)}
           error={errors.signOnY2}
-          hint="Second-year cash sign-on bonus (USD in Year 2, common at Amazon)."
         />
       </div>
-      <div className="comp-total">
-        <span>Year 1 cash compensation</span>
-        <strong>
-          {totalValid ? money(Number(s.base) + Number(s.bonus) + (Number(s.signOnY1) || 0)) : "—"}
-        </strong>
-      </div>
-      {applied && (
-        <p className="hint">
-          Reported stock reference: {money(applied.stock)} ({applied.vestingTemplate} vesting).
-        </p>
-      )}
       <div className="section-label">
         <h3>Living expenses</h3>
         <span className="status-tag">{locationStatus(s)}</span>
@@ -388,19 +371,6 @@ export function ScenarioForm({
           Apply budget
         </button>
       </div>
-      <p className="hint">
-        Minimum-needs budgets · One adult, no children, renting.
-        {s.location &&
-          " Review your separate tax residence for this location; compensation and taxes are unchanged."}
-      </p>
-      {appliedBudget && (
-        <p className="hint source">
-          {appliedBudget.scope} · 2026 ·{" "}
-          <a href={appliedBudget.source} target="_blank" rel="noreferrer">
-            Living Wage Institute ↗
-          </a>
-        </p>
-      )}
       <Field
         label="Monthly living expenses"
         value={expenseDraft}
@@ -412,14 +382,10 @@ export function ScenarioForm({
             ? "Check the expense breakdown below."
             : undefined)
         }
-        hint="Total estimated monthly living expenses (USD / month)."
       />
       <AutoDetails hasErrors={categoryKeys.some((k) => !!errors[k])}>
         <summary>Expense breakdown</summary>
         <div className="details-body">
-          <p className="hint">
-            Edit individual categories below, or edit the total above to scale proportionally.
-          </p>
           {categoryKeys.map((k) => (
             <Field
               key={k}
@@ -427,7 +393,6 @@ export function ScenarioForm({
               value={s.expenses[k]}
               onChange={(v) => setCategory(k, v)}
               error={errors[k]}
-              hint={`${categoryLabels[k]} spending (USD / month).`}
             />
           ))}
         </div>

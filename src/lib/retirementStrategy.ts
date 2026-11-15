@@ -181,9 +181,7 @@ export function getStrategyPresets(
   const iraLimit = limits.iraContribution + (age !== null && age >= 50 ? limits.iraCatchUp : 0);
 
   const potentialMatch = calculateEmployerMatch(scenario.employerMatch, baseSalary, matchDollars);
-  const megaBackdoorRoom = scenario.retirementTargets.primary.megaBackdoorSupported
-    ? definedContributionRoom(limits, baseSalary, max401k, potentialMatch)
-    : 0;
+  const megaBackdoorRoom = definedContributionRoom(limits, baseSalary, max401k, potentialMatch);
 
   const surplus = estimateNetCashSurplus(scenario, assumptions);
 
