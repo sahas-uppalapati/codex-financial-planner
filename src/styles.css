@@ -1105,6 +1105,33 @@ tbody tr:hover {
 .prose p:last-child {
   margin-bottom: 0;
 }
+details.retirement-guide {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  padding: 18px 24px;
+}
+details.retirement-guide[open] {
+  padding: 24px 28px;
+}
+details.retirement-guide > summary {
+  padding: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+details.retirement-guide > summary .retirement-guide-title {
+  font-size: 15px;
+  font-weight: 700;
+}
+details.retirement-guide[open] > summary {
+  margin-bottom: 16px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
 .guide-list {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

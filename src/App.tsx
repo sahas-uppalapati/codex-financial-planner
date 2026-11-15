@@ -591,12 +591,7 @@ export default function App() {
           setActive(0);
           setResetVersion((version) => version + 1);
         }} />
-        {quickMode ? (
-          <details className="cash-panel prose">
-            <summary>Learn about retirement accounts</summary>
-            <RetirementGuide />
-          </details>
-        ) : <RetirementGuide />}
+        <RetirementGuide />
         <AppFooter
           ready={ready}
           storageMessage={storageMessage}
