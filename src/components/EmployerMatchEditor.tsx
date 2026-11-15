@@ -70,12 +70,16 @@ export function EmployerMatchFields({
       <SelectField
         label="Match formula"
         value={match.type || "simple"}
-        onChange={(value) =>
+        onChange={(value) => {
+          const nextType = value as EmployerMatch["type"];
           onChange({
             ...match,
-            type: value as EmployerMatch["type"],
-          })
-        }
+            type: nextType,
+            ...(nextType === "none" || nextType === "unsure"
+              ? { cap: "0" }
+              : {}),
+          });
+        }}
         hint="Employer matching contributions under your workplace 401(k) plan."
       >
         <option value="simple">Simple match</option>
@@ -173,13 +177,15 @@ export function EmployerMatchFields({
         </>
       )}
 
-      <NumberField
-        label="Optional annual employer match cap"
-        value={match.cap}
-        onChange={(v) => onChange({ ...match, cap: v })}
-        hint="Enter 0 when there is no dollar cap. The cap applies to the total annual match."
-        error={errors[`${prefix}.cap`]}
-      />
+      {(match.type === "simple" || match.type === "tiered") && (
+        <NumberField
+          label="Optional annual employer match cap"
+          value={match.cap}
+          onChange={(v) => onChange({ ...match, cap: v })}
+          hint="Enter 0 when there is no dollar cap. The cap applies to the total annual match."
+          error={errors[`${prefix}.cap`]}
+        />
+      )}
 
       {(onApplyTarget || onMaximizeTarget) && (match.type === "simple" || match.type === "tiered") && (
         <div className="match-actions-wrapper">

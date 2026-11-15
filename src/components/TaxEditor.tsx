@@ -222,12 +222,14 @@ function BenefitFields({
         onChange={(v) => set("health", v)}
         error={errors[`${who}.health`]}
       />
-      <NumberField
-        label={`${prefix} annual payroll HSA contribution`}
-        value={s[who].hsa}
-        onChange={(v) => set("hsa", v)}
-        error={errors[`${who}.hsa`]}
-      />
+      {s.taxProfile.hsaCoverage !== "none" && (
+        <NumberField
+          label={`${prefix} annual payroll HSA contribution`}
+          value={s[who].hsa}
+          onChange={(v) => set("hsa", v)}
+          error={errors[`${who}.hsa`]}
+        />
+      )}
     </fieldset>
   );
 }
@@ -412,15 +414,22 @@ export function BenefitsEditor({
         <SelectField
           label="HSA eligible coverage (full year)"
           value={s.taxProfile.hsaCoverage}
-          onChange={(v) =>
+          onChange={(v) => {
+            const nextCoverage = v as TaxProfile["hsaCoverage"];
             onChange({
               ...s,
               taxProfile: {
                 ...s.taxProfile,
-                hsaCoverage: v as TaxProfile["hsaCoverage"],
+                hsaCoverage: nextCoverage,
               },
-            })
-          }
+              ...(nextCoverage === "none"
+                ? {
+                    benefits: { ...s.benefits, hsa: "0" },
+                    spouseBenefits: { ...s.spouseBenefits, hsa: "0" },
+                  }
+                : {}),
+            });
+          }}
         >
           <option value="none">Not eligible / no HSA</option>
           <option value="self">
