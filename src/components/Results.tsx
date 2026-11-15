@@ -66,6 +66,11 @@ export function Results({
   const inactiveAccounts = accountDefs.filter(
     ([, key, kind]) => key !== "taxable" && !series.some((_, i) => Math.abs(getAccountVal(key, kind, i)) > 0.005),
   );
+  const isDetailedMode =
+    typeof window !== "undefined" &&
+    (window.sessionStorage.getItem("careerworth:mode") === "detailed" ||
+      new URLSearchParams(window.location.search).get("mode") === "detailed");
+
   return (
     <div className="results-content">
       {/* 1. Top Section: Your Monthly Picture */}
@@ -298,6 +303,14 @@ export function Results({
             <>
               <ResultInsights series={series} year={activeYear} onYearChange={setSelected} />
               <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />
+              {isDetailedMode && (
+                <CashFlowPanel
+                  state={state}
+                  series={series}
+                  activeYear={activeYear}
+                  onYearChange={setSelected}
+                />
+              )}
               {state.scenarios
                 .slice(0, state.comparison ? 2 : 1)
                 .some((s) => s.events.length > 0) && (
@@ -323,6 +336,36 @@ export function Results({
                       ))}
                   </div>
                 </details>
+              )}
+              {isDetailedMode && (
+                <section className="yearly-section">
+                  <div className="table-toolbar">
+                    <h2>Detailed Breakdown</h2>
+                    <button
+                      type="button"
+                      className="secondary small"
+                      onClick={() => {
+                        exportProjection(series);
+                        track("csv_exported", { period: "annual" });
+                      }}
+                    >
+                      <span aria-hidden="true">↓ </span>Export CSV
+                    </button>
+                  </div>
+                  <TaxBreakdownTable
+                    series={series}
+                    activeYear={activeYear}
+                    onYearChange={setSelected}
+                  />
+                  <AnnualScheduleTable
+                    series={series}
+                    years={years}
+                  />
+                  <MonthlyCashFlowsTable
+                    series={series}
+                    activeYear={activeYear}
+                  />
+                </section>
               )}
               <div className="overview-export-row">
                 <button
