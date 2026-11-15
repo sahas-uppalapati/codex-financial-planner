@@ -136,9 +136,7 @@ export function Results({
                           {totalAnnualSaved >= 0 ? "+" : ""}{money(totalAnnualSaved)}<span className="unit">/ yr</span>
                         </strong>
                         <span className="quick-metric-sub">
-                          {hasPretax
-                            ? `${money(row.surplus)} cash · ${money(retirementSaved)} 401(k)/match`
-                            : `${money(row.surplus / 12)} / mo`}
+                          {money(totalAnnualSaved / 12)} / mo
                         </span>
                       </div>
                     );

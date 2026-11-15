@@ -1,8 +1,4 @@
 import type { EmployerMatch } from "../lib/planner";
-import {
-  requiredEmployeeRateForFullMatch,
-} from "../lib/retirement";
-import { money } from "../lib/format";
 import { NumberField, SelectField } from "./EditorFields";
 
 export function EmployerMatchFields({
@@ -10,10 +6,6 @@ export function EmployerMatchFields({
   prefix = "employerMatch",
   errors = {},
   onChange,
-  baseSalary,
-  employeeRate,
-  onApplyTarget,
-  onMaximizeTarget,
 }: {
   match: EmployerMatch;
   prefix?: string;
@@ -24,227 +16,148 @@ export function EmployerMatchFields({
   onApplyTarget?: (rate: number) => void;
   onMaximizeTarget?: () => void;
 }) {
-  const eligiblePay = baseSalary ?? 0;
-  const rate = employeeRate ?? 0;
-  const fullMatchRate = requiredEmployeeRateForFullMatch(match);
-  const cap = Number(match.cap) > 0 ? Number(match.cap) : Infinity;
-
-  let maximumMatch = 0;
-  if (match.type === "simple") {
-    maximumMatch =
-      ((Math.min(100, Number(match.payPercent)) * Number(match.rate)) / 100) *
-      eligiblePay /
-      100;
-  } else if (match.type === "tiered") {
-    maximumMatch = match.tiers.reduce(
-      (total, tier) =>
-        total +
-        ((Number(tier.payPercent) * Number(tier.rate)) / 100) * eligiblePay / 100,
-      0,
-    );
-  }
-  maximumMatch = Math.min(maximumMatch, cap);
-
-  let estimatedMatch = 0;
-  if (match.type === "simple") {
-    estimatedMatch =
-      ((Math.min(rate, Number(match.payPercent)) * Number(match.rate)) / 100) *
-      eligiblePay /
-      100;
-  } else if (match.type === "tiered") {
-    let bandStart = 0;
-    for (const tier of match.tiers) {
-      const bandEnd = bandStart + Number(tier.payPercent);
-      const covered = Math.max(0, Math.min(rate, bandEnd) - bandStart);
-      estimatedMatch += ((covered * Number(tier.rate)) / 100) * eligiblePay / 100;
-      bandStart = bandEnd;
-    }
-  }
-  estimatedMatch = Math.min(estimatedMatch, cap);
-
-  const uncapturedMatch = Math.max(0, maximumMatch - estimatedMatch);
-  const annualEmployeeTarget = (eligiblePay * rate) / 100;
+  const isTiered = match.type === "tiered";
+  const hasCap = Number(match.cap) > 0;
 
   return (
     <div className="employer-match-fields">
-      <SelectField
-        label="Match formula"
-        value={match.type || "simple"}
-        onChange={(value) => {
-          const nextType = value as EmployerMatch["type"];
-          onChange({
-            ...match,
-            type: nextType,
-            ...(nextType === "none" || nextType === "unsure"
-              ? { cap: "0" }
-              : {}),
-          });
-        }}
-        hint="Employer matching contributions under your workplace 401(k) plan."
-      >
-        <option value="simple">Simple match</option>
-        <option value="none">No match</option>
-        <option value="tiered">Tiered match</option>
-        <option value="unsure">Unsure · assume no match</option>
-      </SelectField>
-
-      {match.type === "simple" && (
+      {!isTiered && (
         <div className="two-cols">
           <NumberField
             label="Employer match rate"
             unit="% of contribution"
             max={100}
-            value={match.rate}
-            onChange={(v) => onChange({ ...match, rate: v })}
+            value={match.type === "none" || match.type === "unsure" ? "0" : match.rate}
+            onChange={(v) => {
+              const r = Number(v);
+              onChange({
+                ...match,
+                type: r > 0 ? "simple" : match.type === "unsure" ? "unsure" : "none",
+                rate: v,
+              });
+            }}
             error={errors[`${prefix}.rate`]}
           />
           <NumberField
-            label="On the first percent of pay"
+            label="On first percent of pay"
             unit="% of pay"
             max={100}
-            value={match.payPercent}
-            onChange={(v) => onChange({ ...match, payPercent: v })}
+            value={match.type === "none" || match.type === "unsure" ? "0" : match.payPercent}
+            onChange={(v) =>
+              onChange({
+                ...match,
+                type: "simple",
+                payPercent: v,
+              })
+            }
             error={errors[`${prefix}.payPercent`]}
           />
         </div>
       )}
 
-      {match.type === "tiered" && (
-        <>
-          {match.tiers.map((tier, index) => (
-            <div className="two-cols" key={index}>
-              <NumberField
-                label={`Tier ${index + 1}: match rate`}
-                unit="% of contribution"
-                max={100}
-                value={tier.rate}
-                onChange={(v) =>
-                  onChange({
-                    ...match,
-                    tiers: match.tiers.map((row, i) =>
-                      i === index ? { ...row, rate: v } : row,
-                    ),
-                  })
-                }
-                error={errors[`${prefix}.tiers.${index}.rate`]}
-              />
-              <NumberField
-                label={`Tier ${index + 1}: next eligible pay`}
-                unit="% of pay"
-                max={100}
-                value={tier.payPercent}
-                onChange={(v) =>
-                  onChange({
-                    ...match,
-                    tiers: match.tiers.map((row, i) =>
-                      i === index ? { ...row, payPercent: v } : row,
-                    ),
-                  })
-                }
-                error={errors[`${prefix}.tiers.${index}.payPercent`]}
-              />
-            </div>
-          ))}
-          <div className="button-row">
-            <button
-              type="button"
-              className="secondary small"
-              disabled={match.tiers.length >= 20}
-              onClick={() =>
-                onChange({
-                  ...match,
-                  tiers: [...match.tiers, { rate: "50", payPercent: "1" }],
-                })
-              }
-            >
-              Add match tier
-            </button>
-            {match.tiers.length > 1 && (
-              <button
-                type="button"
-                className="secondary small"
-                onClick={() =>
-                  onChange({
-                    ...match,
-                    tiers: match.tiers.slice(0, -1),
-                  })
-                }
-              >
-                Remove last tier
-              </button>
-            )}
-          </div>
-        </>
-      )}
+      <details
+        className="match-advanced-details"
+        open={isTiered || hasCap || match.type === "none" || match.type === "unsure" || undefined}
+      >
+        <summary>Advanced match options <span className="optional">Tiered, caps & formulas</span></summary>
+        <div className="details-body">
+          <SelectField
+            label="Match formula"
+            value={match.type || "simple"}
+            onChange={(value) => {
+              const nextType = value as EmployerMatch["type"];
+              onChange({
+                ...match,
+                type: nextType,
+                ...(nextType === "none" || nextType === "unsure"
+                  ? { cap: "0" }
+                  : {}),
+              });
+            }}
+          >
+            <option value="simple">Simple match</option>
+            <option value="none">No match</option>
+            <option value="tiered">Tiered match</option>
+            <option value="unsure">Unsure · assume no match</option>
+          </SelectField>
 
-      {(match.type === "simple" || match.type === "tiered") && (
-        <NumberField
-          label="Optional annual employer match cap"
-          value={match.cap}
-          onChange={(v) => onChange({ ...match, cap: v })}
-          hint="Enter 0 when there is no dollar cap. The cap applies to the total annual match."
-          error={errors[`${prefix}.cap`]}
-        />
-      )}
+          {isTiered && (
+            <>
+              {match.tiers.map((tier, index) => (
+                <div className="two-cols" key={index}>
+                  <NumberField
+                    label={`Tier ${index + 1}: match rate`}
+                    unit="% of contribution"
+                    max={100}
+                    value={tier.rate}
+                    onChange={(v) =>
+                      onChange({
+                        ...match,
+                        tiers: match.tiers.map((row, i) =>
+                          i === index ? { ...row, rate: v } : row,
+                        ),
+                      })
+                    }
+                    error={errors[`${prefix}.tiers.${index}.rate`]}
+                  />
+                  <NumberField
+                    label={`Tier ${index + 1}: next eligible pay`}
+                    unit="% of pay"
+                    max={100}
+                    value={tier.payPercent}
+                    onChange={(v) =>
+                      onChange({
+                        ...match,
+                        tiers: match.tiers.map((row, i) =>
+                          i === index ? { ...row, payPercent: v } : row,
+                        ),
+                      })
+                    }
+                    error={errors[`${prefix}.tiers.${index}.payPercent`]}
+                  />
+                </div>
+              ))}
+              <div className="button-row">
+                <button
+                  type="button"
+                  className="secondary small"
+                  disabled={match.tiers.length >= 20}
+                  onClick={() =>
+                    onChange({
+                      ...match,
+                      tiers: [...match.tiers, { rate: "50", payPercent: "1" }],
+                    })
+                  }
+                >
+                  Add match tier
+                </button>
+                {match.tiers.length > 1 && (
+                  <button
+                    type="button"
+                    className="secondary small"
+                    onClick={() =>
+                      onChange({
+                        ...match,
+                        tiers: match.tiers.slice(0, -1),
+                      })
+                    }
+                  >
+                    Remove last tier
+                  </button>
+                )}
+              </div>
+            </>
+          )}
 
-      {(onApplyTarget || onMaximizeTarget) && (match.type === "simple" || match.type === "tiered") && (
-        <div className="match-actions-wrapper">
-          <span className="small-text muted">Quick target actions:</span>
-          <div className="match-action-buttons">
-            {onApplyTarget && fullMatchRate > 0 && (
-              <button
-                type="button"
-                className="match-action-button"
-                onClick={() => onApplyTarget(fullMatchRate)}
-              >
-                Contribute enough for full match ({fullMatchRate.toFixed(1)}%)
-              </button>
-            )}
-            {onMaximizeTarget && (
-              <button
-                type="button"
-                className="match-action-button"
-                onClick={onMaximizeTarget}
-              >
-                Maximize 401(k) contributions ($24,500)
-              </button>
-            )}
-          </div>
+          <NumberField
+            label="Optional annual employer match cap"
+            value={match.cap}
+            onChange={(v) => onChange({ ...match, cap: v })}
+            hint="Enter 0 when there is no dollar cap."
+            error={errors[`${prefix}.cap`]}
+          />
         </div>
-      )}
-
-      {baseSalary !== undefined && employeeRate !== undefined && (match.type === "simple" || match.type === "tiered") && (
-        <div className="match-diagnostic-box">
-          <div className="match-diagnostic-row">
-            <span>Your 401(k) contribution</span>
-            <strong>
-              {rate.toFixed(1)}% of eligible pay ({money(annualEmployeeTarget)}/yr)
-            </strong>
-          </div>
-          <div className="match-diagnostic-row">
-            <span>Required for full employer match</span>
-            <strong>{fullMatchRate.toFixed(1)}% of eligible pay</strong>
-          </div>
-          <div className="match-diagnostic-row">
-            <span>Estimated annual employer match</span>
-            <strong>
-              {money(estimatedMatch)} / {money(maximumMatch)}
-            </strong>
-          </div>
-          {uncapturedMatch > 0.5 ? (
-            <div className="match-warning-banner" role="alert">
-              <strong>Match left on the table: </strong>
-              You are leaving <strong>{money(uncapturedMatch)}/year</strong> of employer match on the table.
-              Increase your contribution to at least {fullMatchRate.toFixed(1)}% to capture the full match.
-            </div>
-          ) : maximumMatch > 0 ? (
-            <div className="match-success-banner">
-              <strong>Full match captured: </strong>
-              You are contributing enough to receive 100% of the available employer match ({money(maximumMatch)}/yr).
-            </div>
-          ) : null}
-        </div>
-      )}
+      </details>
 
       {errors[prefix] && <p className="error">{errors[prefix]}</p>}
     </div>
