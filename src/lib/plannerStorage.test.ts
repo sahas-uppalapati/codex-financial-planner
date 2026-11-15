@@ -22,7 +22,7 @@ describe("v3 persistence and migration", () => {
     const raw = JSON.stringify(p);
     storage.setItem(PLANNER_KEY, raw);
     const loaded = loadPlanner(storage);
-    expect(loaded.state.scenarios[0].spouseEmployerMatch.type).toBe("unsure");
+    expect(loaded.state.scenarios[0].spouseEmployerMatch.type).toBe("simple");
     expect(storage.getItem(PLANNER_KEY)).toBe(raw);
     expect(savePlanner(storage, loaded.state)).toBe(true);
     expect(loadPlanner(storage).state).toEqual(loaded.state);

@@ -369,11 +369,17 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
     .locator("summary")
     .filter({ hasText: /^Pretax benefits / })
     .click();
+  await expect(
+    page.getByLabel("Your annual payroll HSA contribution"),
+  ).toHaveCount(0);
   await page
     .getByLabel("HSA eligible coverage (full year)")
     .selectOption("family");
-  await page.getByLabel("You 401(k) target type").selectOption("dollars");
-  await page.getByLabel("You annual 401(k) target").fill("12000");
+  await expect(
+    page.getByLabel("Your annual payroll HSA contribution"),
+  ).toBeVisible();
+  await page.getByLabel("Your 401(k) target type").selectOption("dollars");
+  await page.getByLabel("Your annual 401(k) target").fill("12000");
   await page.getByLabel("Your annual pretax health premiums").fill("6000");
   await page.getByLabel("Your annual payroll HSA contribution").fill("4000");
   await page.getByLabel("Spouse annual payroll HSA contribution").fill("5000");

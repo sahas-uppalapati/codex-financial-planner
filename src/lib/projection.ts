@@ -13,7 +13,7 @@ import { calculateTaxes } from "./tax";
 import type { TaxBreakdown, WorkerTaxInput } from "./tax";
 import type { RetirementAccountType } from "./retirement";
 import { retirementAccountLabels } from "./retirement";
-import { annualAge, annualRetirementLimits, employeeDeferralLimit, iraEligibility, matchVestedPercent } from "./retirement";
+import { annualAge, annualRetirementLimits, calculateEmployerMatch, employeeDeferralLimit, iraEligibility, matchVestedPercent } from "./retirement";
 import { eligibleIraRequests, fundIraRequests } from "./retirementContributions";
 import type { IraContributionRequest } from "./retirementContributions";
 export type RetirementAccountBalances = Record<RetirementAccountType, number>;
@@ -133,21 +133,6 @@ interface CashMonth {
   unfundedIra: number;
 }
 const sum = (items: number[]) => items.reduce((a, b) => a + b, 0);
-function calculateEmployerMatch(match: EmployerMatch, pay: number, contribution: number, used: number): number {
-  const employeeRate = pay > 0 ? contribution / pay * 100 : 0;
-  let amount = 0;
-  if (match.type === "simple") {
-    amount = Math.min(employeeRate, Number(match.payPercent)) * Number(match.rate) / 100 * pay / 100;
-  } else if (match.type === "tiered") {
-    let start = 0;
-    for (const tier of match.tiers) {
-      const end = start + Number(tier.payPercent);
-      amount += Math.max(0, Math.min(employeeRate, end) - start) * Number(tier.rate) / 100 * pay / 100;
-      start = end;
-    }
-  }
-  return Number(match.cap) > 0 ? Math.min(amount, Math.max(0, Number(match.cap) - used)) : amount;
-}
 const accountTotal = (a: AccountBalances) =>
   a.taxable + a.employerStock + a.retirement + a.hsa;
 const accountTypes = Object.keys(retirementAccountLabels) as RetirementAccountType[];

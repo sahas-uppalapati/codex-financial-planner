@@ -26,9 +26,12 @@ import { analyticsConfigured, analyticsConsent, disableAnalytics, enableAnalytic
 function initial() {
   let linked: ReturnType<typeof readFullPlannerLink> = null;
   let linkMessage = "";
-  try { linked = readFullPlannerLink(window.location.search); }
-  catch { linkMessage = "This plan link is invalid. Your saved plan was kept."; }
-  if (linked) return { state: linked.state, message: "", fresh: false, linkedMode: linked.quickMode };
+  const isOwnPlan = window.history.state?.ownPlan === true;
+  if (!isOwnPlan) {
+    try { linked = readFullPlannerLink(window.location.search); }
+    catch { linkMessage = "This plan link is invalid. Your saved plan was kept."; }
+    if (linked) return { state: linked.state, message: "", fresh: false, linkedMode: linked.quickMode };
+  }
   let loadedState: PlannerV2;
   let message = "";
   let fresh = false;
@@ -252,7 +255,7 @@ export default function App() {
   const shareReady = ready && validPlanner(state) && state.scenarios.every((scenario) => !Object.keys(plannerScenarioErrors(scenario, state.shared)).length);
   useEffect(() => {
     if (pendingLink) return;
-    window.history.replaceState(window.history.state, "", fullPlannerUrl(window.location.href, shareReady ? state : null, quickMode));
+    window.history.replaceState({ ...(window.history.state || {}), ownPlan: true }, "", fullPlannerUrl(window.location.href, shareReady ? state : null, quickMode));
     setCopyMessage("");
   }, [state, quickMode, shareReady, pendingLink]);
   const copyLink = async () => {
