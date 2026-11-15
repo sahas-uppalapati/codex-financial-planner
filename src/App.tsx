@@ -308,6 +308,7 @@ export default function App() {
               setActive(0);
               setResetVersion((v) => v + 1);
               setStorageMessage("");
+              setAllowInitialPreset(true);
             }}
           >
             ↺ Reset inputs
