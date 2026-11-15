@@ -158,7 +158,6 @@ export function QuickEstimate({
         estimated four-year quarterly grant. The detailed projection may differ
         because it includes settings omitted here.
       </p>
-      </p>
     </div>
   );
 }
