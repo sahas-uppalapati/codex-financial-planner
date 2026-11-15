@@ -29,6 +29,10 @@ function fixture(): PlannerV2 {
     healthcare: "0",
     other: "0",
   };
+  p.scenarios[0].employerMatch = {
+    ...p.scenarios[0].employerMatch,
+    type: "none",
+  };
   return p;
 }
 function grant(p: PlannerV2, patch: Partial<Grant> = {}): Grant {

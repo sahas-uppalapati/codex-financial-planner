@@ -10,6 +10,7 @@ import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
 import { TechRealityCard } from "./TechRealityCard";
 import { track } from "../lib/analytics";
+import { ResultInsights } from "./ResultInsights";
 interface ResultSeries {
   name: string;
   index: number;
@@ -179,6 +180,7 @@ export function Results({
         })}
       </details>}
       {quickMode && <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />}
+      <ResultInsights series={series} year={activeYear} onYearChange={setSelected} />
       <details
           className="more-results"
           open={detailsExpanded}
