@@ -72,7 +72,7 @@ export function RetirementStrategyAdvisor({
         <div className="max-optimal-info">
           <span className="max-optimal-title">One-Click Optimal Retirement Strategy</span>
           <p className="max-optimal-sub">
-            Max out 100% of employer match, HSA, and IRA in optimal tax order ({money(optimalMaxTotal)} / year).
+            Max out 100% of employer match{s.taxProfile.hsaCoverage !== "none" ? ", HSA," : ""} and IRA in optimal tax order ({money(optimalMaxTotal)} / year).
           </p>
         </div>
         <div className="max-optimal-action-group">

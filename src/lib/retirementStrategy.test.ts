@@ -171,6 +171,18 @@ describe("retirementStrategy", () => {
     expect(max401k.amount).toBe(24500 + 4400 + 7500);
   });
 
+  it("omits redundant HSA preset when hsaCoverage is none", () => {
+    const s = createTestScenario({
+      base: "120000",
+      taxProfile: { ...createTestScenario().taxProfile, hsaCoverage: "none" },
+    });
+    const presets = getStrategyPresets(s, testAssumptions);
+    expect(presets.find((p) => p.id === "match-hsa")).toBeUndefined();
+    const maxPreset = presets.find((p) => p.id === "max-401k")!;
+    expect(maxPreset.label).toBe("Max 401(k) + IRA");
+    expect(maxPreset.amount).toBe(24500 + 7500);
+  });
+
   it("applies the strategy to the scenario cleanly", () => {
     const s = createTestScenario({
       base: "100000",

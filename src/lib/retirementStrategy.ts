@@ -194,31 +194,41 @@ export function getStrategyPresets(
       amount: matchDollars,
       description: `Capture 100% of available employer match (${matchRate}% of salary)`,
     },
-    {
+  ];
+
+  if (hsaEligible) {
+    presets.push({
       id: "match-hsa",
       label: "Match + HSA",
       amount: matchDollars + Math.round(hsaLimit),
-      description: hsaEligible
-        ? "Capture full match plus triple-tax-advantaged HSA"
-        : "Capture full match (HSA not configured)",
-    },
+      description: "Capture full match plus triple-tax-advantaged HSA",
+    });
+  }
+
+  presets.push(
     {
       id: "match-hsa-ira",
-      label: "Match + HSA + IRA",
+      label: hsaEligible ? "Match + HSA + IRA" : "Match + IRA",
       amount: matchDollars + Math.round(hsaLimit) + Math.round(iraLimit),
-      description: "Full match, HSA, and IRA capacity",
+      description: hsaEligible
+        ? "Full match, HSA, and IRA capacity"
+        : "Full match and IRA capacity",
     },
     {
       id: "max-401k",
-      label: "Max 401(k) + HSA + IRA",
+      label: hsaEligible ? "Max 401(k) + HSA + IRA" : "Max 401(k) + IRA",
       amount: Math.round(max401k + hsaLimit + iraLimit),
-      description: `Max employee 401(k) limit ($${max401k.toLocaleString()}) plus HSA and IRA`,
+      description: hsaEligible
+        ? `Max employee 401(k) limit ($${max401k.toLocaleString()}) plus HSA and IRA`
+        : `Max employee 401(k) limit ($${max401k.toLocaleString()}) plus IRA`,
     },
     {
       id: "max-all",
       label: "Max All Accounts",
       amount: Math.round(max401k + hsaLimit + iraLimit + megaBackdoorRoom),
-      description: "Max 401(k), HSA, IRA, and Mega Backdoor capacity",
+      description: hsaEligible
+        ? "Max 401(k), HSA, IRA, and Mega Backdoor capacity"
+        : "Max 401(k), IRA, and Mega Backdoor capacity",
     },
     {
       id: "surplus",
@@ -226,7 +236,7 @@ export function getStrategyPresets(
       amount: surplus,
       description: `Allocate entire estimated take-home surplus ($${surplus.toLocaleString()}/yr)`,
     },
-  ];
+  );
 
   return presets;
 }
