@@ -115,6 +115,11 @@ export function ScenarioForm({
     Number(a.startingRetirement) + Number(a.startingHsa) +
     Number(a.startingSpouseRetirement) + Number(a.startingSpouseHsa);
 
+  const isDetailedMode =
+    typeof window !== "undefined" &&
+    (window.sessionStorage.getItem("careerworth:mode") === "detailed" ||
+      new URLSearchParams(window.location.search).get("mode") === "detailed");
+
   return (
     <div className="scenario-form">
       {showName && (
@@ -235,7 +240,7 @@ export function ScenarioForm({
       />
 
       {/* Progressive Accordion 1: Living Cost Breakdown & Location */}
-      <details className="advanced-accordion">
+      <details className="advanced-accordion" open={isDetailedMode ? true : undefined}>
         <summary>
           Living Cost Breakdown & Location{" "}
           <span className="optional">Categories & location budgets</span>
@@ -308,7 +313,7 @@ export function ScenarioForm({
       </details>
 
       {/* Progressive Accordion 2: Retirement & Benefits */}
-      <details className="advanced-accordion">
+      <details className="advanced-accordion" open={isDetailedMode ? true : undefined}>
         <summary>
           Retirement & Pretax Benefits{" "}
           <span className="optional">401(k), Match, HSA, Health</span>
@@ -319,7 +324,7 @@ export function ScenarioForm({
       </details>
 
       {/* Progressive Accordion 3: Taxes & Deductions */}
-      <details className="advanced-accordion">
+      <details className="advanced-accordion" open={isDetailedMode ? true : undefined}>
         <summary>
           Taxes & Deductions{" "}
           <span className="optional">Filing status, standard/itemized, state</span>
@@ -330,7 +335,7 @@ export function ScenarioForm({
       </details>
 
       {/* Progressive Accordion 4: Equity Grants & Schedules */}
-      <details className="advanced-accordion">
+      <details className="advanced-accordion" open={isDetailedMode ? true : undefined}>
         <summary>
           Equity Grants & Vesting Schedules{" "}
           <span className="optional">Vesting, refreshers, hold vs sell</span>
@@ -343,7 +348,7 @@ export function ScenarioForm({
       </details>
 
       {/* Progressive Accordion 5: Career Moves & Promotions */}
-      <details className="advanced-accordion">
+      <details className="advanced-accordion" open={isDetailedMode ? true : undefined}>
         <summary>
           Career Moves & Promotions{" "}
           <span className="optional">Promotions, employer changes</span>
@@ -354,7 +359,7 @@ export function ScenarioForm({
       </details>
 
       {/* Progressive Accordion 6: Starting Accounts & Assumptions */}
-      <details className="advanced-accordion">
+      <details className="advanced-accordion" open={isDetailedMode ? true : undefined}>
         <summary>
           Starting Accounts & Economic Assumptions{" "}
           <span className="optional">Past 401(k) balances, return %, inflation</span>
