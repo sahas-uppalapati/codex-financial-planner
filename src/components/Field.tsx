@@ -36,7 +36,7 @@ export function Field({
           autoComplete="off"
           spellCheck={false}
         />
-        {hint && (
+        {hint && hint.toLowerCase() !== label.toLowerCase() && (
           <span id={`${id}-help`} className="input-tooltip-bubble" role="tooltip">
             {hint}
           </span>

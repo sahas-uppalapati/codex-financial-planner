@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { PlannerV2 } from "../lib/planner";
 import { monthIndex } from "../lib/planner";
 import type { Projection } from "../lib/projection";
@@ -22,7 +22,6 @@ interface ResultSeries {
 export function Results({
   state,
   series,
-  quickMode = false,
 }: {
   state: PlannerV2;
   series: ResultSeries[];
@@ -30,25 +29,12 @@ export function Results({
 }) {
   const [selected, setSelected] = useState(0),
     activeYear = Math.min(selected, Number(state.shared.years) - 1);
-  const [detailsExpanded, setDetailsExpanded] = useState(!quickMode);
+  const [detailsExpanded, setDetailsExpanded] = useState(true);
   const [detailTab, setDetailTab] = useState<"all" | "cash" | "taxes" | "yearly">("all");
-  useEffect(() => {
-    setDetailsExpanded(!quickMode);
-  }, [quickMode]);
   const years = Number(state.shared.years),
     startYear = Number(state.shared.startYear);
   const first = series[0].projection.rows[activeYear],
     final = series.map((s) => s.projection.rows.at(-1)!);
-  const difference =
-    series.length === 2 ? final[1].endingBalance - final[0].endingBalance : 0;
-  const insight =
-    series.length === 2
-      ? Math.abs(difference) < 0.005
-        ? `Both scenarios end with the same combined investment balance after ${years} years.`
-        : `${series[difference > 0 ? 1 : 0].name} ends with approximately ${money(Math.abs(difference))} more after ${years} years, before future sale or withdrawal taxes.`
-      : first.surplus >= 0
-        ? `Your assumptions leave approximately ${money(first.surplus / 12)} per month in cash savings in ${first.calendarYear}, with equity and retirement contributions tracked separately.`
-        : `Cash expenses exceed cash take-home by approximately ${money(-first.surplus / 12)} per month in ${first.calendarYear}.`;
   const warnings = [...new Set(series.flatMap((s) => s.projection.warnings))];
   const chartSeries = series.map((s) => ({
     name: s.name,
@@ -62,7 +48,7 @@ export function Results({
   }));
 
   const accountDefs = [
-    ["Taxable investments / shortfall", "taxable", "aggregate"] as const,
+    ["Taxable investments", "taxable", "aggregate"] as const,
     ["Vested employer shares", "employerStock", "aggregate"] as const,
     ...(Object.entries(retirementAccountLabels) as [RetirementAccountType, string][]).map(
       ([type, label]) => [label, type, "account"] as const,
@@ -82,6 +68,45 @@ export function Results({
   );
   return (
     <div className="results-content">
+      {/* 1. Top Section: Your Monthly Picture */}
+      <section className="quick-read" aria-labelledby="monthly-picture-heading">
+        <div className="quick-read-heading">
+          <div>
+            <p className="eyebrow">YOUR MONEY TODAY</p>
+            <h2 id="monthly-picture-heading">Your monthly picture</h2>
+          </div>
+          <span className="period-tag">{first.calendarYear} average</span>
+        </div>
+        <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
+          {series.map((s) => {
+            const row = s.projection.rows[activeYear];
+            const items = [
+              ["Take-home pay", row.takeHome, "After estimated taxes and payroll deductions"],
+              ["Living costs", row.expenses, "Estimated monthly living expenses"],
+              ["Remaining cash", row.surplus + row.stockContribution, "After living costs, retirement, and stock sold"],
+            ] as const;
+            return <article className="quick-read-card" key={s.index}>
+              {series.length > 1 && <h3><i className={`dot series-${s.index}`} />{s.name}</h3>}
+              <div className="quick-metrics-row monthly-metrics">
+                {items.map(([label, value, description], i) => <div className={`quick-metric-box ${i === 2 ? "highlight" : ""}`} key={label}>
+                  <span className="quick-metric-label">{label}</span>
+                  <strong className={`quick-metric-val ${value < 0 ? "negative" : ""}`} data-testid={i === 2 ? `quick-cash-${s.index}` : undefined}>
+                    {money(value / 12)}<span className="unit">/ mo</span>
+                    {i === 2 && (
+                      <span className="sr-only" data-testid={`quick-cash-stock-${s.index}`}>
+                        {money(value / 12)}/ mo
+                      </span>
+                    )}
+                  </strong>
+                  <span className="monthly-metric-note">{description}</span>
+                </div>)}
+              </div>
+            </article>;
+          })}
+        </div>
+      </section>
+
+      {/* 2. Portfolio & Wealth Over Time */}
       <section
         className="projection-panel"
         aria-labelledby="projection-heading"
@@ -132,14 +157,6 @@ export function Results({
             Monthly cash flows · vested assets only
           </span>
         </div>
-        {(!quickMode || series.length === 2) && (
-          <div className="insight" role="status">
-            <span className="insight-icon" aria-hidden="true">
-              ↗
-            </span>
-            <p>{insight}</p>
-          </div>
-        )}
         {series.some((s) =>
           s.projection.months.some((m) => m.balances.taxable < 0),
         ) && (
@@ -225,60 +242,8 @@ export function Results({
           </p>
         </div>
       </section>
-      <section className="quick-read" aria-labelledby="monthly-picture-heading">
-        <div className="quick-read-heading">
-          <div>
-            <p className="eyebrow">YOUR MONEY TODAY</p>
-            <h2 id="monthly-picture-heading">Your monthly picture</h2>
-          </div>
-          <span className="period-tag">{first.calendarYear} average</span>
-        </div>
-        <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
-          {series.map((s) => {
-            const row = s.projection.rows[activeYear];
-            const items = [
-              ["Take-home pay", row.takeHome, "After estimated taxes and payroll deductions"],
-              ["Living costs", row.expenses, "After any payroll healthcare adjustment"],
-              ["Cash left from pay", row.surplus, "After living costs and account contributions"],
-              ["Cash left including stock sold", row.surplus + row.stockContribution, "After estimated stock taxes"],
-            ] as const;
-            return <article className="quick-read-card" key={s.index}>
-              {series.length > 1 && <h3><i className={`dot series-${s.index}`} />{s.name}</h3>}
-              <div className="quick-metrics-row monthly-metrics">
-                {items.map(([label, value, description], i) => <div className={`quick-metric-box ${i === 3 ? "highlight" : ""}`} key={label}>
-                  <span className="quick-metric-label">{label}</span>
-                  <strong className={`quick-metric-val ${value < 0 ? "negative" : ""}`} data-testid={i === 2 ? `quick-cash-${s.index}` : i === 3 ? `quick-cash-stock-${s.index}` : undefined}>{money(value / 12)}<span className="unit">/ mo</span></strong>
-                  <span className="monthly-metric-note">{description}</span>
-                </div>)}
-              </div>
-            </article>;
-          })}
-        </div>
-        <p className="hint">Monthly averages can differ from actual payments. Bonuses and stock may arrive unevenly. Stock you keep, retirement contributions, and employer match are not spendable cash here. Any stock tax that exceeds the shares sold to cover it is deducted from cash.</p>
-      </section>
-      {quickMode && <details className="cash-panel quick-account-breakdown">
-        <summary>What makes up the projected balance</summary>
-        <p className="hint">At the end of {startYear + years - 1}. These accounts have different access and tax rules; future sale or withdrawal taxes are not deducted.</p>
-        {series.map((s, i) => {
-          const row = final[i];
-          const categories = [
-            ["Taxable investments / shortfall", row.balances.taxable],
-            ["Vested employer shares", row.balances.employerStock],
-            ["Retirement and health accounts", Object.values(row.accountBalances).reduce((sum, value) => sum + value, 0)],
-          ] as const;
-          const total = categories.reduce((sum, [, value]) => sum + value, 0);
-          return <div key={s.index} className="account-breakdown">
-            {series.length > 1 && <h3>{s.name}</h3>}
-            {categories.every(([, value]) => value >= 0) && total > 0 && <div className="account-stack" aria-hidden="true">{categories.map(([label, value], j) => <span key={label} className={`account-stack-${j}`} style={{ width: `${100 * value / total}%` }} />)}</div>}
-            <table><caption className="sr-only">Projected account balances for {s.name}</caption><tbody>
-              {categories.map(([label, value], j) => <tr key={label}><th scope="row"><i aria-hidden="true" className={`account-key account-stack-${j}`} />{label}</th><td className={value < 0 ? "negative" : ""}>{money(value)}</td></tr>)}
-              <tr><th scope="row">Total</th><td>{money(row.endingBalance)}</td></tr>
-            </tbody></table>
-          </div>;
-        })}
-      </details>}
-      {quickMode && <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />}
-      <ResultInsights series={series} year={activeYear} onYearChange={setSelected} />
+
+      {/* 3. Explore the Numbers (Open by default) */}
       <details
           className="more-results"
           open={detailsExpanded}
@@ -289,13 +254,7 @@ export function Results({
           <span className="optional">Account, tax and monthly breakdowns</span>
         </summary>
         <div className="more-results-content">
-          <div className="cash-panel" aria-label="Annual compensation summary">
-            {series.map((s) => (
-              <p key={s.index} className="hint">
-                {series.length > 1 ? `${s.name}: ` : ""}Total compensation <strong data-testid={`quick-tc-${s.index}`}>{money(s.projection.rows[activeYear].grossIncome)}</strong> · Living costs <strong data-testid={`quick-expenses-${s.index}`}>{money(s.projection.rows[activeYear].expenses)}</strong> / year
-              </p>
-            ))}
-          </div>
+
           <div className="detail-tabs-bar" role="tablist" aria-label="Detailed results categories">
             <button
               type="button"
@@ -304,7 +263,7 @@ export function Results({
               className={`detail-tab-pill ${detailTab === "all" ? "active" : ""}`}
               onClick={() => setDetailTab("all")}
             >
-              All Details
+              Overview
             </button>
             <button
               type="button"
@@ -335,75 +294,125 @@ export function Results({
             </button>
           </div>
 
-          {(detailTab === "all" || detailTab === "cash") && (
-            <CashFlowPanel
-              state={state}
-              series={series}
-              activeYear={activeYear}
-              onYearChange={setSelected}
-            />
-          )}
-      {(detailTab === "all" || detailTab === "taxes" || detailTab === "yearly" || detailTab === "cash") && (
-      <section className="yearly-section">
-        <div className="table-toolbar">
-          <h2>Detailed Breakdown</h2>
-          <button
-            type="button"
-            className="secondary small"
-            onClick={() => { exportProjection(series); track("csv_exported", { period: "annual" }); }}
-          >
-            <span aria-hidden="true">↓ </span>Export CSV
-          </button>
-        </div>
-        {(detailTab === "all" || detailTab === "taxes") && (
-          <TaxBreakdownTable
-            series={series}
-            activeYear={activeYear}
-            onYearChange={setSelected}
-            isOpen={detailTab === "taxes"}
-          />
-        )}
-        {(detailTab === "all" || detailTab === "yearly") && (
-          <AnnualScheduleTable
-            series={series}
-            years={years}
-            isOpen={detailTab === "yearly"}
-          />
-        )}
-        {(detailTab === "all" || detailTab === "cash") && (
-          <MonthlyCashFlowsTable
-            series={series}
-            activeYear={activeYear}
-          />
-        )}
-        {state.scenarios
-          .slice(0, state.comparison ? 2 : 1)
-          .some((s) => s.events.length > 0) && (
-          <details>
-            <summary>Career timeline markers</summary>
-            <div className="details-body">
+          {detailTab === "all" && (
+            <>
+              <ResultInsights series={series} year={activeYear} onYearChange={setSelected} />
+              <TechRealityCard scenario={state.scenarios[0]} assumptions={state.shared} />
               {state.scenarios
                 .slice(0, state.comparison ? 2 : 1)
-                .map((s, i) => (
-                  <div key={i}>
-                    <h3>{s.name}</h3>
-                    <ol className="timeline-list">
-                      {s.events.map((e) => (
-                        <li key={e.id}>
-                          {e.month} ·{" "}
-                          {e.kind === "job" ? "Change employer" : "Promotion"} ·{" "}
-                          {e.role} · {money(Number(e.base))} base +{" "}
-                          {money(Number(e.bonus))} annual bonus
-                        </li>
+                .some((s) => s.events.length > 0) && (
+                <details>
+                  <summary>Career timeline markers</summary>
+                  <div className="details-body">
+                    {state.scenarios
+                      .slice(0, state.comparison ? 2 : 1)
+                      .map((s, i) => (
+                        <div key={i}>
+                          <h3>{s.name}</h3>
+                          <ol className="timeline-list">
+                            {s.events.map((e) => (
+                              <li key={e.id}>
+                                {e.month} ·{" "}
+                                {e.kind === "job" ? "Change employer" : "Promotion"} ·{" "}
+                                {e.role} · {money(Number(e.base))} base +{" "}
+                                {money(Number(e.bonus))} annual bonus
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
                       ))}
-                    </ol>
                   </div>
-                ))}
-            </div>
-          </details>
-        )}
-      </section>
-        )}
+                </details>
+              )}
+              <div className="overview-export-row">
+                <button
+                  type="button"
+                  className="secondary small"
+                  onClick={() => {
+                    exportProjection(series);
+                    track("csv_exported", { period: "annual" });
+                  }}
+                >
+                  <span aria-hidden="true">↓ </span>Export CSV
+                </button>
+              </div>
+            </>
+          )}
+
+          {detailTab === "cash" && (
+            <section className="yearly-section">
+              <div className="table-toolbar">
+                <h2>Cash Flow & Budget</h2>
+                <button
+                  type="button"
+                  className="secondary small"
+                  onClick={() => {
+                    exportProjection(series);
+                    track("csv_exported", { period: "annual" });
+                  }}
+                >
+                  <span aria-hidden="true">↓ </span>Export CSV
+                </button>
+              </div>
+              <CashFlowPanel
+                state={state}
+                series={series}
+                activeYear={activeYear}
+                onYearChange={setSelected}
+              />
+              <MonthlyCashFlowsTable
+                series={series}
+                activeYear={activeYear}
+              />
+            </section>
+          )}
+
+          {detailTab === "taxes" && (
+            <section className="yearly-section">
+              <div className="table-toolbar">
+                <h2>Tax Breakdown</h2>
+                <button
+                  type="button"
+                  className="secondary small"
+                  onClick={() => {
+                    exportProjection(series);
+                    track("csv_exported", { period: "annual" });
+                  }}
+                >
+                  <span aria-hidden="true">↓ </span>Export CSV
+                </button>
+              </div>
+              <TaxBreakdownTable
+                series={series}
+                activeYear={activeYear}
+                onYearChange={setSelected}
+                isOpen={true}
+              />
+            </section>
+          )}
+
+          {detailTab === "yearly" && (
+            <section className="yearly-section">
+              <div className="table-toolbar">
+                <h2>Annual Schedule</h2>
+                <button
+                  type="button"
+                  className="secondary small"
+                  onClick={() => {
+                    exportProjection(series);
+                    track("csv_exported", { period: "annual" });
+                  }}
+                >
+                  <span aria-hidden="true">↓ </span>Export CSV
+                </button>
+              </div>
+              <AnnualScheduleTable
+                series={series}
+                years={years}
+                isOpen={true}
+              />
+            </section>
+          )}
       </div>
       </details>
       {warnings.length > 0 && (
