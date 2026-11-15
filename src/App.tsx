@@ -8,7 +8,7 @@ import {
   validPlanner,
 } from "./lib/planner";
 import { loadPlanner, savePlanner } from "./lib/plannerStorage";
-import { parsePlannerUrlParams, buildPlannerSearchString } from "./lib/plannerUrl";
+import { parsePlannerUrlParams, readFullPlannerLink, fullPlannerUrl } from "./lib/plannerUrl";
 import { projectScenario } from "./lib/projection";
 import { ScenarioForm } from "./components/ScenarioForm";
 import { Field } from "./components/Field";
@@ -24,6 +24,11 @@ import type { RetirementAccountType } from "./lib/retirement";
 import { money } from "./lib/format";
 import { analyticsConfigured, analyticsConsent, disableAnalytics, enableAnalytics, track } from "./lib/analytics";
 function initial() {
+  let linked: ReturnType<typeof readFullPlannerLink> = null;
+  let linkMessage = "";
+  try { linked = readFullPlannerLink(window.location.search); }
+  catch { linkMessage = "This plan link is invalid. Your saved plan was kept."; }
+  if (linked) return { state: linked.state, message: "", fresh: false, linkedMode: linked.quickMode };
   let loadedState: PlannerV2;
   let message = "";
   let fresh = false;
@@ -37,7 +42,7 @@ function initial() {
     message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
 
-  return { state: loadedState, message, fresh };
+  return { state: loadedState, message: linkMessage || message, fresh, linkedMode: undefined };
 }
 function initialMode(): boolean {
   try {
@@ -51,13 +56,14 @@ export default function App() {
   const [loaded] = useState(initial),
     [state, setState] = useState<PlannerV2>(loaded.state),
     [active, setActive] = useState(0),
-    [quickMode, setQuickModeState] = useState(initialMode),
+    [quickMode, setQuickModeState] = useState(() => loaded.linkedMode ?? initialMode()),
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message),
     [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
-    [sharedLink, setSharedLink] = useState(""),
+    [copyMessage, setCopyMessage] = useState(""),
     [linkError, setLinkError] = useState(""),
     [pendingLink, setPendingLink] = useState(() => {
+      if (new URLSearchParams(window.location.search).has("plan")) return null;
       const parsed = parsePlannerUrlParams(window.location.search);
       return parsed.hasCustomParams ? parsed : null;
     });
@@ -74,7 +80,7 @@ export default function App() {
     });
   };
 
-  useEffect(() => setSharedLink(""), [state, quickMode]);
+
   useEffect(() => setAllowInitialPreset(false), []);
 
   const switchToQuick = () => {
@@ -248,6 +254,22 @@ export default function App() {
     }
   }, [state, ready]);
 
+  const shareReady = ready && validPlanner(state) && state.scenarios.every((scenario) => !Object.keys(plannerScenarioErrors(scenario, state.shared)).length);
+  useEffect(() => {
+    if (pendingLink) return;
+    window.history.replaceState(window.history.state, "", fullPlannerUrl(window.location.href, shareReady ? state : null, quickMode));
+    setCopyMessage("");
+  }, [state, quickMode, shareReady, pendingLink]);
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(fullPlannerUrl(window.location.href, state, quickMode));
+      setCopyMessage("Copied!");
+      track("share_link_created");
+    } catch {
+      setCopyMessage("Copy the address from your browser.");
+    }
+  };
+
   const shared = (key: keyof PlannerV2["shared"], value: string) =>
     setState((s) => ({ ...s, shared: { ...s.shared, [key]: value } }));
   const startingAccountTotal =
@@ -321,17 +343,13 @@ export default function App() {
             {linkError && <p role="alert">{linkError}</p>}
           </section>
         )}
-        <details className="cash-panel prose">
-          <summary>Share a partial estimate</summary>
-          <p>A link includes salary, expenses, savings and some other assumptions in its address. Anyone with the link can see them. It omits detailed accounts, grants, events and the second scenario; expense categories are approximated. Use a backup to transfer a complete plan.</p>
-          <button type="button" disabled={!valid} onClick={() => {
-            setSharedLink(`${window.location.origin}${window.location.pathname}${buildPlannerSearchString(state, quickMode)}`);
-            track("share_link_created");
-          }}>Create share link</button>
-          {sharedLink && <p><label htmlFor="share-link">Partial estimate link</label><br /><input id="share-link" type="text" readOnly value={sharedLink} onFocus={(event) => event.currentTarget.select()} /></p>}
-        </details>
         <div className="calculator-layout">
           <aside className="inputs-panel" aria-label="Calculator inputs">
+            <div className="share-compact">
+              <button type="button" className="text-button" onClick={copyLink} disabled={!shareReady}>Copy plan link</button>
+              <span role="status">{copyMessage || (shareReady ? "Your address bar also contains your plan." : "Fix invalid inputs to share.")}</span>
+              <small>Anyone with the link can see your inputs.</small>
+            </div>
             <div className="inputs-heading">
               <div className="view-mode-toggle" role="group" aria-label="Calculator view">
                 <button
