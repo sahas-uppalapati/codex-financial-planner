@@ -63,12 +63,89 @@ export function TechEstimatorHero({
   });
 
   useEffect(() => {
-    if (!initialized.current && allowInitialPreset && !initialCompany) {
-      const location = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
-      applyTechPreset("google", "l5", location, scenario.taxProfile.filing, activeGrowthId, true, true);
+    if (!initialized.current) {
+      if (allowInitialPreset && !initialCompany) {
+        const location = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
+        applyTechPreset("google", "l5", location, scenario.taxProfile.filing, activeGrowthId, true, true);
+      } else {
+        getBaseline();
+      }
+      initialized.current = true;
     }
-    initialized.current = true;
-  }, []); // Initial sample only; never infer ownership from an existing save.
+  }, []);
+
+  function getBaseline(): { scenario: ScenarioV2; assumptions: AssumptionsV2; owned: Set<string> } {
+    if (baseline.current) return baseline.current;
+
+    const compId = selectedCompanyId || "google";
+    const levelId = selectedLevelId || "l5";
+    const locId = scenario.taxProfile.location;
+    const comp = findTechCompPoint(compId, levelId, locId);
+    const company = techCompanies.find((c) => c.id === compId) || techCompanies[0];
+    const levels = techLevels[compId] || techLevels.google;
+    const level = levels.find((l) => l.id === levelId) || levels[0];
+    const housing = housingPresets[locId] || housingPresets["san-francisco"];
+    const living = scenario.taxProfile.filing === "joint" ? housing.family : housing.single;
+
+    const owned = new Set<string>();
+
+    if (scenario.base === String(comp.base)) owned.add("base");
+    if (scenario.bonus === String(comp.bonus)) owned.add("bonus");
+    if (scenario.stock === String(comp.annualRsu)) {
+      owned.add("stock");
+      owned.add("stockMode");
+      owned.add("includeStock");
+      owned.add("employerId");
+      owned.add("issuers");
+      owned.add("grants");
+    }
+    if (scenario.signOnY1 === String(comp.signOnY1 ?? 0)) owned.add("signOnY1");
+    if (scenario.signOnY2 === String(comp.signOnY2 ?? 0)) owned.add("signOnY2");
+    if (scenario.company?.toLowerCase() === company.name.toLowerCase()) owned.add("company");
+    if (
+      scenario.name?.toLowerCase().includes(company.name.toLowerCase()) ||
+      scenario.name?.toLowerCase().includes(level.level.toLowerCase())
+    ) {
+      owned.add("name");
+    }
+    if (
+      scenario.role?.toLowerCase().includes(company.name.toLowerCase()) ||
+      scenario.role?.toLowerCase().includes(level.title.toLowerCase())
+    ) {
+      owned.add("role");
+    }
+
+    const expectedRent = String(living.rent);
+    if (scenario.expenses?.housing === expectedRent) owned.add("expenses");
+
+    if (scenario.employerMatch?.rate === String(company.matchPolicy.rate)) owned.add("employerMatch");
+
+    if (scenario.events.some((e) => e.presetProgression)) owned.add("events");
+
+    const growth = growthPresets.find((g) => g.id === activeGrowthId);
+    if (growth && assumptions.returns === String(growth.returns)) owned.add("returns");
+    if (growth && assumptions.inflation === String(growth.inflation)) owned.add("inflation");
+
+    const baselineScenario: ScenarioV2 = {
+      ...scenario,
+      base: String(comp.base),
+      bonus: String(comp.bonus),
+      stock: String(comp.annualRsu),
+      signOnY1: String(comp.signOnY1 ?? 0),
+      signOnY2: String(comp.signOnY2 ?? 0),
+      company: company.name,
+      name: `${company.name} ${level.level}`,
+      role: `${level.title} at ${company.name}`,
+    };
+
+    const initial = {
+      scenario: baselineScenario,
+      assumptions: { ...assumptions },
+      owned,
+    };
+    baseline.current = initial;
+    return initial;
+  }
 
   useEffect(() => setPreview(null), [scenario, assumptions]);
 
@@ -88,14 +165,16 @@ export function TechEstimatorHero({
     const levels = techLevels[companyId] || techLevels.google;
     const defaultLevel = levels[2]?.id || levels[0]?.id || "l5";
     setSelectedLevelId(defaultLevel);
-    applyTechPreset(companyId, defaultLevel, selectedLocationId, selectedFiling, activeGrowthId, includeProgression);
+    const full = !isPresetApplied;
+    applyTechPreset(companyId, defaultLevel, selectedLocationId, selectedFiling, activeGrowthId, includeProgression, full, false, ["company", "role", "name"]);
   }
 
   function handleLevelChange(levelId: string) {
     const companyId = selectedCompanyId || "google";
     setSelectedCompanyId(companyId);
     setSelectedLevelId(levelId);
-    applyTechPreset(companyId, levelId, selectedLocationId, selectedFiling, activeGrowthId, includeProgression);
+    const full = !isPresetApplied;
+    applyTechPreset(companyId, levelId, selectedLocationId, selectedFiling, activeGrowthId, includeProgression, full, false, ["role", "name"]);
   }
 
   function handleLocationChange(locationId: TaxLocation) {
@@ -249,7 +328,7 @@ export function TechEstimatorHero({
 
   function applyCandidate(candidate: ScenarioV2, nextAssumptions: AssumptionsV2, fullApply: boolean, forced: string[] = []) {
     const keys = ["name", "role", "company", "base", "bonus", "stock", "signOnY1", "signOnY2", "stockMode", "includeStock", "employerId", "issuers", "grants", "events", "expenses", "employerMatch"] as const;
-    const old = baseline.current;
+    const old = getBaseline();
     const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
     const owned = new Set<string>();
     const result = { ...scenario };

@@ -14,11 +14,16 @@ CareerWorth is a private, browser-only career and compensation planner. It uses 
 - Preserve existing saved-data compatibility and migration behavior. Version storage format changes deliberately and cover old-format handling in the relevant tests.
 - Keep CSV exports safe for spreadsheet use: quote text and neutralize formula-like user-entered values.
 - Follow existing accessibility patterns: associate labels with controls, preserve keyboard access, and ensure responsive layouts work on narrow screens.
+- Keep tests minimal and high-signal: avoid over-engineering tests, multiplying redundant test cases, or writing overly brittle multi-step checks. AI agents tend to over-engineer tests; prefer the smallest lean test that verifies the core requirement.
 - Update the README and relevant source documentation when model assumptions, supported locations, limits, or user-facing behavior change.
 
 ## Verification
 
-Do **not** run tests or builds (`npm test`, `npm run build`) during iterative development or after making intermediate edits. Verify after implementation is complete, when explicitly requested, or before preparing a commit. If a check or other task is likely to take a while, either start it in the background and continue independent work or defer it until implementation is complete; do not block iteration waiting for it. Collect its result before reporting verification status.
+Do **not** run the full test suite or builds (`npm test`, full `npx playwright test`, `npm run build`) during iterative coding, as running all tests slows development down significantly.
+
+- Run **only the specific test file or targeted test case** directly applicable to the code you are editing (e.g. `npx vitest run src/lib/tax.test.ts` or `npx playwright test -g "specific test"`).
+- Avoid proliferating new tests: minimize the number of tests in the repository and consolidate checks instead of adding repetitive assertions.
+- Verify broader checks (`npm test`, `npm run build`) only when implementation is complete, when explicitly requested, or before preparing a PR commit. If a check or other task is likely to take a while, either start it in the background and continue independent work or defer it; do not block iteration waiting for it.
 
 When verification is requested:
 Run from the repository root with Node.js 22.12+ or Node 24 LTS:

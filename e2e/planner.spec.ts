@@ -114,6 +114,37 @@ test("quick presets preserve edits and full replacement requires confirmation", 
   await preview.getByRole("button", { name: "Apply full preset" }).click();
   await expect(salary).not.toHaveValue("300001");
 });
+test("switching company and level updates pay and stock when not manually customized", async ({ page }) => {
+  await page.evaluate(() => window.localStorage.clear());
+  await page.addInitScript(() => window.sessionStorage.setItem("careerworth:mode", "quick"));
+  await page.goto("/");
+  const salary = page.getByLabel("Annual salary before tax");
+  const stock = page.getByLabel("Annual stock / RSUs");
+  await expect(salary).toHaveValue("241000");
+  await expect(stock).toHaveValue("176000");
+
+  // Switch to Meta: compensation should change to Meta E5
+  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Meta" }).click();
+  await expect(salary).toHaveValue("231000");
+  await expect(stock).toHaveValue("225000");
+
+  // Switch to Level E6: compensation should change to Meta E6
+  await page.getByRole("group", { name: "Job Level" }).getByRole("button", { name: "E6" }).click();
+  await expect(salary).toHaveValue("275000");
+  await expect(stock).toHaveValue("380000");
+
+  // Switch to Amazon: compensation should change to Amazon L6 (default senior level)
+  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Amazon" }).click();
+  await expect(salary).toHaveValue("218000");
+  await expect(stock).toHaveValue("166000");
+
+  // Reload page: switching company should still update pay
+  await page.reload();
+  await expect(salary).toHaveValue("218000");
+  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Google" }).click();
+  await expect(salary).toHaveValue("241000");
+  await expect(stock).toHaveValue("176000");
+});
 test("quick forecast separates cash from sold stock and explains negative balances", async ({ page }) => {
   const plan = defaultPlanner();
   const scenario = plan.scenarios[0];
