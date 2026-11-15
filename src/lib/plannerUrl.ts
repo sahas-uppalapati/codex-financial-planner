@@ -213,6 +213,99 @@ export function buildPlannerSearchString(
   return query ? `?${query}` : "";
 }
 
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
+/**
+ * Computes a minimal delta between the current state and default planner inputs.
+ * When comparison is disabled, untouched second scenario inputs are omitted completely.
+ */
+export function diffPlannerState(target: PlannerV2): Record<string, unknown> | undefined {
+  const defaults = defaultPlanner();
+
+  function diffValues(base: unknown, curr: unknown): unknown {
+    if (base === curr) return undefined;
+    if (!isPlainObject(base) || !isPlainObject(curr)) {
+      if (Array.isArray(base) && Array.isArray(curr)) {
+        if (JSON.stringify(base) === JSON.stringify(curr)) return undefined;
+        return curr;
+      }
+      return curr;
+    }
+    const diff: Record<string, unknown> = {};
+    let hasDiff = false;
+    for (const key of Object.keys(curr)) {
+      const d = diffValues(base[key], curr[key]);
+      if (d !== undefined) {
+        diff[key] = d;
+        hasDiff = true;
+      }
+    }
+    return hasDiff ? diff : undefined;
+  }
+
+  const result: Record<string, unknown> = {};
+  let changed = false;
+
+  if (target.comparison !== defaults.comparison) {
+    result.comparison = target.comparison;
+    changed = true;
+  }
+
+  const sharedDiff = diffValues(defaults.shared, target.shared) as Record<string, unknown> | undefined;
+  if (sharedDiff) {
+    result.shared = sharedDiff;
+    changed = true;
+  }
+
+  const s0Diff = diffValues(defaults.scenarios[0], target.scenarios[0]) as Record<string, unknown> | undefined;
+  const s1Diff = (target.comparison || JSON.stringify(defaults.scenarios[1]) !== JSON.stringify(target.scenarios[1]))
+    ? (diffValues(defaults.scenarios[1], target.scenarios[1]) as Record<string, unknown> | undefined)
+    : undefined;
+
+  if (s0Diff || s1Diff) {
+    result.scenarios = s1Diff ? [s0Diff ?? {}, s1Diff] : [s0Diff ?? {}];
+    changed = true;
+  }
+
+  return changed ? result : undefined;
+}
+
+/** Reconstructs a full PlannerV2 state by applying a sparse delta over default inputs. */
+export function applyPlannerDelta(delta: unknown): PlannerV2 {
+  const result = defaultPlanner();
+  if (!isPlainObject(delta)) return result;
+
+  function merge(target: Record<string, unknown>, source: Record<string, unknown>) {
+    for (const key of Object.keys(source)) {
+      const sVal = source[key];
+      const tVal = target[key];
+      if (isPlainObject(sVal) && isPlainObject(tVal)) {
+        merge(tVal, sVal);
+      } else {
+        target[key] = sVal;
+      }
+    }
+  }
+
+  if (typeof delta.comparison === "boolean") {
+    result.comparison = delta.comparison;
+  }
+  if (isPlainObject(delta.shared)) {
+    merge(result.shared as unknown as Record<string, unknown>, delta.shared);
+  }
+  if (Array.isArray(delta.scenarios)) {
+    if (isPlainObject(delta.scenarios[0])) {
+      merge(result.scenarios[0] as unknown as Record<string, unknown>, delta.scenarios[0]);
+    }
+    if (isPlainObject(delta.scenarios[1])) {
+      merge(result.scenarios[1] as unknown as Record<string, unknown>, delta.scenarios[1]);
+    }
+  }
+  return result;
+}
+
 /** Full links retain all planner inputs and the selected view. */
 export function readFullPlannerLink(search: string): { state: PlannerV2; quickMode: boolean } | null {
   const params = new URLSearchParams(search);
@@ -222,8 +315,19 @@ export function readFullPlannerLink(search: string): { state: PlannerV2; quickMo
     const parsed: unknown = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
     const data = parsed as Record<string, unknown>;
-    if (data.format !== 1 || typeof data.quickMode !== "boolean" || !data.planner || typeof data.planner !== "object") throw new Error();
-    const result = loadPlanner({ getItem: (key) => key === PLANNER_KEY ? JSON.stringify(data.planner) : null, setItem: () => {} });
+    if (typeof data.quickMode !== "boolean") throw new Error();
+
+    let stateToLoad: PlannerV2;
+    if (data.format === 1) {
+      if (!data.planner || typeof data.planner !== "object") throw new Error();
+      stateToLoad = data.planner as PlannerV2;
+    } else if (data.format === 2) {
+      stateToLoad = applyPlannerDelta(data.delta);
+    } else {
+      throw new Error();
+    }
+
+    const result = loadPlanner({ getItem: (key) => key === PLANNER_KEY ? JSON.stringify(stateToLoad) : null, setItem: () => {} });
     if (result.message.startsWith("Saved inputs could not")) throw new Error();
     return { state: result.state, quickMode: data.quickMode };
   } catch {
@@ -234,6 +338,10 @@ export function readFullPlannerLink(search: string): { state: PlannerV2; quickMo
 export function fullPlannerUrl(url: string, state: PlannerV2 | null, quickMode: boolean): string {
   const next = new URL(url);
   next.search = "";
-  if (state) next.searchParams.set("plan", JSON.stringify({ format: 1, quickMode, planner: state }));
+  if (state) {
+    const delta = diffPlannerState(state);
+    const payload = delta ? { format: 2, quickMode, delta } : { format: 2, quickMode };
+    next.searchParams.set("plan", JSON.stringify(payload));
+  }
   return next.toString();
 }
