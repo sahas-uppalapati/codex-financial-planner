@@ -2965,6 +2965,48 @@ table small {
   padding: 18px 20px;
   margin-bottom: 22px;
 }
+.max-optimal-card {
+  background: var(--green-soft);
+  border: 1px solid #c8ddce;
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.max-optimal-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+.max-optimal-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--green);
+}
+.max-optimal-sub {
+  font-size: 11.5px;
+  color: #385a44;
+  margin: 0;
+  line-height: 1.4;
+}
+.max-optimal-action-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.max-optimal-btn {
+  white-space: nowrap;
+  font-size: 12.5px;
+  font-weight: 600;
+  padding: 8px 15px;
+}
 .strategy-advisor-header {
   display: flex;
   justify-content: space-between;

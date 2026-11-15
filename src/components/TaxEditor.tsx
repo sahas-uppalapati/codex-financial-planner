@@ -252,14 +252,15 @@ export function BenefitsEditor({
   const retirementTargets = (owner: "primary" | "spouse") => {
     const target = s.retirementTargets[owner];
     const profile = s.retirementProfiles[owner];
-    const label = owner === "primary" ? "You" : "Spouse";
+    const label = owner === "primary" ? "Your" : "Spouse's";
+    const possessive = owner === "primary" ? "your" : "spouse's";
     const setTarget = (next: typeof target) => onChange({ ...s, retirementTargets: { ...s.retirementTargets, [owner]: next } });
     const setProfile = (next: typeof profile) => onChange({ ...s, retirementProfiles: { ...s.retirementProfiles, [owner]: next } });
     const annualPay = Number(owner === "primary" ? s.base : s.taxProfile.spouseWages);
     const annualEstimate = target.workplace401k.mode === "percent" ? annualPay * Number(target.workplace401k.amount) / 100 : Number(target.workplace401k.amount);
     return (
       <fieldset className="benefits-group" key={owner}>
-        <legend>{label} workplace retirement</legend>
+        <legend>{owner === "primary" ? "Your workplace retirement" : "Spouse workplace retirement"}</legend>
         <div className="two-cols">
           <SelectField label={`${label} 401(k) target type`} value={target.workplace401k.mode} onChange={(mode) => setTarget({ ...target, workplace401k: { ...target.workplace401k, mode: mode as "percent" | "dollars" } })}>
             <option value="percent">Percent of eligible pay</option><option value="dollars">Annual dollars</option>
@@ -276,11 +277,11 @@ export function BenefitsEditor({
           <summary>Age, eligibility & additional accounts <span className="optional">Optional</span></summary>
           <div className="details-body">
             <NumberField label={`${label} age at end of first projection year`} unit="years old" max={120} integer value={profile.ageAtFirstYearEnd} onChange={(ageAtFirstYearEnd) => setProfile({ ...profile, ageAtFirstYearEnd })} />
-            <Toggle label={`Confirm ${label.toLowerCase()} age for age-based contribution limits`} checked={profile.ageConfirmed} onChange={(ageConfirmed) => setProfile({ ...profile, ageConfirmed })} />
+            <Toggle label={`Confirm ${possessive} age for age-based contribution limits`} checked={profile.ageConfirmed} onChange={(ageConfirmed) => setProfile({ ...profile, ageConfirmed })} />
             <SelectField label={`${label} plan allows catch-up contributions?`} value={String(profile.allowsCatchUp)} onChange={(value) => setProfile({ ...profile, allowsCatchUp: value === "unsure" ? "unsure" : value === "true" })}>
               <option value="unsure">Unsure · use regular limit</option><option value="true">Yes</option><option value="false">No</option>
             </SelectField>
-            <SelectField label={`${label} covered by a workplace retirement plan?`} value={String(profile.workplacePlanCoverage)} onChange={(value) => setProfile({ ...profile, workplacePlanCoverage: value === "unsure" ? "unsure" : value === "true" })}>
+            <SelectField label={`${owner === "primary" ? "Are you" : "Is spouse"} covered by a workplace retirement plan?`} value={String(profile.workplacePlanCoverage)} onChange={(value) => setProfile({ ...profile, workplacePlanCoverage: value === "unsure" ? "unsure" : value === "true" })}>
               <option value="unsure">Unsure</option><option value="true">Yes</option><option value="false">No</option>
             </SelectField>
             <NumberField label={`${label} initial prior-year FICA wages from this employer`} value={profile.priorYearFicaWages} onChange={(priorYearFicaWages) => setProfile({ ...profile, priorYearFicaWages })} hint="Used for required Roth catch-up treatment when applicable. Do not enter wages from unrelated employers." />
@@ -293,9 +294,9 @@ export function BenefitsEditor({
                 <NumberField key={key} label={`${label} annual ${({ traditionalIra: "traditional IRA", rothIra: "Roth IRA", backdoorRoth: "backdoor Roth IRA", megaBackdoor: "mega backdoor Roth" })[key]} target`} value={target[key]} onChange={(value) => setTarget({ ...target, [key]: value })} />
               ))}
             </div>
-            <Toggle label={`${label}: confirm backdoor Roth strategy and Form 8606 reporting`} checked={target.backdoorConfirmed} onChange={(backdoorConfirmed) => setTarget({ ...target, backdoorConfirmed })} />
-            <Toggle label={`${label}: confirm aggregate traditional, rollover, SEP, and SIMPLE IRA balances are $0`} checked={target.iraBalanceZeroConfirmed} onChange={(iraBalanceZeroConfirmed) => setTarget({ ...target, iraBalanceZeroConfirmed })} />
-            <Toggle label={`${label}: confirm plan supports after-tax workplace contributions and Roth conversion`} checked={target.megaBackdoorSupported} onChange={(megaBackdoorSupported) => setTarget({ ...target, megaBackdoorSupported })} />
+            <Toggle label={`${owner === "primary" ? "You" : "Spouse"}: confirm backdoor Roth strategy and Form 8606 reporting`} checked={target.backdoorConfirmed} onChange={(backdoorConfirmed) => setTarget({ ...target, backdoorConfirmed })} />
+            <Toggle label={`${owner === "primary" ? "You" : "Spouse"}: confirm aggregate traditional, rollover, SEP, and SIMPLE IRA balances are $0`} checked={target.iraBalanceZeroConfirmed} onChange={(iraBalanceZeroConfirmed) => setTarget({ ...target, iraBalanceZeroConfirmed })} />
+            <Toggle label={`${label} plan supports after-tax workplace contributions and Roth conversion`} checked={target.megaBackdoorSupported} onChange={(megaBackdoorSupported) => setTarget({ ...target, megaBackdoorSupported })} />
             <SelectField label={`${label} mega backdoor conversion route`} value={target.megaBackdoorRoute} onChange={(megaBackdoorRoute) => setTarget({ ...target, megaBackdoorRoute: megaBackdoorRoute as typeof target.megaBackdoorRoute })}>
               <option value="none">Not configured</option><option value="in-plan">Immediate in-plan Roth 401(k)</option><option value="roth-ira">Immediate rollover to Roth IRA</option>
             </SelectField>

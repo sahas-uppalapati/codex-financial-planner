@@ -1,7 +1,5 @@
-import type { EmployerMatch, MatchVestingType } from "../lib/planner";
+import type { EmployerMatch } from "../lib/planner";
 import {
-  matchFormulaPresets,
-  matchVestingPresets,
   requiredEmployeeRateForFullMatch,
 } from "../lib/retirement";
 import { money } from "../lib/format";
@@ -69,69 +67,36 @@ export function EmployerMatchFields({
 
   return (
     <div className="employer-match-fields">
-      <div className="match-preset-group">
-        <span className="small-text muted">Quick match formula presets:</span>
-        <div className="match-preset-buttons">
-          {matchFormulaPresets.map((preset) => (
-            <button
-              key={preset.label}
-              type="button"
-              className="match-preset-button"
-              onClick={() => {
-                if (preset.type === "simple") {
-                  onChange({
-                    ...match,
-                    type: "simple",
-                    rate: preset.rate,
-                    payPercent: preset.payPercent,
-                    cap: preset.cap,
-                  });
-                } else {
-                  onChange({
-                    ...match,
-                    type: "tiered",
-                    tiers: [...preset.tiers],
-                    cap: preset.cap,
-                  });
-                }
-              }}
-            >
-              {preset.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
       <SelectField
         label="Match formula"
-        value={match.type}
+        value={match.type || "simple"}
         onChange={(value) =>
           onChange({
             ...match,
             type: value as EmployerMatch["type"],
           })
         }
-        hint="Unsure adds no assumed match. Check your plan document or offer letter for details."
+        hint="Employer matching contributions under your workplace 401(k) plan."
       >
-        <option value="unsure">Unsure · assume no match</option>
-        <option value="none">No match</option>
         <option value="simple">Simple match</option>
+        <option value="none">No match</option>
         <option value="tiered">Tiered match</option>
+        <option value="unsure">Unsure · assume no match</option>
       </SelectField>
 
       {match.type === "simple" && (
         <div className="two-cols">
           <NumberField
             label="Employer match rate"
-            unit="% of your contribution"
+            unit="% of contribution"
             max={100}
             value={match.rate}
             onChange={(v) => onChange({ ...match, rate: v })}
             error={errors[`${prefix}.rate`]}
           />
           <NumberField
-            label="On the first percent of eligible pay"
-            unit="%"
+            label="On the first percent of pay"
+            unit="% of pay"
             max={100}
             value={match.payPercent}
             onChange={(v) => onChange({ ...match, payPercent: v })}
@@ -146,7 +111,7 @@ export function EmployerMatchFields({
             <div className="two-cols" key={index}>
               <NumberField
                 label={`Tier ${index + 1}: match rate`}
-                unit="% of your contribution"
+                unit="% of contribution"
                 max={100}
                 value={tier.rate}
                 onChange={(v) =>
@@ -161,7 +126,7 @@ export function EmployerMatchFields({
               />
               <NumberField
                 label={`Tier ${index + 1}: next eligible pay`}
-                unit="%"
+                unit="% of pay"
                 max={100}
                 value={tier.payPercent}
                 onChange={(v) =>
@@ -216,91 +181,6 @@ export function EmployerMatchFields({
         error={errors[`${prefix}.cap`]}
       />
 
-      <SelectField
-        label="Match vesting schedule"
-        value={match.vestingType ?? "immediate"}
-        onChange={(value) => {
-          const vType = value as MatchVestingType;
-          const preset = matchVestingPresets.find((p) => p.id === vType);
-          onChange({
-            ...match,
-            vestingType: vType,
-            vestingSchedule: preset ? [...preset.schedule] : match.vestingSchedule ?? ["100"],
-          });
-        }}
-        hint="Employee contributions always vest 100% immediately by law. Employer match may vest over years of completed service."
-      >
-        {matchVestingPresets.map((preset) => (
-          <option key={preset.id} value={preset.id}>
-            {preset.label}
-          </option>
-        ))}
-      </SelectField>
-
-      {match.vestingType && match.vestingType !== "immediate" && (
-        <div className="vesting-schedule-block">
-          <p className="small-text muted">
-            Vested percentage after completed years of service (unvested match forfeits on departure):
-          </p>
-          <div className="vesting-years-grid">
-            {(match.vestingSchedule ?? ["100"]).map((pct, idx) => (
-              <NumberField
-                key={idx}
-                label={`After Year ${idx + 1}`}
-                unit="% vested"
-                min={0}
-                max={100}
-                value={pct}
-                onChange={(val) => {
-                  const schedule = [...(match.vestingSchedule ?? ["100"])];
-                  schedule[idx] = val;
-                  onChange({
-                    ...match,
-                    vestingType: "custom",
-                    vestingSchedule: schedule,
-                  });
-                }}
-                error={errors[`${prefix}.vestingSchedule.${idx}`]}
-              />
-            ))}
-          </div>
-          <div className="button-row">
-            <button
-              type="button"
-              className="secondary small"
-              disabled={(match.vestingSchedule?.length ?? 1) >= 10}
-              onClick={() => {
-                const current = match.vestingSchedule ?? ["100"];
-                const lastVal = current[current.length - 1] ?? "100";
-                onChange({
-                  ...match,
-                  vestingType: "custom",
-                  vestingSchedule: [...current, lastVal],
-                });
-              }}
-            >
-              Add year
-            </button>
-            {(match.vestingSchedule?.length ?? 1) > 1 && (
-              <button
-                type="button"
-                className="secondary small"
-                onClick={() => {
-                  const current = match.vestingSchedule ?? ["100"];
-                  onChange({
-                    ...match,
-                    vestingType: "custom",
-                    vestingSchedule: current.slice(0, -1),
-                  });
-                }}
-              >
-                Remove year
-              </button>
-            )}
-          </div>
-        </div>
-      )}
-
       {(onApplyTarget || onMaximizeTarget) && (match.type === "simple" || match.type === "tiered") && (
         <div className="match-actions-wrapper">
           <span className="small-text muted">Quick target actions:</span>
@@ -320,7 +200,7 @@ export function EmployerMatchFields({
                 className="match-action-button"
                 onClick={onMaximizeTarget}
               >
-                Maximize annual contributions ($24,500)
+                Maximize 401(k) contributions ($24,500)
               </button>
             )}
           </div>

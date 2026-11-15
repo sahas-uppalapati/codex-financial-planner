@@ -19,7 +19,8 @@ export function RetirementStrategyAdvisor({
   onChange: (s: ScenarioV2) => void;
 }) {
   const presets = getStrategyPresets(s, a);
-  const defaultTarget = presets.find((p) => p.id === "max-401k")?.amount || 25000;
+  const optimalMaxTotal = presets.find((p) => p.id === "max-401k")?.amount || 36400;
+  const defaultTarget = optimalMaxTotal;
 
   const [targetSavingsDraft, setTargetSavingsDraft] = useState<string>(() =>
     String(Math.max(1000, defaultTarget)),
@@ -49,10 +50,43 @@ export function RetirementStrategyAdvisor({
     setTimeout(() => setAppliedNotice(null), 4000);
   };
 
+  const handleMaxOptimal = () => {
+    const optStrategy = calculateRetirementStrategy(s, a, {
+      targetSavings: optimalMaxTotal,
+      taxPreference,
+      enableBackdoor: true,
+      enableMegaBackdoor,
+    });
+    const updated = applyRetirementStrategy(s, optStrategy);
+    onChange(updated);
+    setTargetSavingsDraft(String(optimalMaxTotal));
+    setAppliedNotice(`Maxed out optimal accounts (${money(optimalMaxTotal)}/yr)!`);
+    setTimeout(() => setAppliedNotice(null), 4000);
+  };
+
   const advisorId = useId();
 
   return (
     <div className="strategy-advisor-card" aria-labelledby={`${advisorId}-heading`}>
+      <div className="max-optimal-card">
+        <div className="max-optimal-info">
+          <span className="max-optimal-title">One-Click Optimal Retirement Strategy</span>
+          <p className="max-optimal-sub">
+            Max out 100% of employer match, HSA, and IRA in optimal tax order ({money(optimalMaxTotal)} / year).
+          </p>
+        </div>
+        <div className="max-optimal-action-group">
+          <button
+            type="button"
+            className="primary-button max-optimal-btn"
+            onClick={handleMaxOptimal}
+          >
+            Max Out Optimal Accounts
+          </button>
+          {appliedNotice && <span className="applied-pill" role="status">{appliedNotice}</span>}
+        </div>
+      </div>
+
       <div className="strategy-advisor-header">
         <div>
           <h3 id={`${advisorId}-heading`}>Retirement Contribution Strategy</h3>
