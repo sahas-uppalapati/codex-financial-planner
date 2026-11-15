@@ -64,15 +64,79 @@ describe("plannerUrl", () => {
 });
 
 describe("full plan links", () => {
-  it("round trips both scenarios, detailed inputs and view", async () => {
+  it("round trips both scenarios, detailed inputs and view with a compact delta", async () => {
     const { fullPlannerUrl, readFullPlannerLink } = await import("./plannerUrl");
     const plan = defaultPlanner();
     plan.comparison = true;
     plan.scenarios[0].name = "Offer & equity 🏡";
     plan.shared.starting = "12345";
     const url = fullPlannerUrl("https://example.com/", plan, false);
+    expect(url.length).toBeLessThan(500);
     expect(readFullPlannerLink(new URL(url).search)).toEqual({ state: plan, quickMode: false });
     expect(new URL(fullPlannerUrl(url, null, false)).searchParams.has("plan")).toBe(false);
+  });
+  it("preserves extensive plan edits including custom grants, accounts, tiers, and comparison", async () => {
+    const { fullPlannerUrl, readFullPlannerLink } = await import("./plannerUrl");
+    const { templateSchedule } = await import("../data/vesting");
+    const plan = defaultPlanner();
+    plan.comparison = true;
+    plan.shared.starting = "75000";
+    plan.shared.years = "18";
+    plan.shared.startingAccounts = [
+      { id: "a1", owner: "primary", type: "traditional-401k", balance: "50000" },
+      { id: "a2", owner: "spouse", type: "roth-ira", balance: "20000" },
+    ];
+    plan.scenarios[0].base = "215000";
+    plan.scenarios[0].bonus = "35000";
+    plan.scenarios[0].stockMode = "grants";
+    plan.scenarios[0].grants = [{
+      id: "grant-test-1",
+      name: "Initial grant",
+      issuerId: plan.scenarios[0].employerId,
+      employmentId: "initial",
+      month: "2026-01",
+      units: "dollars",
+      value: "200000",
+      priceMode: "modeled",
+      grantPrice: "100",
+      schedule: templateSchedule("quarterly"),
+      template: "quarterly",
+      treatment: "sell",
+      keepOnDeparture: false,
+    }];
+    plan.scenarios[0].employerMatch = {
+      type: "tiered",
+      rate: "0",
+      payPercent: "0",
+      cap: "10000",
+      tiers: [
+        { rate: "100", payPercent: "4" },
+        { rate: "50", payPercent: "2" },
+      ],
+      vestingType: "graded-4",
+      vestingSchedule: ["25", "50", "75", "100"],
+    };
+    plan.scenarios[0].retirementTargets.primary.workplace401k = {
+      mode: "dollars",
+      amount: "23500",
+      traditionalSharePercent: "80",
+      rothSharePercent: "20",
+    };
+    plan.scenarios[1].base = "230000";
+    plan.scenarios[1].taxProfile.location = "san-francisco";
+
+    const url = fullPlannerUrl("https://example.com/", plan, false);
+    const parsed = readFullPlannerLink(new URL(url).search);
+    expect(parsed).toEqual({ state: plan, quickMode: false });
+  });
+  it("reads legacy format 1 full plan links", async () => {
+    const { readFullPlannerLink } = await import("./plannerUrl");
+    const plan = defaultPlanner();
+    plan.scenarios[0].base = "185000";
+    const legacySearch = `?plan=${encodeURIComponent(JSON.stringify({ format: 1, quickMode: true, planner: plan }))}`;
+    const result = readFullPlannerLink(legacySearch);
+    expect(result?.quickMode).toBe(true);
+    expect(result?.state.scenarios[0].base).toBe("185000");
   });
   it("rejects malformed full links", async () => {
     const { readFullPlannerLink } = await import("./plannerUrl");
