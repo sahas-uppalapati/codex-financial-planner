@@ -12,6 +12,12 @@ import {
 import type { GrowthPreset } from "../data/techCompPresets";
 import { templateSchedule } from "../data/vesting";
 import { uid } from "../lib/planner";
+import { money } from "../lib/format";
+import {
+  calculateRetirementStrategy,
+  applyRetirementStrategy,
+  getStrategyPresets,
+} from "../lib/retirementStrategy";
 
 interface TechEstimatorHeroProps {
   allowInitialPreset: boolean;
@@ -33,6 +39,26 @@ export function TechEstimatorHero({
   // trustworthy provenance and are therefore preserved until explicitly applied.
   const baseline = useRef<{ scenario: ScenarioV2; assumptions: AssumptionsV2; owned: Set<string> } | null>(null);
   const [preview, setPreview] = useState<{ scenario: ScenarioV2; assumptions: AssumptionsV2 } | null>(null);
+  const [strategyNotice, setStrategyNotice] = useState<string | null>(null);
+
+  const strategyPresets = getStrategyPresets(scenario, assumptions);
+  const optimalMaxTotal =
+    strategyPresets.find((p) => p.id === "max-all")?.amount ||
+    strategyPresets.find((p) => p.id === "max-401k")?.amount ||
+    36400;
+
+  const handleMaxOptimal = () => {
+    const optStrategy = calculateRetirementStrategy(scenario, assumptions, {
+      targetSavings: optimalMaxTotal,
+      taxPreference: "traditional",
+      enableBackdoor: true,
+      enableMegaBackdoor: true,
+    });
+    const updated = applyRetirementStrategy(scenario, optStrategy);
+    onScenarioChange(updated);
+    setStrategyNotice(`Maxed out optimal accounts (${money(optimalMaxTotal)}/yr)!`);
+    setTimeout(() => setStrategyNotice(null), 4000);
+  };
   // Check if an actual tech preset is already applied (legacy default "Columbus offer" has company: "Meta" from model.ts)
   const isPresetApplied =
     scenario.name !== "Columbus offer" &&
@@ -479,6 +505,25 @@ export function TechEstimatorHero({
               Model {selectedCompany.name} promotions in forecast
             </span>
           </label>
+        </div>
+
+        {/* Optimal Retirement Strategy 1-Click Action */}
+        <div className="hero-control-group hero-full-width">
+          <div className="hero-strategy-row">
+            <button
+              type="button"
+              className="max-optimal-hero-btn"
+              title={`Max out optimal accounts: 401(k), ${scenario.taxProfile.hsaCoverage !== "none" ? "HSA, " : ""}IRA, and Mega Backdoor (${money(optimalMaxTotal)} / year)`}
+              onClick={handleMaxOptimal}
+            >
+              Max Out Retirement Accounts ({money(optimalMaxTotal)}/yr)
+            </button>
+            {strategyNotice && (
+              <span className="applied-pill" role="status">
+                {strategyNotice}
+              </span>
+            )}
+          </div>
         </div>
       </div>
       <p className="hint">Preset changes keep values you have customized. Saved values are kept unless you choose to replace them. Market outlook changes the investment return only.</p>

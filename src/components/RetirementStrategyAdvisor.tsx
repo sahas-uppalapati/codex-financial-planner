@@ -7,6 +7,11 @@ import {
   getStrategyPresets,
 } from "../lib/retirementStrategy";
 import type { TaxStrategyPreference } from "../lib/retirementStrategy";
+import {
+  annualAge,
+  annualRetirementLimits,
+  employeeDeferralLimit,
+} from "../lib/retirement";
 import { NumberField } from "./EditorFields";
 
 export function RetirementStrategyAdvisor({
@@ -21,6 +26,26 @@ export function RetirementStrategyAdvisor({
   const presets = getStrategyPresets(s, a);
   const optimalMaxTotal = presets.find((p) => p.id === "max-all")?.amount || presets.find((p) => p.id === "max-401k")?.amount || 36400;
   const defaultTarget = optimalMaxTotal;
+
+  const year = Number(a.startYear) || 2026;
+  const inflation = Number(a.taxInflation) || 0;
+  const limits = annualRetirementLimits(year, inflation);
+  const age = annualAge(s.retirementProfiles.primary, 0);
+  const allowsCatchUp = s.retirementProfiles.primary.allowsCatchUp === true;
+  const max401kOnly = employeeDeferralLimit(limits, age, allowsCatchUp);
+
+  const matchPreset = presets.find((p) => p.id === "match-only");
+  const maxAllPreset = presets.find((p) => p.id === "max-all");
+
+  const simplifiedPresets = [
+    ...(matchPreset && matchPreset.amount > 0
+      ? [{ id: "match", label: "Full Match", amount: matchPreset.amount, description: matchPreset.description }]
+      : []),
+    { id: "max-401k", label: "Max 401(k)", amount: max401kOnly, description: `Max employee 401(k) limit (${money(max401kOnly)})` },
+    ...(maxAllPreset && maxAllPreset.amount > max401kOnly
+      ? [{ id: "max-all", label: "Max All", amount: maxAllPreset.amount, description: maxAllPreset.description }]
+      : []),
+  ];
 
   const [targetSavingsDraft, setTargetSavingsDraft] = useState<string>(() =>
     String(Math.max(1000, defaultTarget)),
@@ -46,41 +71,15 @@ export function RetirementStrategyAdvisor({
     setTimeout(() => setAppliedNotice(null), 4000);
   };
 
-  const handleMaxOptimal = () => {
-    const optStrategy = calculateRetirementStrategy(s, a, {
-      targetSavings: optimalMaxTotal,
-      taxPreference,
-      enableBackdoor: true,
-      enableMegaBackdoor,
-    });
-    const updated = applyRetirementStrategy(s, optStrategy);
-    onChange(updated);
-    setTargetSavingsDraft(String(optimalMaxTotal));
-    setAppliedNotice(`Maxed out optimal accounts (${money(optimalMaxTotal)}/yr)!`);
-    setTimeout(() => setAppliedNotice(null), 4000);
-  };
-
   const advisorId = useId();
 
   return (
     <div className="strategy-advisor-card" aria-labelledby={`${advisorId}-heading`}>
-      <div className="max-optimal-action-group">
-        <button
-          type="button"
-          className="primary-button max-optimal-btn"
-          title={`Max out all optimal accounts: 401(k), ${s.taxProfile.hsaCoverage !== "none" ? "HSA, " : ""}IRA, and Mega Backdoor Roth (${money(optimalMaxTotal)} / year)`}
-          onClick={handleMaxOptimal}
-        >
-          ⚡ Max Out Optimal Accounts ({money(optimalMaxTotal)}/yr)
-        </button>
-        {appliedNotice && <span className="applied-pill" role="status">{appliedNotice}</span>}
-      </div>
-
       <div className="strategy-controls">
         <div className="strategy-control-row">
-          <label className="field-label" id={`${advisorId}-heading`}>Customize annual retirement target</label>
+          <label className="field-label" id={`${advisorId}-heading`}>Target milestone</label>
           <div className="pill-selector" role="group" aria-label="Savings target presets">
-            {presets.map((p) => {
+            {simplifiedPresets.map((p) => {
               const isActive = Math.abs(p.amount - targetAmount) < 10;
               return (
                 <button
@@ -109,7 +108,7 @@ export function RetirementStrategyAdvisor({
               setTargetSavingsDraft(v);
               setAppliedNotice(null);
             }}
-            hint={`${money(Math.round(targetAmount / 12))} / month equivalent`}
+            hint={`${money(Math.round(targetAmount / 12))}/mo`}
           />
 
           <div>
@@ -119,24 +118,24 @@ export function RetirementStrategyAdvisor({
                 type="button"
                 className={`pill-btn ${taxPreference === "traditional" ? "active" : ""}`}
                 onClick={() => setTaxPreference("traditional")}
-                title="Prioritize Traditional 401(k) to maximize immediate income tax deduction"
+                title="Traditional: Maximize immediate income tax deduction"
               >
-                Traditional (Tax Relief Now)
+                Traditional
               </button>
               <button
                 type="button"
                 className={`pill-btn ${taxPreference === "roth" ? "active" : ""}`}
                 onClick={() => setTaxPreference("roth")}
-                title="Prioritize Roth 401(k) for tax-free retirement growth and withdrawals"
+                title="Roth: Tax-free retirement growth and withdrawals"
               >
-                Roth (Tax-Free Later)
+                Roth
               </button>
             </div>
           </div>
         </div>
 
         <details className="strategy-advanced-toggles">
-          <summary>Advanced strategy options <span className="optional">Backdoor & Mega Backdoor</span></summary>
+          <summary>Advanced options <span className="optional">Backdoor & Mega Backdoor</span></summary>
           <div className="details-body strategy-toggles-body">
             <label className="toggle-label">
               <input
