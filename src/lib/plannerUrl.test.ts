@@ -62,3 +62,20 @@ describe("plannerUrl", () => {
     expect(updated.scenarios[0].taxProfile.location).toBe(base.scenarios[0].taxProfile.location);
   });
 });
+
+describe("full plan links", () => {
+  it("round trips both scenarios, detailed inputs and view", async () => {
+    const { fullPlannerUrl, readFullPlannerLink } = await import("./plannerUrl");
+    const plan = defaultPlanner();
+    plan.comparison = true;
+    plan.scenarios[0].name = "Offer & equity 🏡";
+    plan.shared.starting = "12345";
+    const url = fullPlannerUrl("https://example.com/", plan, false);
+    expect(readFullPlannerLink(new URL(url).search)).toEqual({ state: plan, quickMode: false });
+    expect(new URL(fullPlannerUrl(url, null, false)).searchParams.has("plan")).toBe(false);
+  });
+  it("rejects malformed full links", async () => {
+    const { readFullPlannerLink } = await import("./plannerUrl");
+    expect(() => readFullPlannerLink("?plan=invalid")).toThrow();
+  });
+});
