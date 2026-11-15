@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { defaultState } from "../src/lib/model";
 import { defaultPlanner } from "../src/lib/planner";
 import { exportPlannerBackup } from "../src/lib/plannerBackup";
+import { templateSchedule } from "../src/data/vesting";
 
 async function openDetailed(page: Page) {
   await page.addInitScript(() => {
@@ -91,6 +92,80 @@ test("quick estimate mode defaults, inputs, assumptions and transitions", async 
   // Return to quick view
   await page.getByRole("button", { name: "← Back to quick estimate" }).click();
   await expect(page.getByLabel("Annual salary before tax")).toHaveValue("260000");
+});
+test("quick presets preserve edits and full replacement requires confirmation", async ({ page }) => {
+  await page.evaluate(() => window.localStorage.clear());
+  await page.addInitScript(() => window.sessionStorage.setItem("careerworth:mode", "quick"));
+  await page.goto("/");
+  const salary = page.getByLabel("Annual salary before tax");
+  await expect(salary).toHaveValue("241000");
+  await salary.fill("300001");
+  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Meta" }).click();
+  await expect(salary).toHaveValue("300001");
+  await page.reload();
+  await page.getByLabel("Location", { exact: true }).selectOption("seattle");
+  await expect(salary).toHaveValue("300001");
+  await page.getByRole("button", { name: "Preview full preset" }).click();
+  const preview = page.getByRole("region", { name: "Full preset preview" });
+  await expect(preview).toContainText("300001");
+  await preview.getByRole("button", { name: "Cancel" }).click();
+  await expect(salary).toHaveValue("300001");
+  await page.getByRole("button", { name: "Preview full preset" }).click();
+  await preview.getByRole("button", { name: "Apply full preset" }).click();
+  await expect(salary).not.toHaveValue("300001");
+});
+test("quick forecast separates cash from sold stock and explains negative balances", async ({ page }) => {
+  const plan = defaultPlanner();
+  const scenario = plan.scenarios[0];
+  scenario.base = "120000";
+  scenario.tax = "0";
+  scenario.taxProfile.mode = "manual";
+  scenario.stock = "12000";
+  scenario.includeStock = true;
+  scenario.stockMode = "legacy";
+  plan.shared.startYear = "2028";
+  plan.shared.taxInflation = "4";
+  await page.addInitScript((saved) => {
+    localStorage.setItem("careerworth:v3", JSON.stringify(saved));
+    sessionStorage.setItem("careerworth:mode", "quick");
+  }, plan);
+  await page.goto("/");
+  await expect(page.getByTestId("quick-cash-0")).toContainText("$7,000");
+  await expect(page.getByTestId("quick-cash-stock-0")).toContainText("$8,000");
+  const assumptions = page.locator("details").filter({ has: page.locator("summary", { hasText: "View assumptions" }) });
+  await expect(assumptions).not.toHaveAttribute("open", "");
+  await assumptions.locator("summary").click();
+  await expect(assumptions).toContainText("January 2026");
+  await page.getByLabel("Monthly living costs").fill("12000");
+  await expect(page.getByTestId("quick-cash-0")).toContainText("-$2,000");
+  const breakdown = page.locator("details").filter({ has: page.locator("summary", { hasText: "What makes up the projected balance" }) });
+  await breakdown.locator("summary").click();
+  await expect(breakdown.locator(".account-stack")).toHaveCount(0);
+  await expect(breakdown.getByRole("table")).toBeVisible();
+  await page.getByRole("button", { name: "Add more detail" }).click();
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("careerworth:v3")!));
+  expect(saved.shared.startYear).toBe("2028");
+  expect(saved.shared.taxInflation).toBe("4");
+});
+test("held stock stays out of spendable cash", async ({ page }) => {
+  const plan = defaultPlanner();
+  const scenario = plan.scenarios[0];
+  scenario.base = "120000";
+  scenario.tax = "0";
+  scenario.taxProfile.mode = "manual";
+  scenario.stock = "12000";
+  scenario.includeStock = true;
+  scenario.grants = [{ id: "held", name: "Held grant", issuerId: scenario.employerId, employmentId: "initial", month: "2026-01", units: "dollars", value: "48000", priceMode: "modeled", grantPrice: "100", schedule: templateSchedule("quarterly"), template: "quarterly", treatment: "hold", keepOnDeparture: false }];
+  await page.addInitScript((saved) => {
+    localStorage.setItem("careerworth:v3", JSON.stringify(saved));
+    sessionStorage.setItem("careerworth:mode", "quick");
+  }, plan);
+  await page.goto("/");
+  await expect(page.getByTestId("quick-cash-0")).toContainText("$7,000");
+  await expect(page.getByTestId("quick-cash-stock-0")).toContainText("$7,000");
+  await page.getByLabel("Annual stock / RSUs").fill("30000");
+  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("careerworth:v3")!));
+  expect(saved.scenarios[0].grants[0].value).toBe("48000");
 });
 test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   page,
