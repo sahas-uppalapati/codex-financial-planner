@@ -20,6 +20,7 @@ import {
   Toggle,
 } from "./EditorFields";
 import { EmployerMatchFields } from "./EmployerMatchEditor";
+import { RetirementStrategyAdvisor } from "./RetirementStrategyAdvisor";
 export function TaxEditor({
   s,
   a,
@@ -323,6 +324,7 @@ export function BenefitsEditor({
         Pretax benefits <span className="optional">401(k), health & HSA</span>
       </summary>
       <div className="details-body">
+        <RetirementStrategyAdvisor s={s} a={a} onChange={onChange} />
         <p className="hint">
           Payroll targets are limited by available pay and annual limits. Annual-dollar targets remain fixed; percentage targets follow modeled compensation.
         </p>

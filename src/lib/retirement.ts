@@ -311,3 +311,34 @@ export function requiredEmployeeRateForFullMatch(
   return 0;
 }
 
+export function calculateEmployerMatch(
+  match: EmployerMatch | undefined,
+  pay: number,
+  contribution: number,
+  used: number = 0,
+): number {
+  if (!match || match.type === "none" || match.type === "unsure" || pay <= 0 || contribution <= 0) {
+    return 0;
+  }
+  const employeeRate = (contribution / pay) * 100;
+  let amount = 0;
+  if (match.type === "simple") {
+    amount =
+      (((Math.min(employeeRate, Number(match.payPercent)) * Number(match.rate)) / 100) *
+        pay) /
+      100;
+  } else if (match.type === "tiered" && Array.isArray(match.tiers)) {
+    let start = 0;
+    for (const tier of match.tiers) {
+      const end = start + Number(tier.payPercent);
+      amount +=
+        (((Math.max(0, Math.min(employeeRate, end) - start) * Number(tier.rate)) / 100) *
+          pay) /
+        100;
+      start = end;
+    }
+  }
+  return Number(match.cap) > 0 ? Math.min(amount, Math.max(0, Number(match.cap) - used)) : amount;
+}
+
+

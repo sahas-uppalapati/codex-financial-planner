@@ -10,6 +10,7 @@ import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
 import { TechRealityCard } from "./TechRealityCard";
 import { track } from "../lib/analytics";
+import { ResultInsights } from "./ResultInsights";
 interface ResultSeries {
   name: string;
   index: number;
@@ -220,6 +221,7 @@ export function Results({
           </p>
         )}
       </section>
+      <ResultInsights series={series} year={activeYear} onYearChange={setSelected} />
       {!quickMode && (
         <details
           className="more-results"
