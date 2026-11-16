@@ -11,6 +11,35 @@ export const VALID_LOCATIONS = new Set<TaxLocation>([
   "boston",
 ]);
 
+interface FullPlanFormat1 {
+  format: 1;
+  quickMode?: boolean;
+  planner: Record<string, unknown>;
+}
+
+interface FullPlanFormat2 {
+  format: 2;
+  quickMode?: boolean;
+  delta?: Record<string, unknown>;
+}
+
+type FullPlanPayload = FullPlanFormat1 | FullPlanFormat2;
+
+function parseFullPlanPayload(data: unknown): FullPlanPayload | null {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return null;
+  const obj = data as Record<string, unknown>;
+  if (obj.quickMode !== undefined && typeof obj.quickMode !== "boolean") return null;
+  if (obj.format === 1) {
+    if (!obj.planner || typeof obj.planner !== "object" || Array.isArray(obj.planner)) return null;
+    return { format: 1, quickMode: obj.quickMode, planner: obj.planner as Record<string, unknown> };
+  }
+  if (obj.format === 2) {
+    if (obj.delta !== undefined && (!obj.delta || typeof obj.delta !== "object" || Array.isArray(obj.delta))) return null;
+    return { format: 2, quickMode: obj.quickMode, delta: obj.delta as Record<string, unknown> | undefined };
+  }
+  return null;
+}
+
 /**
  * Parses search query parameters from a URL or window.location.search into planner overrides.
  */
@@ -313,34 +342,31 @@ export function readFullPlannerLink(search: string): { state: PlannerV2; quickMo
   if (raw === null) return null;
   try {
     const parsed: unknown = JSON.parse(raw);
-    if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error();
-    const data = parsed as Record<string, unknown>;
-    if (typeof data.quickMode !== "boolean") throw new Error();
+    const data = parseFullPlanPayload(parsed);
+    if (!data) throw new Error();
 
-    let stateToLoad: PlannerV2;
-    if (data.format === 1) {
-      if (!data.planner || typeof data.planner !== "object") throw new Error();
-      stateToLoad = data.planner as PlannerV2;
-    } else if (data.format === 2) {
-      stateToLoad = applyPlannerDelta(data.delta);
-    } else {
-      throw new Error();
-    }
+    const stateToLoad: PlannerV2 =
+      data.format === 1
+        ? (data.planner as unknown as PlannerV2)
+        : applyPlannerDelta(data.delta);
 
     const result = loadPlanner({ getItem: (key) => key === PLANNER_KEY ? JSON.stringify(stateToLoad) : null, setItem: () => {} });
     if (result.message.startsWith("Saved inputs could not")) throw new Error();
-    return { state: result.state, quickMode: data.quickMode };
+    return { state: result.state, quickMode: data.quickMode ?? false };
   } catch {
     throw new Error("This plan link is invalid. Your saved plan was kept.");
   }
 }
 
-export function fullPlannerUrl(url: string, state: PlannerV2 | null, quickMode: boolean): string {
+export function fullPlannerUrl(url: string, state: PlannerV2 | null, quickMode = false): string {
   const next = new URL(url);
   next.search = "";
   if (state) {
     const delta = diffPlannerState(state);
-    const payload = delta ? { format: 2, quickMode, delta } : { format: 2, quickMode };
+    const payload = delta ? { format: 2, delta } : { format: 2 };
+    if (quickMode) {
+      (payload as Record<string, unknown>).quickMode = true;
+    }
     next.searchParams.set("plan", JSON.stringify(payload));
   }
   return next.toString();

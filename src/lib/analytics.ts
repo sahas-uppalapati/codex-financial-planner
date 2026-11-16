@@ -1,8 +1,8 @@
-import posthog from "posthog-js";
-import type { CaptureResult } from "posthog-js";
+import type { CaptureResult, PostHog } from "posthog-js";
 
 const CONSENT_KEY = "careerworth:analytics-consent";
-let initialized = false;
+let posthogClient: PostHog | null = null;
+let posthogPromise: Promise<PostHog | null> | null = null;
 
 export function analyticsConfigured() {
   return Boolean(import.meta.env.VITE_POSTHOG_KEY);
@@ -32,24 +32,31 @@ function cleanUrlProperties(event: CaptureResult): CaptureResult {
   return event;
 }
 
-function initialize() {
+async function getPostHog(): Promise<PostHog | null> {
+  if (posthogClient) return posthogClient;
   const key = import.meta.env.VITE_POSTHOG_KEY;
-  if (initialized || !key) return;
-  posthog.init(key, {
-    api_host: import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com",
-    autocapture: false,
-    capture_exceptions: false,
-    capture_pageview: false,
-    capture_pageleave: false,
-    disable_session_recording: true,
-    disable_surveys: true,
-    advanced_disable_feature_flags: true,
-    ip: false,
-    persistence: "memory",
-    person_profiles: "never",
-    before_send: cleanUrlProperties,
-  });
-  initialized = true;
+  if (!key) return null;
+  if (!posthogPromise) {
+    posthogPromise = import("posthog-js").then(({ default: posthog }) => {
+      posthog.init(key, {
+        api_host: import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com",
+        autocapture: false,
+        capture_exceptions: false,
+        capture_pageview: false,
+        capture_pageleave: false,
+        disable_session_recording: true,
+        disable_surveys: true,
+        advanced_disable_feature_flags: true,
+        ip: false,
+        persistence: "memory",
+        person_profiles: "never",
+        before_send: cleanUrlProperties,
+      });
+      posthogClient = posthog;
+      return posthog;
+    });
+  }
+  return posthogPromise;
 }
 
 export function enableAnalytics() {
@@ -59,9 +66,10 @@ export function enableAnalytics() {
   } catch {
     return false;
   }
-  initialize();
-  posthog.opt_in_capturing();
-  posthog.capture("analytics_consent_granted");
+  void getPostHog().then((client) => {
+    client?.opt_in_capturing();
+    client?.capture("analytics_consent_granted");
+  });
   return true;
 }
 
@@ -71,8 +79,10 @@ export function disableAnalytics() {
   } catch {
     // The opt-out still applies to this page if storage is unavailable.
   }
-  posthog.opt_out_capturing();
-  posthog.reset();
+  if (posthogClient) {
+    posthogClient.opt_out_capturing();
+    posthogClient.reset();
+  }
 }
 
 export function track(
@@ -85,6 +95,7 @@ export function track(
   properties?: Record<string, string>,
 ) {
   if (!analyticsConsent() || !analyticsConfigured()) return;
-  initialize();
-  posthog.capture(event, properties);
+  void getPostHog().then((client) => {
+    client?.capture(event, properties);
+  });
 }

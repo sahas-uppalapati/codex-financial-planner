@@ -258,16 +258,37 @@ export default function App() {
                 <span className="hint">
                   Editing scenario {active === 0 ? "A" : "B"}
                 </span>
-                <button
-                  type="button"
-                  className="text-button small-text"
-                  onClick={() => {
-                    setState((s) => ({ ...s, comparison: false }));
-                    setActive(0);
-                  }}
-                >
-                  Remove comparison
-                </button>
+                <div className="comparison-actions">
+                  {active === 1 && (
+                    <button
+                      type="button"
+                      className="text-button small-text clone-scenario-btn"
+                      onClick={() => {
+                        const cloned = {
+                          ...state.scenarios[0],
+                          name: state.scenarios[1].name || "Scenario B",
+                        };
+                        setState((s) => ({
+                          ...s,
+                          scenarios: [s.scenarios[0], cloned],
+                        }));
+                      }}
+                      title="Copy all compensation, benefits, and expenses from Scenario A"
+                    >
+                      Copy from Scenario A
+                    </button>
+                  )}
+                  <button
+                    type="button"
+                    className="text-button small-text"
+                    onClick={() => {
+                      setState((s) => ({ ...s, comparison: false }));
+                      setActive(0);
+                    }}
+                  >
+                    Remove comparison
+                  </button>
+                </div>
               </div>
             )}
 

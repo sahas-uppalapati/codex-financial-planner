@@ -67,7 +67,21 @@ export function RetirementStrategyAdvisor({
   const handleApply = () => {
     const updated = applyRetirementStrategy(s, strategy);
     onChange(updated);
-    setAppliedNotice("Strategy targets applied to this scenario!");
+    setAppliedNotice(`Applied savings strategy (${money(targetAmount)}/yr)!`);
+    setTimeout(() => setAppliedNotice(null), 4000);
+  };
+
+  const handleSelectMilestone = (amount: number, label: string) => {
+    setTargetSavingsDraft(String(amount));
+    const optStrategy = calculateRetirementStrategy(s, a, {
+      targetSavings: amount,
+      taxPreference,
+      enableBackdoor,
+      enableMegaBackdoor,
+    });
+    const updated = applyRetirementStrategy(s, optStrategy);
+    onChange(updated);
+    setAppliedNotice(`Applied ${label} (${money(amount)}/yr)!`);
     setTimeout(() => setAppliedNotice(null), 4000);
   };
 
@@ -86,11 +100,8 @@ export function RetirementStrategyAdvisor({
                   type="button"
                   key={p.id}
                   className={`pill-btn ${isActive ? "active" : ""}`}
-                  onClick={() => {
-                    setTargetSavingsDraft(String(p.amount));
-                    setAppliedNotice(null);
-                  }}
-                  title={p.description}
+                  onClick={() => handleSelectMilestone(p.amount, p.label)}
+                  title={`${p.description} · Click to apply immediately`}
                 >
                   {p.label} ({money(p.amount)})
                 </button>

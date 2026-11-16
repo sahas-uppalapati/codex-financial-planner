@@ -29,26 +29,12 @@ export function TaxEditor({
   const set = <K extends keyof TaxProfile>(k: K, v: TaxProfile[K]) =>
     onChange({ ...s, taxProfile: { ...t, [k]: v } });
   return (
-    <AutoDetails
-      className="advanced-section"
-      hasErrors={
-        Object.keys(errors).some((k) => k.startsWith("taxProfile")) || undefined
-      }
-    >
-      <summary>
-        Taxes{" "}
-        <span className="optional">
-          {t.mode === "manual"
-            ? "Manual estimate"
-            : `${taxLocations.find((l) => l.id === t.location)?.label} · Calculated`}
-        </span>
-      </summary>
-      <div className="details-body">
-        <SelectField
-          label="Tax calculation"
-          value={t.mode}
-          onChange={(v) => set("mode", v as TaxProfile["mode"])}
-        >
+    <div className="tax-editor-body">
+      <SelectField
+        label="Tax calculation"
+        value={t.mode}
+        onChange={(v) => set("mode", v as TaxProfile["mode"])}
+      >
           <option value="calculated">Calculated annual tax liability</option>
           <option value="manual">Manual effective rate</option>
         </SelectField>
@@ -189,8 +175,7 @@ export function TaxEditor({
           </div>
         </details>
         <ErrorList errors={errors} prefix="taxProfile" />
-      </div>
-    </AutoDetails>
+    </div>
   );
 }
 function BenefitFields({

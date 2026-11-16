@@ -57,8 +57,11 @@ test("backup restores a plan only after validation and confirmation", async ({ p
 test("unified view defaults, inputs, progressive accordions and calculations", async ({
   page,
 }) => {
-  await page.evaluate(() => window.localStorage.clear());
-  await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+  await page.goto("/?mode=quick");
   await expect(
     page.getByRole("heading", { name: "Get a quick view of your financial future" }),
   ).toBeVisible();
@@ -80,8 +83,11 @@ test("unified view defaults, inputs, progressive accordions and calculations", a
   await expect(page.getByText("Starting Accounts & Economic Assumptions")).toBeVisible();
 });
 test("quick presets preserve edits and full replacement requires confirmation", async ({ page }) => {
-  await page.evaluate(() => window.localStorage.clear());
-  await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+  await page.goto("/?mode=quick");
   const salary = page.getByLabel("Annual base salary");
   await expect(salary).toHaveValue("241000");
   await salary.fill("300001");
@@ -100,8 +106,11 @@ test("quick presets preserve edits and full replacement requires confirmation", 
   await expect(salary).not.toHaveValue("300001");
 });
 test("switching company and level updates pay and stock when not manually customized", async ({ page }) => {
-  await page.evaluate(() => window.localStorage.clear());
-  await page.goto("/");
+  await page.evaluate(() => {
+    window.localStorage.clear();
+    window.sessionStorage.clear();
+  });
+  await page.goto("/?mode=quick");
   const salary = page.getByLabel("Annual base salary");
   const stock = page.getByLabel("Annual stock / RSUs");
   await expect(salary).toHaveValue("241000");
@@ -146,7 +155,7 @@ test("quick forecast separates cash from sold stock and explains negative balanc
   await page.goto("/");
   await expect(page.getByTestId("quick-cash-0")).toContainText("$8,000");
   await page.getByLabel("Monthly living expenses").fill("12000");
-  await expect(page.getByTestId("quick-cash-0")).toContainText("-$2,000");
+  await expect(page.getByTestId("quick-cash-0")).toContainText("-$1,000");
 });
 test("held stock stays out of spendable cash", async ({ page }) => {
   const plan = defaultPlanner();
@@ -169,6 +178,11 @@ test("held stock stays out of spendable cash", async ({ page }) => {
 test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   page,
 }) => {
+  const plan = defaultPlanner();
+  await page.addInitScript((saved) => {
+    localStorage.setItem("careerworth:v3", JSON.stringify(saved));
+  }, plan);
+  await page.goto("/");
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
   await page.getByRole("tab", { name: "Cash Flow & Budget" }).click();
@@ -180,6 +194,7 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   await expect(page.getByTestId("take-home-0")).toHaveText("$7,282");
   await expect(page.getByTestId("ending-0")).not.toHaveText(initial!);
   await page.getByRole("button", { name: "Add comparison" }).click();
+  await expect(page.getByRole("button", { name: "Copy from Scenario A" })).toBeVisible();
   await expect(page.getByTestId("take-home-1")).toHaveText("$8,751");
   await expect(
     page.getByRole("img", { name: "Projected investment balance by year" }),

@@ -1,0 +1,35 @@
+@media print {
+  .site-header,
+  .intro,
+  .inputs-panel,
+  footer,
+  .site-footer,
+  .disclosures,
+  .chart-range,
+  .table-toolbar button,
+  .planner-backup,
+  .retirement-guide,
+  .reset-button,
+  .skip-link {
+    display: none !important;
+  }
+  .calculator-layout {
+    display: block;
+  }
+  .results-column {
+    width: 100%;
+  }
+  .projection-panel,
+  .cash-panel {
+    break-inside: avoid;
+  }
+  body {
+    background: white;
+  }
+  .table-scroll {
+    overflow: visible;
+  }
+  main {
+    padding: 0;
+  }
+}
