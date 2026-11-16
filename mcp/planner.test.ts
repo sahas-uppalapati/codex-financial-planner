@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { examplePlan, projectPlan } from "./planner";
+import { examplePlan, optimizeRetirement, projectPlan } from "./planner";
 import { projectScenario } from "../src/lib/projection";
 
 describe("local MCP planner", () => {
@@ -10,6 +10,13 @@ describe("local MCP planner", () => {
     expect(result.scenarios[0].rows).toEqual(projectScenario(result.input.scenarios[0], result.input.shared).rows);
     expect(result.provenance.taxRules).toBe("US-W2-2026.1");
     expect(result.limitations.length).toBeGreaterThan(0);
+  });
+  it("optimizes retirement waterfall allocations via MCP", () => {
+    const backup = examplePlan();
+    const result = optimizeRetirement(backup, 25000, "auto");
+    expect(result.targetSavings).toBe(25000);
+    expect(result.waterfallTiers.length).toBeGreaterThan(0);
+    expect(result.marginalTaxRate).toBeGreaterThan(0);
   });
   it("rejects malformed or out-of-range backups", () => {
     expect(() => projectPlan("{}")).toThrow();

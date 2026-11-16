@@ -12,13 +12,15 @@ it("serves validated projections over local stdio", async () => {
   try {
     await client.connect(transport);
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toEqual(["example_plan", "project_plan"]);
+    expect(tools.tools.map((tool) => tool.name)).toEqual(["example_plan", "project_plan", "optimize_retirement"]);
     const example = await client.callTool({ name: "example_plan", arguments: {} });
     const content = example.content as Array<{ type: string; text: string }>;
     const projection = await client.callTool({ name: "project_plan", arguments: { backup: content[0].text } });
     expect(projection.isError).not.toBe(true);
     const output = projection.content as Array<{ type: string; text: string }>;
     expect(JSON.parse(output[0].text).scenarios).toHaveLength(1);
+    const optimization = await client.callTool({ name: "optimize_retirement", arguments: { backup: content[0].text, targetSavings: 30000 } });
+    expect(optimization.isError).not.toBe(true);
     const invalid = await client.callTool({ name: "project_plan", arguments: { backup: "{}" } });
     expect(invalid.isError).toBe(true);
   } finally {

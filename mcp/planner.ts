@@ -3,9 +3,40 @@ import { exportPlannerBackup, importPlannerBackup } from "../src/lib/plannerBack
 import { projectScenario } from "../src/lib/projection";
 import { TAX_VERSION, taxSources } from "../src/data/taxRules";
 import { retirementRuleSources } from "../src/data/retirementRules";
+import { calculateRetirementStrategy } from "../src/lib/retirementStrategy";
+import type { TaxStrategyPreference } from "../src/lib/retirementStrategy";
 
 export function examplePlan(): string {
   return exportPlannerBackup(defaultPlanner());
+}
+
+export function optimizeRetirement(
+  backup: string,
+  targetSavings?: number,
+  taxPreference: TaxStrategyPreference = "auto",
+) {
+  const plan = importPlannerBackup(backup);
+  const scenario = plan.scenarios[0];
+  const strategy = calculateRetirementStrategy(scenario, plan.shared, {
+    targetSavings: targetSavings ?? 30000,
+    taxPreference,
+    enableBackdoor: true,
+    enableMegaBackdoor: true,
+  });
+  return {
+    scenarioName: scenario.name,
+    targetSavings: strategy.targetSavings,
+    recommendedTaxPreference: strategy.recommendedTaxPreference,
+    marginalTaxRate: strategy.marginalTaxRate,
+    waterfallTiers: strategy.tiers.map((t) => ({
+      name: t.name,
+      allocated: t.allocated,
+      status: t.status,
+      taxAdvantage: t.taxAdvantage,
+      details: t.details,
+    })),
+    comparison: strategy.comparison,
+  };
 }
 
 export function projectPlan(backup: string) {

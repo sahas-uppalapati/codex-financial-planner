@@ -85,6 +85,11 @@ export function SelectField({
   error?: string;
 }) {
   const id = useId();
+  const describedBy = [
+    error ? `${id}-error` : null,
+    hint ? `${id}-help` : null,
+  ].filter(Boolean).join(" ") || undefined;
+
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
@@ -93,13 +98,18 @@ export function SelectField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={!!error}
-        aria-describedby={error || hint ? `${id}-help` : undefined}
+        aria-describedby={describedBy}
       >
         {children}
       </select>
-      {(error || hint) && (
-        <p className={error ? "error" : "hint"} id={`${id}-help`}>
-          {error || hint}
+      {error && (
+        <p className="error" id={`${id}-error`} role="alert">
+          {error}
+        </p>
+      )}
+      {hint && (
+        <p className="hint" id={`${id}-help`}>
+          {hint}
         </p>
       )}
     </div>
@@ -157,6 +167,7 @@ export function ErrorList({
 // remains keyboard accessible; validation opens the section without later closing it.
 export function AutoDetails({
   hasErrors = false,
+  className = "",
   ...props
 }: { hasErrors?: boolean } & Omit<
   ComponentProps<"details">,
@@ -169,6 +180,7 @@ export function AutoDetails({
   return (
     <details
       {...props}
+      className={`${className} ${hasErrors ? "has-errors" : ""}`.trim()}
       open={expanded}
       onToggle={(e) => setExpanded(e.currentTarget.open)}
     />
