@@ -6,7 +6,7 @@ CareerWorth is a private, browser-only career and compensation planner. It uses 
 
 ## Working conventions
 
-- Read `README.md`, `DATA_SOURCES.md`, and `TAX_SOURCES.md` before changing projection, tax, equity, or compensation behavior.
+- Read `README.md`, `docs/DATA_SOURCES.md`, and `docs/TAX_SOURCES.md` before changing projection, tax, equity, or compensation behavior.
 - Keep calculation logic in the pure modules under `src/lib/` and sourced assumptions in `src/data/`. Keep React components focused on input and presentation.
 - Preserve validation and numerical guardrails in `src/lib/planner.ts`; reject non-finite results and invalid drafts rather than silently calculating with them.
 - Treat tax and compensation figures as planning estimates. Do not describe modeled tax reserves as payroll withholding or the result as a complete tax return or net worth.
@@ -40,8 +40,8 @@ For a focused change, run the relevant test file first, then the broader checks 
 ## Important project references
 
 - `README.md`: operating instructions, model semantics, limitations, and code map.
-- `TAX_SOURCES.md` and `src/data/taxRules.ts`: tax source notes, version, and access dates.
-- `DATA_SOURCES.md`: compensation and budget provenance.
-- `RETIREMENT_ACCOUNTS_PLAN.md`: retirement-account model scope and design.
+- `docs/TAX_SOURCES.md` and `src/data/taxRules.ts`: tax source notes, version, and access dates.
+- `docs/DATA_SOURCES.md`: compensation and budget provenance.
+- `docs/RETIREMENT_ACCOUNTS_PLAN.md`: retirement-account model scope and design.
 - `src/lib/*`: calculations, validation, storage, migration, and CSV generation.
 - `src/data/*`: sourced tax and vesting assumptions.
