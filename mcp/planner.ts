@@ -56,7 +56,7 @@ export function projectPlan(backup: string) {
     },
     limitations: [
       "Estimates use 2026 tax law with projected indexed thresholds, not future enacted law.",
-      "Calculated tax coverage is limited to supported full-year W-2 locations and household situations; see TAX_SOURCES.md.",
+      "Calculated tax coverage is limited to supported full-year W-2 locations and household situations; see docs/TAX_SOURCES.md.",
       "Investment income, later sales, withdrawals, many deductions and other assets or liabilities are excluded; projected balances are before future sale and withdrawal taxes.",
       "Retirement contribution eligibility and employer plan calculations have documented limitations; results are not tax or investment advice.",
     ],
