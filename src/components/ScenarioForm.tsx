@@ -29,6 +29,7 @@ export function ScenarioForm({
   onAssumptionsChange,
   allowInitialPreset = false,
   showName = false,
+  startup = false,
 }: {
   scenario: Scenario;
   assumptions: AssumptionsV2;
@@ -36,6 +37,7 @@ export function ScenarioForm({
   onAssumptionsChange: (a: AssumptionsV2) => void;
   allowInitialPreset?: boolean;
   showName?: boolean;
+  startup?: boolean;
 }) {
   const [expenseDraft, setExpenseDraft] = useState(() =>
     categoryKeys.every((k) => !fieldError(s.expenses[k], "monthlyExpenses")) &&
@@ -152,13 +154,13 @@ export function ScenarioForm({
       )}
 
       {/* 1-Click Company & Role Preset Hero */}
-      <TechEstimatorHero
+      {!startup && <TechEstimatorHero
         allowInitialPreset={allowInitialPreset}
         scenario={s}
         assumptions={a}
         onScenarioChange={onChange}
         onAssumptionsChange={onAssumptionsChange}
-      />
+      />}
 
       {/* Core 4 Inputs */}
       <div className="two-cols">
@@ -168,7 +170,7 @@ export function ScenarioForm({
           onChange={(base) => set("base", base)}
           error={errors.base}
         />
-        <Field
+        {!startup && <Field
           label="Annual stock / RSUs"
           value={s.stock}
           onChange={(stock) => {
@@ -188,7 +190,7 @@ export function ScenarioForm({
             });
           }}
           error={errors.stock}
-        />
+        />}
       </div>
 
       {hasSignOn || showSignOn ? (

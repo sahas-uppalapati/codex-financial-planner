@@ -1,5 +1,11 @@
 # Preset provenance
 
+## Startup option illustration
+
+Fictional Series A, B, and C examples use base salary medians reported by [Cadre](https://www.yourcadre.com/comp) for its 2020–2026 engineering placements (updated September 2026, accessed November 16, 2026; CC BY 4.0). The source combines seed–Series A and Series B–C respectively; it does not establish separate B and C medians. Option counts, strike price and vesting are invented for illustration, not sourced company offers or equity benchmarks.
+
+The comparison uses user-supplied inputs, not company valuations or exit forecasts. The optional 409A paper spread is the positive difference between the entered common-share value and strike times the full grant, assuming all options vest; preferred-share prices are not used. It assumes even monthly vesting over a user-selected duration and cliff, continued employment until the projection-end exit, and, for company-level outcomes, a single user-entered total dilution percentage. Per-share outcomes use the entered future common-share price directly and do not apply a separate dilution assumption. Vested ownership equals initial ownership times the vested fraction and remaining ownership after dilution. Illustrative proceeds are the greater of zero and common-share exit value times vested ownership minus exercise cost. The common-share exit value is after senior claims; headline sale price, taxes, fees, option expiration, future grants, and time value of money are not modeled. Per-share break-even divides the compensation gap by vested options and adds the strike price. Break-even compares these pre-tax proceeds with the difference in projected gross employee compensation, including public stock; it does not compare employer match, benefits, net assets or investment returns.
+
 All references were accessed **2026-10-27**. Static references are bundled; no automated scraper, runtime fetch, or paid API is used. All values are USD. Company figures and expense budgets have different geographic scopes, which are shown in the UI.
 
 ## Compensation
@@ -20,7 +26,7 @@ The company preset panel also shows Levels.fyi's public [Average YoE vs Level at
 
 Living wage data sourced from the **Living Wage Institute via [livingwage.mit.edu](https://livingwage.mit.edu)**. Source edition **2026**, updated **February 15, 2026**. Household: **one adult, zero children**. Housing follows the source's rental-cost approach. These are **minimum-needs estimates**, not typical discretionary spending or city averages. County coverage is explicit, especially New York, which uses Manhattan only.
 
-[Methodology](https://livingwage.mit.edu/pages/methodology). The [FAQ](https://livingwage.mit.edu/pages/faqs) permits direct use of ten or fewer locations with attribution. Only the following six references were curated; no scraper or bulk spreadsheet export is included. Broader reuse would require reassessing the source's licensing conditions.
+[Methodology](https://livingwage.mit.edu/pages/methodology). The [FAQ](https://livingwage.mit.edu/pages/faqs) permits direct use of ten or fewer locations with attribution. Only the following seven references were curated; no scraper or bulk spreadsheet export is included. Broader reuse would require reassessing the source's licensing conditions. Los Angeles was accessed November 16, 2026; the other entries were accessed October 27, 2026.
 
 Published annual input components, used once each:
 
@@ -28,6 +34,7 @@ Published annual input components, used once each:
 | ------------------------------------------------------------------------------- | ------: | ----: | --------: | ------: | ----: | ----------------: | ----: |
 | [Columbus → Franklin OH](https://livingwage.mit.edu/counties/39049)             |  13,698 | 4,358 |     7,912 |   3,658 | 3,347 |             1,497 | 4,549 |
 | [Seattle → King WA](https://livingwage.mit.edu/counties/53033)                  |  25,589 | 5,234 |     8,441 |   3,032 | 3,876 |             2,397 | 4,992 |
+| [Los Angeles → Los Angeles CA](https://livingwage.mit.edu/counties/06037)       |  22,471 | 4,463 |     8,681 |   3,255 | 3,876 |             1,517 | 4,992 |
 | [San Francisco → San Francisco CA](https://livingwage.mit.edu/counties/06075)   |  27,517 | 5,807 |     6,691 |   3,828 | 3,876 |             1,971 | 4,992 |
 | [New York → New York NY (Manhattan)](https://livingwage.mit.edu/counties/36061) |  35,525 | 7,116 |     4,710 |   4,695 | 3,456 |             1,627 | 4,715 |
 | [Austin → Travis TX](https://livingwage.mit.edu/counties/48453)                 |  18,213 | 4,159 |     8,465 |   3,075 | 2,583 |             1,479 | 4,067 |
@@ -42,5 +49,7 @@ Published annual input components, used once each:
 - Other spending = (published civic + other) / 12.
 
 Each derived monthly field is rounded to cents when the preset is created. Thereafter projection calculations retain full precision. Childcare is zero for this household. Source tax and income requirement rows are deliberately excluded; the calculator applies its independently selected tax model separately. The original default offers keep their illustrative $3,000/$4,500 monthly budgets until an explicit preset application.
+
+The quick Tech Estimator's Los Angeles housing defaults are rounded monthly groupings of the same county source: one adult with no children for single, and two adults with one working and no children for family. They are minimum-needs approximations; adjust them to the household. No LA-specific tech compensation snapshot is supplied; the existing estimator fallback applies.
 
 Tax calculation and vesting provenance for the v2 monthly model is documented in [TAX_SOURCES.md](TAX_SOURCES.md).

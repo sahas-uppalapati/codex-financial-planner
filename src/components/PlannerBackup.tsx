@@ -3,7 +3,7 @@ import type { PlannerV2 } from "../lib/planner";
 import { exportPlannerBackup, importPlannerBackup, MAX_BACKUP_BYTES } from "../lib/plannerBackup";
 import { downloadText } from "../lib/csv";
 
-export function PlannerBackup({ state, onRestore }: { state: PlannerV2; onRestore: (state: PlannerV2) => void }) {
+export function PlannerBackup({ state, onRestore, startupActive = false }: { state: PlannerV2; onRestore: (state: PlannerV2) => void; startupActive?: boolean }) {
   const input = useRef<HTMLInputElement>(null);
   const [message, setMessage] = useState("");
 
@@ -38,6 +38,7 @@ export function PlannerBackup({ state, onRestore }: { state: PlannerV2; onRestor
     <section className="cash-panel prose" aria-labelledby="backup-heading">
       <h2 id="backup-heading">Back up your plan</h2>
       <p>Download a JSON backup to move your plan to another browser or restore it later. The file contains your financial inputs; keep it private.</p>
+      {startupActive && <p>Startup details and mode are not included. Restoring this backup may re-enable the scenario's original stock grants and promotions.</p>}
       <button type="button" className="secondary" onClick={download}>Download backup</button>{" "}
       <button type="button" className="secondary" onClick={() => input.current?.click()}>Restore backup</button>
       <input ref={input} type="file" accept=".json,application/json" hidden onChange={(event) => { void restore(event.target.files?.[0]); }} />

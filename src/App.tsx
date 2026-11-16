@@ -14,6 +14,8 @@ import { RetirementGuide } from "./components/RetirementGuide";
 import { PlannerBackup } from "./components/PlannerBackup";
 import { AppFooter } from "./components/AppFooter";
 import { analyticsConsent, track } from "./lib/analytics";
+import { StartupFields, emptyStartup } from "./components/StartupComparison";
+import { startupScenarioView, type StartupInputs } from "./lib/startupComparison";
 
 function initial() {
   let linked: ReturnType<typeof readFullPlannerLink> = null;
@@ -52,8 +54,35 @@ function initial() {
   return { state: loadedState, message: linkMessage || message, fresh };
 }
 
+const startupSessionKey = "careerworth:startup-v1";
+function initialStartup(): { scenario: number | null; inputs: [StartupInputs, StartupInputs] } {
+  const blank: [StartupInputs, StartupInputs] = [{ ...emptyStartup }, { ...emptyStartup }];
+  try {
+    if (new URLSearchParams(window.location.search).has("plan") && window.history.state?.ownPlan !== true) return { scenario: null, inputs: blank };
+    const saved = JSON.parse(window.localStorage.getItem(startupSessionKey) || "null");
+    if (!saved || ![null, 0, 1].includes(saved.scenario) || !Array.isArray(saved.inputs) || saved.inputs.length !== 2) return { scenario: null, inputs: blank };
+    const inputs = saved.inputs.map((entry: unknown) => {
+      if (!entry || typeof entry !== "object") throw new Error("Invalid startup session");
+      const source = entry as Record<string, unknown>;
+      const result = { ...emptyStartup };
+      for (const key of Object.keys(result) as (keyof StartupInputs)[]) {
+        if (typeof source[key] !== "string" || source[key].length > 100) throw new Error("Invalid startup session");
+        Object.assign(result, { [key]: source[key] });
+      }
+      if (!['unknown', 'common', 'preferred'].includes(result.currentPriceType) || !['share', 'company'].includes(result.exitMode)) throw new Error("Invalid startup session");
+      return result;
+    }) as [StartupInputs, StartupInputs];
+    return { scenario: saved.scenario, inputs };
+  } catch {
+    return { scenario: null, inputs: blank };
+  }
+}
+
 export default function App() {
   const [analyticsEnabled, setAnalyticsEnabled] = useState(analyticsConsent);
+  const [startupSession] = useState(initialStartup);
+  const [startupScenario, setStartupScenario] = useState<number | null>(startupSession.scenario);
+  const [startupInputs, setStartupInputs] = useState<[StartupInputs, StartupInputs]>(startupSession.inputs);
   const [loaded] = useState(initial),
     [state, setState] = useState<PlannerV2>(loaded.state),
     [active, setActive] = useState(0),
@@ -69,18 +98,31 @@ export default function App() {
 
   useEffect(() => setAllowInitialPreset(false), []);
 
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(startupSessionKey, JSON.stringify({ scenario: startupScenario, inputs: startupInputs }));
+    } catch {
+      setStorageMessage("Browser storage is unavailable. Your startup inputs will not be saved.");
+    }
+  }, [startupScenario, startupInputs]);
+
   const valid = validPlanner(state);
+
+  const projectedState = useMemo(() => startupScenario === null ? state : {
+    ...state,
+    scenarios: state.scenarios.map((scenario, index) => index === startupScenario ? startupScenarioView(scenario) : scenario) as PlannerV2["scenarios"],
+  }, [state, startupScenario]);
 
   const calculation = useMemo(() => {
     if (!valid) return { series: [], error: "" };
     try {
       return {
-        series: state.scenarios
-          .slice(0, state.comparison ? 2 : 1)
+        series: projectedState.scenarios
+          .slice(0, projectedState.comparison ? 2 : 1)
           .map((s, index) => ({
             name: s.name,
             index,
-            projection: projectScenario(s, state.shared),
+            projection: projectScenario(s, projectedState.shared),
           })),
         error: "",
       };
@@ -93,7 +135,7 @@ export default function App() {
             : "Check the projection assumptions.",
       };
     }
-  }, [state, valid]);
+  }, [projectedState, valid]);
 
   const ready = valid && !calculation.error;
 
@@ -113,6 +155,7 @@ export default function App() {
 
   const shareReady =
     ready &&
+    startupScenario === null &&
     validPlanner(state) &&
     state.scenarios.every(
       (scenario) =>
@@ -169,6 +212,8 @@ export default function App() {
               setResetVersion((v) => v + 1);
               setStorageMessage("");
               setAllowInitialPreset(false);
+              setStartupScenario(null);
+              setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
             }}
           >
             ↺ Reset inputs
@@ -195,6 +240,8 @@ export default function App() {
                   return;
                 }
                 setState(candidate);
+                setStartupScenario(null);
+                setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
                 setActive(0);
                 setPendingLink(null);
               }}
@@ -292,12 +339,31 @@ export default function App() {
               </div>
             )}
 
+            <StartupFields
+              enabled={startupScenario === active}
+              onToggle={(enabled) => setStartupScenario(enabled ? active : null)}
+              input={startupInputs[active]}
+              onChange={(input) => setStartupInputs((current) => active === 0 ? [input, current[1]] : [current[0], input])}
+              onApplyExample={(choice) => {
+                const base = { 'series-a': '170000', 'series-b': '175000', 'series-c': '175000' }[choice];
+                const input: StartupInputs = { ...emptyStartup, grant: { 'series-a': '16000', 'series-b': '12000', 'series-c': '8000' }[choice], strike: '1.25', vesting: 'cliff' };
+                setStartupInputs((current) => active === 0 ? [input, current[1]] : [current[0], input]);
+                setState((current) => ({
+                  ...current,
+                  scenarios: current.scenarios.map((scenario, index) => index !== active ? scenario : {
+                    ...scenario, name: `Example Series ${choice.slice(-1).toUpperCase()}`, base, bonus: '0', growth: '0', signOnY1: '0', signOnY2: '0',
+                    employerMatch: { ...scenario.employerMatch, type: 'none' as const },
+                  }) as PlannerV2['scenarios'],
+                }));
+              }}
+            />
             <ScenarioForm
               key={`${active}-${resetVersion}`}
               scenario={state.scenarios[active]}
               assumptions={state.shared}
               showName={state.comparison}
               allowInitialPreset={allowInitialPreset}
+              startup={startupScenario === active}
               onChange={(next) =>
                 setState((s) => ({
                   ...s,
@@ -313,7 +379,7 @@ export default function App() {
           </aside>
           <div id="results" className="results-column" tabIndex={-1}>
             {ready ? (
-              <Results state={state} series={calculation.series} />
+              <Results state={projectedState} series={calculation.series} startupScenario={startupScenario} startupInput={startupInputs[startupScenario ?? 0]} />
             ) : (
               <section className="invalid-results" role="status">
                 <span className="empty-icon" aria-hidden="true">
@@ -333,8 +399,11 @@ export default function App() {
         </div>
         <PlannerBackup
           state={state}
+          startupActive={startupScenario !== null}
           onRestore={(restored) => {
             setState(restored);
+            setStartupScenario(null);
+            setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
             setActive(0);
             setResetVersion((version) => version + 1);
           }}

@@ -12,6 +12,7 @@ export type TaxLocation =
   | "columbus"
   | "seattle"
   | "san-francisco"
+  | "los-angeles"
   | "new-york"
   | "austin"
   | "boston";
@@ -176,6 +177,7 @@ export const taxLocations: { id: TaxLocation; label: string }[] = [
   { id: "columbus", label: "Columbus, OH" },
   { id: "seattle", label: "Seattle, WA" },
   { id: "san-francisco", label: "San Francisco, CA" },
+  { id: "los-angeles", label: "Los Angeles, CA" },
   { id: "new-york", label: "New York City, NY" },
   { id: "austin", label: "Austin, TX" },
   { id: "boston", label: "Boston, MA" },

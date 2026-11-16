@@ -19,7 +19,7 @@ Snapshot **US-W2-2026.1**. Accessed **October 27, 2026**. These are static plann
 - Basic exemption credit and joint credit are included. [ORC credits](https://codes.ohio.gov/ohio-revised-code/section-5747.05).
 - [Columbus](https://www.columbus.gov/Government/City-Auditor/Income-Tax-Division/General-Income-Tax-Information): 2.5% qualifying wages, including traditional 401(k) deferrals. Qualified cafeteria-plan health/HSA exclusions are retained. Residence and work are both assumed to be Columbus; cross-city credits and school-district taxes are outside coverage.
 
-**California / San Francisco**
+**California / San Francisco and Los Angeles**
 
 - [FTB October 2026 indexing announcement](https://www.ftb.ca.gov/about-ftb/newsroom/tax-news/): standard deductions $5,900/$11,800 and personal exemption credits $158/$316. Single bracket upper bounds: 11,456 / 27,157 / 42,861 / 59,498 / 75,197 / 384,109 / 460,927 / 768,213 / uncapped. Joint: 22,912 / 54,314 / 85,722 / 118,996 / 150,394 / 768,218 / 921,854 / 1,536,426 / uncapped. Rates 1%, 2%, 4%, 6%, 8%, 9.3%, 10.3%, 11.3%, 12.3%.
 - Exemption-credit phaseout starts $260,778/$521,561 are **derived** from published 2025 starts and announced 3.4% indexing, pending the complete 2026 booklet. $6 per personal exemption is removed per $2,500 increment of excess federal AGI. The $2,500 step stays fixed.

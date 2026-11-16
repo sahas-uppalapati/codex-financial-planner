@@ -6,6 +6,7 @@ export const VALID_LOCATIONS = new Set<TaxLocation>([
   "columbus",
   "seattle",
   "san-francisco",
+  "los-angeles",
   "new-york",
   "austin",
   "boston",

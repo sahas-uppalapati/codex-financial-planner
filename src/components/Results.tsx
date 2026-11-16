@@ -14,6 +14,8 @@ import { CashFlowPanel } from "./CashFlowPanel";
 import { TaxBreakdownTable } from "./TaxBreakdownTable";
 import { AnnualScheduleTable } from "./AnnualScheduleTable";
 import { MonthlyCashFlowsTable } from "./MonthlyCashFlowsTable";
+import { StartupComparison } from "./StartupComparison";
+import type { StartupInputs } from "../lib/startupComparison";
 interface ResultSeries {
   name: string;
   index: number;
@@ -22,10 +24,14 @@ interface ResultSeries {
 export function Results({
   state,
   series,
+  startupScenario,
+  startupInput,
 }: {
   state: PlannerV2;
   series: ResultSeries[];
   quickMode?: boolean;
+  startupScenario: number | null;
+  startupInput: StartupInputs;
 }) {
   const [selected, setSelected] = useState(0),
     activeYear = Math.min(selected, Number(state.shared.years) - 1);
@@ -73,6 +79,7 @@ export function Results({
 
   return (
     <div className="results-content">
+      <StartupComparison series={series} startup={startupScenario} input={startupInput} />
       {/* 1. Top Section: Your Monthly Picture */}
       <section className="quick-read" aria-labelledby="monthly-picture-heading">
         <div className="quick-read-heading">
