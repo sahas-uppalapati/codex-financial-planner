@@ -156,7 +156,7 @@ export function AppFooter({
               >
                 reuse guidance
               </a>
-              . Six source locations are used; no scraper or runtime data feed is
+              . Seven source locations are used; no scraper or runtime data feed is
               included.
             </p>
           </div>

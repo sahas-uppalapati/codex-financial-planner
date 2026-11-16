@@ -28,6 +28,12 @@ const memoryStorage = () => {
   };
 };
 describe("presets and persistence", () => {
+  it("uses the published Los Angeles County budget", () => {
+    const la = locationPresets.find((preset) => preset.id === "los-angeles")!;
+    expect(la.annualPublished.housing).toBe(22471);
+    expect(la.annualPublished.transportation).toBe(8681);
+    expect(la.source).toBe("https://livingwage.mit.edu/counties/06037");
+  });
   it.each(compensationPresets)(
     "applies verified compensation $id without affecting other fields",
     (p) => {

@@ -213,7 +213,7 @@ export function calculateTaxes(
     0.009 *
     Math.max(0, wages.reduce((a, b) => a + b, 0) - (joint ? 250000 : 200000));
   const location = profile.location;
-  if (location === "san-francisco") {
+  if (location === "san-francisco" || location === "los-angeles") {
     const caAgi = agi + total((w) => w.hsa);
     result.stateTaxable = Math.max(
       0,

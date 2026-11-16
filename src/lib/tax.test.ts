@@ -115,6 +115,7 @@ describe("independent 2026 W-2 tax fixtures", () => {
   it("includes CA HSA addback and uncapped SDI, but excludes cafeteria health premiums", () => {
     const w = { ...worker(100000), retirement: 10000, health: 5000, hsa: 4000 };
     const r = calculateTaxes([w], profile("san-francisco"), 2026, 0);
+    expect(calculateTaxes([w], profile("los-angeles"), 2026, 0)).toEqual(r);
     expect(r.federalTaxable).toBe(64900);
     expect(r.stateTaxable).toBe(79100);
     expect(r.employeePremiums).toBe(1235);

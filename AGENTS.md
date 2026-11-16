@@ -6,6 +6,7 @@ CareerWorth is a private, browser-only career and compensation planner. It uses 
 
 ## Working conventions
 
+- When proposing or building a user-facing feature, compare its usefulness with what a user could get from an LLM in a few prompts with the same information. Identify the concrete advantage or evidence to test (such as reliable calculations, privacy, or easier comparison); do not assume the feature is valuable merely because it exists.
 - Read `README.md`, `docs/DATA_SOURCES.md`, and `docs/TAX_SOURCES.md` before changing projection, tax, equity, or compensation behavior.
 - Keep calculation logic in the pure modules under `src/lib/` and sourced assumptions in `src/data/`. Keep React components focused on input and presentation.
 - Preserve validation and numerical guardrails in `src/lib/planner.ts`; reject non-finite results and invalid drafts rather than silently calculating with them.

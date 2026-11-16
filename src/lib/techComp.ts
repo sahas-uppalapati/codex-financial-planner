@@ -103,6 +103,7 @@ export const IRS_401K_LIMIT_2026 = 23500;
 export function getStatutoryStateSupplementalRate(location: TaxLocation): number {
   switch (location) {
     case "san-francisco":
+    case "los-angeles":
       return 0.1023; // California supplemental wage withholding rate
     case "new-york":
       return 0.117; // New York state + NYC supplemental rate

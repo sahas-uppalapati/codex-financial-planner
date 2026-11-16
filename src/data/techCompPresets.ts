@@ -247,6 +247,12 @@ export const growthPresets: GrowthPreset[] = [
 ];
 
 export const housingPresets: Record<TaxLocation, HousingCostPreset> = {
+  "los-angeles": {
+    locationId: "los-angeles",
+    label: "Los Angeles, CA",
+    single: { rent: 1999, livingExpenses: 2106 },
+    family: { rent: 2274, livingExpenses: 3380 },
+  },
   "san-francisco": {
     locationId: "san-francisco",
     label: "SF Bay Area",

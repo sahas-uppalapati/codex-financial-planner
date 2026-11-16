@@ -247,7 +247,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       "Legacy annual stock repeats each December; it is not a grant. Convert explicitly to model vesting.",
     );
   if (
-    s.taxProfile.location === "san-francisco" &&
+    (s.taxProfile.location === "san-francisco" || s.taxProfile.location === "los-angeles") &&
     s.taxProfile.mode === "calculated"
   )
     warnings.add(

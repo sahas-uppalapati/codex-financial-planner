@@ -273,7 +273,7 @@ export interface LocationPreset {
   source: string;
   kind: string;
 }
-// Six manually curated county references fall within the source FAQ's <=10-location allowance.
+// Seven manually curated county references fall within the source FAQ's <=10-location allowance.
 // Monthly fields are derived from annual published categories, rounded to cents at preset creation.
 const location = (
   id: string,
@@ -281,6 +281,7 @@ const location = (
   county: string,
   fips: string,
   annual: AnnualBudget,
+  accessed = "2026-10-27",
 ): LocationPreset => ({
   id,
   label,
@@ -294,7 +295,7 @@ const location = (
   annualPublished: annual,
   scope: county,
   sourceYear: "2026; updated February 15, 2026",
-  accessed: "2026-10-27",
+  accessed,
   source: `https://livingwage.mit.edu/counties/${fips}`,
   kind: "Derived minimum-needs budget",
 });
@@ -317,6 +318,15 @@ export const locationPresets = [
     internetMobile: 2397,
     other: 4992,
   }),
+  location("los-angeles", "Los Angeles, CA", "Los Angeles County, California", "06037", {
+    housing: 22471,
+    food: 4463,
+    transportation: 8681,
+    medical: 3255,
+    civic: 3876,
+    internetMobile: 1517,
+    other: 4992,
+  }, "2026-11-16"),
   location(
     "san-francisco",
     "San Francisco, CA",
