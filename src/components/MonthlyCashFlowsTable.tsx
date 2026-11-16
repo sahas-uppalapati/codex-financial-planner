@@ -6,14 +6,16 @@ import type { TaxResultSeries } from "./TaxBreakdownTable";
 export function MonthlyCashFlowsTable({
   series,
   activeYear,
+  isOpen,
 }: {
   series: TaxResultSeries[];
   activeYear: number;
+  isOpen?: boolean;
 }) {
   const activeCalYear = series[0].projection.rows[activeYear].calendarYear;
 
   return (
-    <details>
+    <details open={isOpen ? true : undefined}>
       <summary>
         Monthly cash flows & vesting{" "}
         <span className="optional">{activeCalYear}</span>

@@ -18,6 +18,12 @@ export function Field({
   integer,
 }: Props) {
   const id = useId();
+  const hasHint = Boolean(hint && hint.toLowerCase() !== label.toLowerCase());
+  const describedBy = [
+    error ? `${id}-error` : null,
+    hasHint ? `${id}-help` : null,
+  ].filter(Boolean).join(" ") || undefined;
+
   return (
     <div className="field">
       <label htmlFor={id}>
@@ -32,11 +38,11 @@ export function Field({
           value={value}
           onChange={(e) => onChange(e.target.value)}
           aria-invalid={!!error}
-          aria-describedby={error ? `${id}-error` : hint ? `${id}-help` : undefined}
+          aria-describedby={describedBy}
           autoComplete="off"
           spellCheck={false}
         />
-        {hint && hint.toLowerCase() !== label.toLowerCase() && (
+        {hasHint && (
           <span id={`${id}-help`} className="input-tooltip-bubble" role="tooltip">
             {hint}
           </span>

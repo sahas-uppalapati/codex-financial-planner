@@ -80,7 +80,30 @@ export function Results({
             <p className="eyebrow">YOUR MONEY TODAY</p>
             <h2 id="monthly-picture-heading">Your monthly picture</h2>
           </div>
-          <span className="period-tag">{first.calendarYear} average</span>
+          <div className="quick-read-actions">
+            <span className="period-tag">{first.calendarYear} average</span>
+            <div className="milestone-year-chips" role="group" aria-label="Jump to projection year">
+              {[
+                { label: "Yr 1", index: 0 },
+                ...(years > 5 ? [{ label: "Yr 5", index: 4 }] : []),
+                ...(years > 10 ? [{ label: "Yr 10", index: 9 }] : []),
+                ...(years > 20 ? [{ label: "Yr 20", index: 19 }] : []),
+                ...(years > 1 ? [{ label: `Yr ${years}`, index: years - 1 }] : []),
+              ]
+                .filter((m, idx, arr) => arr.findIndex((x) => x.index === m.index) === idx)
+                .map(({ label, index }) => (
+                  <button
+                    key={label}
+                    type="button"
+                    className={`chip-btn ${activeYear === index ? "active" : ""}`}
+                    onClick={() => setSelected(index)}
+                    title={`Inspect Year ${index + 1} (${startYear + index})`}
+                  >
+                    {label}
+                  </button>
+                ))}
+            </div>
+          </div>
         </div>
         <div className="quick-read-grid" style={{ "--scenario-count": series.length } as React.CSSProperties}>
           {series.map((s) => {
@@ -97,11 +120,6 @@ export function Results({
                   <span className="quick-metric-label">{label}</span>
                   <strong className={`quick-metric-val ${value < 0 ? "negative" : ""}`} data-testid={i === 2 ? `quick-cash-${s.index}` : undefined}>
                     {money(value / 12)}<span className="unit">/ mo</span>
-                    {i === 2 && (
-                      <span className="sr-only" data-testid={`quick-cash-stock-${s.index}`}>
-                        {money(value / 12)}/ mo
-                      </span>
-                    )}
                   </strong>
                   <span className="monthly-metric-note">{description}</span>
                 </div>)}
