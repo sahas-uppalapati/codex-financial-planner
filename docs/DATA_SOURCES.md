@@ -53,3 +53,7 @@ Each derived monthly field is rounded to cents when the preset is created. There
 The quick Tech Estimator's Los Angeles housing defaults are rounded monthly groupings of the same county source: one adult with no children for single, and two adults with one working and no children for family. They are minimum-needs approximations; adjust them to the household. No LA-specific tech compensation snapshot is supplied; the existing estimator fallback applies.
 
 Tax calculation and vesting provenance for the v2 monthly model is documented in [TAX_SOURCES.md](TAX_SOURCES.md).
+
+## Investment calculator assumptions
+
+The standalone investment calculators use user-entered amounts and returns with deterministic monthly compounding; they do not use market data or recommended return forecasts. Career mode reuses the planner’s sourced tax and compensation assumptions and actual monthly projection. Additional monthly money and starting investments are hypothetical after-tax funding, not compensation benchmarks. Targets, supported limits, timing, and the 40-year extrapolation are documented in the README’s Investment calculators section.

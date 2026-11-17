@@ -39,6 +39,7 @@ export function Results({
   destination,
   selectedYear,
   onYearChange,
+  onOpenCalculators,
 }: {
   state: PlannerV2;
   series: ResultSeries[];
@@ -47,6 +48,7 @@ export function Results({
   destination: Destination;
   selectedYear: number;
   onYearChange: (year: number) => void;
+  onOpenCalculators: () => void;
 }) {
   const activeYear = Math.min(selectedYear, Number(state.shared.years) - 1);
   const setSelected = onYearChange;
@@ -277,7 +279,7 @@ export function Results({
                     Portfolio projection
                   </h3>
                 </div>
-                <span className="period-tag">{years}-year projection</span>
+                <Button variant="outline" onClick={onOpenCalculators}>Explore calculators</Button>
               </div>
               <div className="balance-heading">
                 <div className="ending-balances">
