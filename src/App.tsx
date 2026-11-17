@@ -313,13 +313,13 @@ export default function App() {
             >
               Load shared estimate
             </button>{" "}
-            <button
+            <Button variant="text" size={null}
               type="button"
               className="text-button"
               onClick={() => setPendingLink(null)}
             >
               Keep current plan
-            </button>
+            </Button>
             {linkError && <p role="alert">{linkError}</p>}
           </section>
         )}
@@ -392,7 +392,7 @@ export default function App() {
                   </span>
                   <div className="comparison-actions">
                     {active === 1 && (
-                      <button
+                      <Button variant="text" size={null}
                         type="button"
                         className="text-button small-text clone-scenario-btn"
                         onClick={() => {
@@ -408,9 +408,9 @@ export default function App() {
                         title="Copy all compensation, benefits, and expenses from Scenario A"
                       >
                         Copy from Scenario A
-                      </button>
+                      </Button>
                     )}
-                    <button
+                    <Button variant="text" size={null}
                       type="button"
                       className="text-button small-text"
                       onClick={() => {
@@ -419,7 +419,7 @@ export default function App() {
                       }}
                     >
                       Remove comparison
-                    </button>
+                    </Button>
                   </div>
                 </div>
               )}

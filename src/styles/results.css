@@ -21,14 +21,15 @@
     background: var(--card);
     color: var(--muted-foreground);
   }
-  .year-picker select {
+  .year-picker-trigger {
     width: auto;
     min-height: 32px;
     height: 32px;
-    padding-block: 4px;
+    padding: 4px 8px;
     border: none;
     box-shadow: none;
     background: transparent;
+    color: var(--foreground);
     font-size: 11px;
   }
   .toolbar-period {
@@ -49,32 +50,12 @@
     margin-bottom: 18px;
   }
   .quick-read-heading {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 10px;
     margin-bottom: 12px;
   }
   .quick-read-heading h3 {
     font-size: 12px;
     color: var(--muted-foreground);
     font-weight: 400;
-  }
-  .quick-read-actions {
-    display: flex;
-    align-items: center;
-    flex-wrap: wrap;
-    gap: 8px;
-  }
-  .milestone-year-chips {
-    display: flex;
-    gap: 4px;
-  }
-  .milestone-year-chips .chip-btn {
-    min-height: 24px;
-    padding: 3px 6px;
-    font-size: 9px;
   }
   .quick-read-grid {
     display: grid;
@@ -89,7 +70,7 @@
   }
   .quick-metrics-row {
     display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
     gap: 12px;
   }
   .quick-metric-box {
@@ -102,6 +83,14 @@
     display: flex;
     flex-direction: column;
     gap: 20px;
+  }
+  .monthly-metrics .flow-in .quick-metric-label,
+  .monthly-metrics .flow-in .quick-metric-val {
+    color: var(--positive-text);
+  }
+  .monthly-metrics .flow-out .quick-metric-label,
+  .monthly-metrics .flow-out .quick-metric-val {
+    color: var(--danger);
   }
   .metric-card-heading {
     display: flex;
@@ -133,7 +122,7 @@
   }
   .quick-metric-val {
     font-weight: 600;
-    font-size: clamp(22px, 2vw, 30px);
+    font-size: clamp(18px, 1.8vw, 26px);
     letter-spacing: -0.9px;
     line-height: 1.2;
     white-space: nowrap;
@@ -317,14 +306,88 @@
   .chart-legend .truncate {
     max-width: 180px;
   }
+  .projection-chart-carousel {
+    min-width: 0;
+  }
+  .chart-carousel-controls {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    margin: 8px 0 12px;
+  }
+  .chart-carousel-controls > div {
+    display: flex;
+    align-items: baseline;
+    gap: 8px;
+    min-width: 0;
+  }
+  .chart-carousel-controls strong {
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .chart-carousel-controls span {
+    color: var(--muted-foreground);
+    font-size: 10px;
+    white-space: nowrap;
+  }
+  .chart-carousel-panel {
+    min-width: 0;
+  }
+  .investment-growth-chart > h4 {
+    margin-bottom: 10px;
+    font-size: 12px;
+    font-weight: 500;
+  }
+  .investment-growth-chart + .investment-growth-chart {
+    margin-top: 14px;
+  }
+  .growth-chart-scroll {
+    max-width: 100%;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+  }
+  .growth-chart-svg {
+    display: block;
+    max-width: none;
+  }
+  .growth-chart-svg text {
+    fill: var(--muted-foreground);
+    font-size: 10px;
+    font-family: inherit;
+  }
+  .growth-chart-legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 14px;
+    margin-top: 8px;
+    color: var(--muted-foreground);
+    font-size: 10px;
+  }
+  .growth-chart-legend > span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+  }
+  .growth-legend-swatch {
+    width: 9px;
+    height: 9px;
+    border-radius: 2px;
+  }
+  .growth-legend-swatch.added {
+    background: var(--positive-text);
+  }
+  .growth-legend-swatch.growth {
+    background: var(--series-1);
+  }
   .legend-line {
     width: 9px;
     height: 9px;
     border-radius: 2px;
     flex-shrink: 0;
-  }
-  .legend-note {
-    color: var(--muted-foreground);
   }
   .metrics-table {
     margin-top: 12px;
@@ -383,10 +446,6 @@
   }
   .portfolio-breakdown .metric-head > span {
     display: none;
-  }
-  .portfolio-breakdown .monthly-note {
-    margin-top: 14px;
-    font-size: 10px;
   }
   .empty-accounts-summary {
     color: var(--muted-foreground);
@@ -714,11 +773,7 @@
     padding: 16px;
   }
   .quick-metric-val {
-    font-size: 30px;
-  }
-  .quick-read-actions {
-    width: 100%;
-    justify-content: space-between;
+    font-size: clamp(18px, 5vw, 26px);
   }
   .quick-read-heading {
     margin-bottom: 14px;

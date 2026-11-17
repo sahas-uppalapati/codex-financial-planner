@@ -460,7 +460,8 @@ test("midyear promotions, new employers and role equity update annual and monthl
   await expect(
     annual.getByRole("cell", { name: "$12,000", exact: true }).first(),
   ).toBeVisible();
-  await page.getByLabel("Results for calendar year").selectOption("1");
+  await page.getByLabel("Results for calendar year").click();
+  await page.getByRole("option", { name: "2027" }).click();
   await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$10,000");
   await page
@@ -590,7 +591,8 @@ test("v1 migration preserves inputs and supports explicit legacy equity conversi
     .getByRole("button", { name: "Replace legacy stock with this grant" })
     .click();
   await expect(page.getByLabel("Legacy annualized stock")).toHaveCount(0);
-  await page.getByLabel("Results for calendar year").selectOption("4");
+  await page.getByLabel("Results for calendar year").click();
+  await page.getByRole("option", { name: "2030" }).click();
   await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$0");
   await page.reload();
@@ -701,7 +703,8 @@ test("results navigation keeps the inspected year and theme persists", async ({
   const saved = await page.evaluate(() =>
     localStorage.getItem("careerworth:v3"),
   );
-  await page.getByRole("button", { name: "Yr 5", exact: true }).click();
+  await page.getByLabel("Results for calendar year").click();
+  await page.getByRole("option", { name: "2030" }).click();
   for (const destination of [
     "Cash Flow",
     "Taxes",
@@ -709,16 +712,15 @@ test("results navigation keeps the inspected year and theme persists", async ({
     "Overview",
   ] as const) {
     await navigate(page, destination);
-    await expect(page.getByLabel("Results for calendar year")).toHaveValue("4");
+    await expect(page.getByLabel("Results for calendar year")).toHaveText("2030");
     await expect(salary).toHaveValue("185000");
   }
-  await expect(page.getByText("2030 average")).toBeVisible();
   await salary.fill("");
   await openAdvanced(page, "Starting balances & assumptions");
   await navigate(page, "Taxes");
   await expect(salary).toHaveValue("");
   await salary.fill("185000");
-  await expect(page.getByLabel("Results for calendar year")).toHaveValue("4");
+  await expect(page.getByLabel("Results for calendar year")).toHaveText("2030");
   await page.getByLabel("Appearance").selectOption("dark");
   await expect(page.locator("html")).toHaveClass(/dark/);
   expect(

@@ -179,6 +179,10 @@
     padding-right: 24px;
     text-overflow: ellipsis;
   }
+  select option {
+    color: var(--foreground);
+    background-color: var(--background);
+  }
   a {
     color: var(--primary-text);
     text-underline-offset: 3px;
