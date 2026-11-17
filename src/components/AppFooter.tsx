@@ -18,6 +18,7 @@ export function AppFooter({
 }) {
   return (
     <>
+      <p><a style={{ textDecoration: "underline" }} href="https://github.com/sahas-uppalapati/codex-financial-planner/issues">Feedback and accessibility contact</a> (please do not include financial inputs).</p>
       <div className="disclosures">
         <details>
           <summary>How this works</summary>
