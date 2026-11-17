@@ -1,5 +1,4 @@
 import { money, percent } from "../lib/format";
-import { SelectField } from "./EditorFields";
 import type { PlannerV2 } from "../lib/planner";
 import type { TaxResultSeries } from "./TaxBreakdownTable";
 
@@ -7,12 +6,10 @@ export function CashFlowPanel({
   state,
   series,
   activeYear,
-  onYearChange,
 }: {
   state: PlannerV2;
   series: TaxResultSeries[];
   activeYear: number;
-  onYearChange: (year: number) => void;
 }) {
   return (
     <section className="cash-panel" aria-labelledby="cash-heading">
@@ -21,26 +18,13 @@ export function CashFlowPanel({
           <p className="eyebrow">MONTHLY & ANNUAL CASH FLOW</p>
           <h2 id="cash-heading">The cash & compensation picture</h2>
         </div>
-        <div className="result-year">
-          <SelectField
-            label="Results for calendar year"
-            value={String(activeYear)}
-            onChange={(v) => onYearChange(Number(v))}
-          >
-            {series[0].projection.rows.map((r, i) => (
-              <option value={i} key={i}>
-                {r.calendarYear} · Year {r.year}
-              </option>
-            ))}
-          </SelectField>
-        </div>
       </div>
       <p className="hint">
         {state.scenarios.some((s) => s.taxProfile.filing === "joint")
           ? "Joint-filing scenarios show household wages, taxes, benefits and savings. "
           : ""}
-        Monthly equivalents smooth annual bonuses; actual cash bonuses are paid in
-        December.
+        Monthly equivalents smooth annual bonuses; actual cash bonuses are paid
+        in December.
       </p>
       <div
         className="metrics-table"

@@ -7,7 +7,6 @@ import type {
 import { plannerScenarioErrors, taxLocations } from "../lib/planner";
 import { taxSources } from "../data/taxRules";
 import {
-  AutoDetails,
   ErrorList,
   NumberField,
   SelectField,
@@ -298,23 +297,7 @@ export function BenefitsEditor({
     );
   };
   return (
-    <AutoDetails
-      className="advanced-section"
-      hasErrors={
-        Object.keys(errors).some(
-          (k) =>
-            k.startsWith("benefits") ||
-            k.startsWith("spouseBenefits") ||
-            k.startsWith("employerMatch") ||
-            k.startsWith("spouseEmployerMatch") ||
-            k.startsWith("retirementTargets") ||
-            k.startsWith("retirementProfiles"),
-        ) || undefined
-      }
-    >
-      <summary>
-        Pretax benefits <span className="optional">401(k), health & HSA</span>
-      </summary>
+    <div className="advanced-section">
       <div className="details-body">
         <RetirementStrategyAdvisor s={s} a={a} onChange={onChange} />
         {retirementTargets("primary")}
@@ -388,6 +371,6 @@ export function BenefitsEditor({
         <ErrorList errors={errors} prefix="benefits" />
         <ErrorList errors={errors} prefix="spouseBenefits" />
       </div>
-    </AutoDetails>
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 # CareerWorth
 
-A browser-only career and compensation planner built with React, TypeScript, Vite, plain CSS, and a custom SVG chart. Compare two scenarios with calculated taxes, actual RSU grant schedules, promotions, employer changes, benefits, and separate investment accounts. The planner has no backend or accounts. Optional PostHog analytics records a small set of anonymous actions only after the visitor opts in; planner values are not included.
+A browser-only career and compensation planner built with React, TypeScript, Vite, Tailwind CSS, selected shadcn/ui components, and a custom SVG chart. Compare two scenarios with calculated taxes, actual RSU grant schedules, promotions, employer changes, benefits, and separate investment accounts. The planner has no backend or accounts. Optional PostHog analytics records a small set of anonymous actions only after the visitor opts in; planner values are not included.
 
 ## Run and verify
 
@@ -53,19 +53,31 @@ While startup mode is selected, Big Tech preset grants and preset-generated prom
 
 The startup inputs include fictional Series A, B, and C examples. Salary inputs use [Cadre's 2020–2026 placement medians](https://www.yourcadre.com/comp); all option counts and prices are invented and are not stage benchmarks. Applying an example assumes no bonus, raises, relocation, or employer match, and four-year monthly vesting with a one-year cliff. It leaves location, living expenses, and existing grants and career events intact. These are illustrations, not actual offers.
 
-The planner opens in **Quick Estimate** with a sample scenario. Edit salary, stock, living costs, starting taxable investments, and the projection length to see an estimated future balance and monthly picture. Company and market presets can provide a starting point. The balance includes investment accounts and vested stock and is before future sale or withdrawal taxes. Monthly figures are annual averages; bonuses and stock may arrive unevenly. Open **View assumptions** to see the growth rates, tax approach, stock treatment, retirement settings, and quick-mode limits behind the estimate.
+The planner opens on **Overview** with a sample scenario. Replace salary, annual stock, monthly living expenses, current invested savings, and projection length with your own values. Optional **Company presets** stay collapsed; changing a preset preserves customized values, and a full replacement requires a preview and confirmation. The balance includes investment accounts and vested stock before future sale or withdrawal taxes. Monthly figures are annual averages; bonuses and stock may arrive unevenly.
 
-Choose **Add more detail** to use the full planner. It retains the quick estimate inputs and reveals comparison scenarios, compensation, taxes, budgets, benefits, career progression, equity grants and account assumptions. If an annual stock amount has no grant, the transition creates an estimated four-year quarterly grant. Results may change because Detailed View includes settings omitted in Quick Estimate. Open **Explore the numbers** for account, tax, and year-by-year breakdowns.
+At widths of 1200px and above, a compact navigation rail sits beside a 340px input panel and flexible results workspace. Smaller screens use labeled navigation above stacked inputs and results. **View results** and **Edit inputs** links help move between them; selecting a destination also brings its results into view on smaller screens. Page scrolling stays ordinary; wide tables scroll within their containers.
 
-Starting taxable investments, primary-owner traditional 401(k), and HSA balances are entered in the visible **Starting balances** section and shared between scenarios. Optional spouse 401(k)/HSA balances are included in household assets even in a single-filing scenario. Existing retirement/HSA balances grow even if new contributions are zero. Existing saved balances are kept with the primary owner when spouse fields are added. Employer shares remain in the equity issuer editor and are counted once.
+The four result destinations share the inspected calendar year:
 
-Advanced sections stay collapsed until needed:
+- **Overview:** monthly take-home, living costs, remaining cash including net stock proceeds, the portfolio projection, ending accounts, comparison insights, and separate hypothetical startup outcomes.
+- **Cash Flow:** monthly-equivalent compensation, annual income-to-cash breakdown, monthly cash flows and vesting, and the existing equity vesting summary.
+- **Taxes:** estimated annual liability and its components, including equity-attributed taxes.
+- **Annual Schedule:** the full year-by-year projection, with summary and detailed column choices.
 
+Annual and monthly CSV actions are grouped in one results toolbar. **Light / Dark / System** appearance defaults to System, follows system changes, and is stored under `careerworth:theme` separately from financial inputs. If storage is unavailable, calculations and theme selection continue in memory. Backups, shared links, model explanations, retirement guidance, reset, and analytics consent remain available. Backups are validated before a themed restore confirmation; canceling leaves the current plan intact.
+
+The visual direction follows [Capitalio](https://ui.watermelon.sh/dashboard/capitalio-dashboard): self-hosted Inter, neutral surfaces, fine borders, compact controls, blue actions, and restrained green/blue chart accents. Only the used shadcn primitives (Button, Card, Input, Dialog) are included; their MIT notice is in `src/components/ui/LICENSE.shadcn.md` and the deployed `/licenses/` directory, alongside the Inter and Lucide licenses. The complete Capitalio registry block and its assets are not installed. Theme tokens cover the advanced editors, startup illustration, comparisons, tables, dialogs, and invalid-input states. Print uses light surfaces, and the annual table omits its intermediate detail columns to fit the page.
+
+Current taxable investments remain prominent. Expand **Starting balances & assumptions** to add retirement and HSA account balances, with an account type and owner; starting balances are shared between scenarios. Optional spouse 401(k)/HSA balances are included in household assets even in a single-filing scenario. Existing retirement/HSA balances grow even if new contributions are zero. Existing saved balances are kept with the primary owner when spouse fields are added. Employer shares remain in the equity issuer editor and are counted once.
+
+Bonus, sign-on bonuses, and salary growth are grouped under **Offer**. Advanced sections stay collapsed until needed; their headings flag invalid inputs even while closed:
+
+- **Living costs:** expense categories and optional location budgets, applied independently from tax location.
 - **Taxes:** calculated annual liability or a manual total effective rate; single or married filing jointly; spouse wages/growth; signed annual federal/state/local tax adjustments; employee-premium and exemption switches.
-- **Pretax benefits:** retirement contribution strategy optimizer with tax-efficient waterfall auto-allocation (match → HSA → IRA → 401(k) max → mega backdoor → taxable), strategy comparison against current scenario settings, traditional and Roth 401(k) split guidance based on estimated marginal tax brackets, quick formula presets, action buttons to capture full matches, configurable simple or tiered employer match formulas, customizable vesting schedules (immediate, cliff, graded, and custom percentage schedules), qualifying cafeteria-plan health premiums, and payroll HSA contributions. Match settings default to Unsure, which assumes zero; formulas apply to base salary and do not model payroll dates or true-ups.
-- **Career progression:** promotions and employer changes by calendar month or months after projection start, expected role/level, base, bonus and growth, optional new equity award and future refresher policy.
-- **Equity grants:** individual/historical grants in dollars plus grant-date price, or explicit shares; common/custom vesting schedules; recurring refresher rules; selling at vest or retaining shares after estimated tax coverage; employer price/appreciation assumptions and starting vested holdings.
-- **Assumptions:** projection start year, investment return, expense inflation, tax-threshold inflation, and starting retirement/HSA balances.
+- **Retirement & benefits:** retirement contribution strategies, quick savings targets, traditional and Roth 401(k) allocations, quick employer-match presets, action buttons to capture full matches, configurable simple or tiered employer match formulas, customizable vesting schedules (immediate, cliff, graded, and custom percentage schedules), qualifying cafeteria-plan health premiums, and payroll HSA contributions. Match settings default to Unsure, which assumes zero; formulas apply to base salary and do not model payroll dates or true-ups.
+- **Career changes:** promotions and employer changes by calendar month or months after projection start, expected role/level, base, bonus and growth, optional new equity award and future refresher policy.
+- **Equity:** individual/historical grants in dollars plus grant-date price, or explicit shares; common/custom vesting schedules; recurring refresher rules; selling at vest or retaining shares after estimated tax coverage; employer price/appreciation assumptions and starting vested holdings.
+- **Starting balances & assumptions:** projection start year, investment return, expense inflation, tax-threshold inflation, and starting retirement/HSA balances.
 
 The income-to-cash view shows annual cash compensation, estimated cash taxes, payroll benefits, living costs, contributions and remaining cash for the selected results year. When comparing scenarios, cumulative differences in compensation, equity, taxes, living costs and investment gains provide context; these interacting figures do not add up to the ending balance difference. Select a results year to inspect its monthly-equivalent cash picture, annual tax breakdown and monthly vesting detail. The main chart and account breakdown show the end of the whole projection. Annual and monthly CSV exports include both comparison scenarios and retain full numeric precision. CSV text is quoted and formula-like user text is neutralized.
 
@@ -122,5 +134,7 @@ Numerical guardrails: 1–40 years starting 2026–2036; $0–$10 million salary
 - `src/lib/equity.ts` and `src/data/vesting.ts`: grant expansion, schedules, employment periods and forfeitures.
 - `src/lib/projection.ts`: monthly compensation, reconciled tax reserves and asset accounting.
 - `src/lib/plannerStorage.ts` / `plannerCsv.ts`: versioned persistence/migration and detailed exports.
-- `src/components/`: labeled editors, source disclosures, SVG chart and result tables.
+- `src/components/`: labeled editors, source disclosures, SVG chart and result tables. `ResultsNavigation.tsx` owns the destination definitions; `ThemeProvider.tsx` owns appearance.
+- `src/components/ui/`: the used shadcn primitives and their MIT notice.
+- `src/styles.css` and `src/styles/`: Tailwind theme tokens, app shell, shared editors, results, startup, and print styles.
 - `docs/DATA_SOURCES.md`: existing compensation and six-county budget provenance.

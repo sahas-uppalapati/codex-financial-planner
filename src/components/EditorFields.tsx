@@ -1,3 +1,4 @@
+import { Input } from "./ui/input";
 import { useEffect, useId, useState } from "react";
 import type { ComponentProps, ReactNode } from "react";
 import { Field } from "./Field";
@@ -52,7 +53,7 @@ export function TextField({
   return (
     <div className="field">
       <label htmlFor={id}>{label}</label>
-      <input
+      <Input
         id={id}
         type={type}
         value={value}
@@ -85,10 +86,10 @@ export function SelectField({
   error?: string;
 }) {
   const id = useId();
-  const describedBy = [
-    error ? `${id}-error` : null,
-    hint ? `${id}-help` : null,
-  ].filter(Boolean).join(" ") || undefined;
+  const describedBy =
+    [error ? `${id}-error` : null, hint ? `${id}-help` : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <div className="field">

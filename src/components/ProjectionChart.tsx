@@ -1,4 +1,4 @@
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { compactMoney, money } from "../lib/format";
 export interface Series {
   name: string;
@@ -16,6 +16,19 @@ export function ProjectionChart({
 }) {
   const id = useId(),
     [selected, setSelected] = useState<number | null>(null);
+  const container = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  useEffect(() => {
+    const observer = new ResizeObserver(([entry]) =>
+      setCompact(entry.contentRect.width < 480),
+    );
+    if (container.current) observer.observe(container.current);
+    return () => observer.disconnect();
+  }, []);
+  const plot = compact
+    ? { width: 400, left: 52, right: 382 }
+    : { width: 700, left: 75, right: 670 };
+  const plotSpan = plot.right - plot.left;
   const years = series[0].rows.length;
   const balances = series.map((s) => [
     s.starting ?? starting,
@@ -26,7 +39,7 @@ export function ProjectionChart({
   const span = max - min || 100;
   const lo = min < 0 ? min - span * 0.1 : 0,
     hi = max + span * 0.12;
-  const x = (year: number) => 75 + (year / years) * 595;
+  const x = (year: number) => plot.left + (year / years) * plotSpan;
   const y = (balance: number) => 278 - ((balance - lo) / (hi - lo)) * 245;
   const year = selected === null ? years : Math.min(selected, years);
   const summary = series
@@ -45,9 +58,9 @@ export function ProjectionChart({
     ]),
   ];
   return (
-    <div className="chart-container">
+    <div ref={container} className="chart-container">
       <svg
-        viewBox="0 0 700 322"
+        viewBox={`0 0 ${plot.width} 322`}
         role="img"
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-desc`}
@@ -59,7 +72,9 @@ export function ProjectionChart({
               Math.min(
                 years,
                 Math.round(
-                  ((((e.clientX - box.left) / box.width) * 700 - 75) / 595) *
+                  ((((e.clientX - box.left) / box.width) * plot.width -
+                    plot.left) /
+                    plotSpan) *
                     years,
                 ),
               ),
@@ -73,18 +88,56 @@ export function ProjectionChart({
           {summary} Nominal US dollars. Negative balances are unfunded
           shortfalls.
         </desc>
+        <defs>
+          <pattern
+            id={`${id}-grid`}
+            width="22"
+            height="22"
+            patternUnits="userSpaceOnUse"
+          >
+            <circle cx="1" cy="1" r="0.7" fill="var(--chart-grid)" />
+          </pattern>
+          {series.map((s) => (
+            <linearGradient
+              key={s.index}
+              id={`${id}-fill-${s.index}`}
+              x1="0"
+              y1="0"
+              x2="0"
+              y2="1"
+            >
+              <stop
+                offset="0%"
+                stopColor={`var(--series-${s.index})`}
+                stopOpacity="0.23"
+              />
+              <stop
+                offset="100%"
+                stopColor={`var(--series-${s.index})`}
+                stopOpacity="0.01"
+              />
+            </linearGradient>
+          ))}
+        </defs>
+        <rect
+          x={plot.left}
+          y="30"
+          width={plotSpan}
+          height="248"
+          fill={`url(#${id}-grid)`}
+        />
         {[0, 1, 2, 3, 4].map((i) => {
           const value = lo + ((hi - lo) * i) / 4;
           return (
             <g key={i}>
               <line
                 className="grid-line"
-                x1="75"
-                x2="670"
+                x1={plot.left}
+                x2={plot.right}
                 y1={y(value)}
                 y2={y(value)}
               />
-              <text x="62" y={y(value) + 4} textAnchor="end">
+              <text x={plot.left - 12} y={y(value) + 4} textAnchor="end">
                 {compactMoney(value)}
               </text>
             </g>
@@ -92,11 +145,11 @@ export function ProjectionChart({
         })}
         {min < 0 && (
           <line
-            x1="75"
-            x2="670"
+            x1={plot.left}
+            x2={plot.right}
             y1={y(0)}
             y2={y(0)}
-            stroke="var(--muted)"
+            stroke="var(--muted-foreground)"
             strokeDasharray="4 4"
           />
         )}
@@ -131,6 +184,10 @@ export function ProjectionChart({
         {series.map((s, i) => (
           <g key={s.index}>
             <path
+              d={`${balances[i].map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`).join(" ")} L ${x(years)} ${y(0)} L ${x(0)} ${y(0)} Z`}
+              fill={`url(#${id}-fill-${s.index})`}
+            />
+            <path
               d={balances[i]
                 .map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`)
                 .join(" ")}
@@ -146,7 +203,7 @@ export function ProjectionChart({
               cy={y(balances[i][year])}
               r="5"
               fill={`var(--series-${s.index})`}
-              stroke="white"
+              stroke="var(--card)"
               strokeWidth="2"
             />
           </g>

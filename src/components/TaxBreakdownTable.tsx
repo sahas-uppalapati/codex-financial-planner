@@ -1,5 +1,4 @@
 import { money, percent } from "../lib/format";
-import { SelectField } from "./EditorFields";
 import type { Projection } from "../lib/projection";
 import type { ScenarioV2 } from "../lib/planner";
 
@@ -13,24 +12,20 @@ export interface TaxResultSeries {
 export function TaxBreakdownTable({
   series,
   activeYear,
-  onYearChange,
-  isOpen,
 }: {
   series: TaxResultSeries[];
   activeYear: number;
-  onYearChange: (year: number) => void;
-  isOpen?: boolean;
 }) {
   const activeRow = series[0].projection.rows[activeYear];
 
   return (
-    <details open={isOpen ? true : undefined}>
-      <summary>
+    <section className="cash-panel tax-breakdown">
+      <h3>
         Tax breakdown{" "}
         <span className="optional">
           {activeRow.calendarYear} · annual liability
         </span>
-      </summary>
+      </h3>
       <div className="details-body">
         <div className="table-header-controls">
           <p className="hint">
@@ -38,19 +33,6 @@ export function TaxBreakdownTable({
             liability on cash compensation alone. Monthly reserves allocate
             these annual estimates, not actual paycheck withholding.
           </p>
-          <div className="result-year">
-            <SelectField
-              label="Tax year"
-              value={String(activeYear)}
-              onChange={(v) => onYearChange(Number(v))}
-            >
-              {series[0].projection.rows.map((r, i) => (
-                <option value={i} key={i}>
-                  {r.calendarYear} · Year {r.year}
-                </option>
-              ))}
-            </SelectField>
-          </div>
         </div>
         <div
           className="tax-table-container table-scroll"
@@ -181,7 +163,8 @@ export function TaxBreakdownTable({
                 )}
               </tr>
               {series.some(
-                (s) => s.projection.rows[activeYear].taxBreakdown.localIncome > 0,
+                (s) =>
+                  s.projection.rows[activeYear].taxBreakdown.localIncome > 0,
               ) && (
                 <tr>
                   <th scope="row">Local income tax</th>
@@ -244,8 +227,8 @@ export function TaxBreakdownTable({
               </tr>
               {series.some(
                 (s) =>
-                  s.projection.rows[activeYear].taxBreakdown.additionalMedicare >
-                  0,
+                  s.projection.rows[activeYear].taxBreakdown
+                    .additionalMedicare > 0,
               ) && (
                 <tr>
                   <th scope="row">Additional Medicare</th>
@@ -271,7 +254,8 @@ export function TaxBreakdownTable({
               )}
               {series.some(
                 (s) =>
-                  s.projection.rows[activeYear].taxBreakdown.employeePremiums > 0,
+                  s.projection.rows[activeYear].taxBreakdown.employeePremiums >
+                  0,
               ) && (
                 <tr>
                   <th scope="row">Employee leave/disability premiums</th>
@@ -372,6 +356,6 @@ export function TaxBreakdownTable({
           </table>
         </div>
       </div>
-    </details>
+    </section>
   );
 }

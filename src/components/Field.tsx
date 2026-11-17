@@ -1,3 +1,4 @@
+import { Input } from "./ui/input";
 import { useId } from "react";
 interface Props {
   label: string;
@@ -19,10 +20,10 @@ export function Field({
 }: Props) {
   const id = useId();
   const hasHint = Boolean(hint && hint.toLowerCase() !== label.toLowerCase());
-  const describedBy = [
-    error ? `${id}-error` : null,
-    hasHint ? `${id}-help` : null,
-  ].filter(Boolean).join(" ") || undefined;
+  const describedBy =
+    [error ? `${id}-error` : null, hasHint ? `${id}-help` : null]
+      .filter(Boolean)
+      .join(" ") || undefined;
 
   return (
     <div className="field">
@@ -31,7 +32,7 @@ export function Field({
         {unit && <span className="unit-label">{unit}</span>}
       </label>
       <div className={`input-wrap ${error ? "invalid" : ""}`}>
-        <input
+        <Input
           id={id}
           type="text"
           inputMode={integer ? "numeric" : "decimal"}
@@ -43,7 +44,11 @@ export function Field({
           spellCheck={false}
         />
         {hasHint && (
-          <span id={`${id}-help`} className="input-tooltip-bubble" role="tooltip">
+          <span
+            id={`${id}-help`}
+            className="input-tooltip-bubble"
+            role="tooltip"
+          >
             {hint}
           </span>
         )}

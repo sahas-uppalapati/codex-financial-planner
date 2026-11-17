@@ -8,7 +8,6 @@ import {
 import { buildEquity } from "../lib/equity";
 import { templateSchedule } from "../data/vesting";
 import {
-  AutoDetails,
   ErrorList,
   NumberField,
   TextField,
@@ -77,25 +76,7 @@ export function EquityEditor({
       issuers: s.issuers.map((i) => (i.id === id ? { ...i, ...patch } : i)),
     });
   return (
-    <AutoDetails
-      className="advanced-section"
-      hasErrors={
-        Object.keys(errors).some(
-          (k) =>
-            k.startsWith("grants") ||
-            k.startsWith("refreshers") ||
-            k.startsWith("issuers"),
-        ) || undefined
-      }
-    >
-      <summary>
-        Equity grants{" "}
-        <span className="optional">
-          {s.stockMode === "legacy"
-            ? "Legacy annual stock"
-            : `${s.grants.length} custom · sell or hold`}
-        </span>
-      </summary>
+    <div className="advanced-section">
       <div className="details-body">
         <p className="hint">
           Model actual grants, vesting cliffs and overlapping refreshers.
@@ -316,6 +297,6 @@ export function EquityEditor({
         <ErrorList errors={errors} prefix="refreshers" />
         <ErrorList errors={errors} prefix="issuers" />
       </div>
-    </AutoDetails>
+    </div>
   );
 }

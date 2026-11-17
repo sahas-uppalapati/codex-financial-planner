@@ -1,3 +1,12 @@
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from "./ui/dialog";
+import { Button } from "./ui/button";
 import { useState, useEffect, useRef } from "react";
 import type { AssumptionsV2, ScenarioV2, TaxLocation } from "../lib/planner";
 import { taxLocations } from "../lib/planner";
@@ -12,12 +21,6 @@ import {
 import type { GrowthPreset } from "../data/techCompPresets";
 import { templateSchedule } from "../data/vesting";
 import { uid } from "../lib/planner";
-import { money } from "../lib/format";
-import {
-  calculateRetirementStrategy,
-  applyRetirementStrategy,
-  getStrategyPresets,
-} from "../lib/retirementStrategy";
 
 interface TechEstimatorHeroProps {
   allowInitialPreset: boolean;
@@ -35,67 +38,52 @@ export function TechEstimatorHero({
   onAssumptionsChange,
 }: TechEstimatorHeroProps) {
   const initialized = useRef(false);
+  const previewButton = useRef<HTMLButtonElement>(null);
   // Ownership is deliberately session-only. On reload, saved values have no
   // trustworthy provenance and are therefore preserved until explicitly applied.
-  const baseline = useRef<{ scenario: ScenarioV2; assumptions: AssumptionsV2; owned: Set<string> } | null>(null);
-  const [preview, setPreview] = useState<{ scenario: ScenarioV2; assumptions: AssumptionsV2 } | null>(null);
-  const [strategyNotice, setStrategyNotice] = useState<string | null>(null);
-
-  const strategyPresets = getStrategyPresets(scenario, assumptions);
-  const optimalMaxTotal =
-    strategyPresets.find((p) => p.id === "max-all")?.amount ||
-    strategyPresets.find((p) => p.id === "max-401k")?.amount ||
-    36400;
-
-  const applyPresetStrategy = (presetId: "match-only" | "max-401k" | "max-all") => {
-    const targetPreset = strategyPresets.find((p) => p.id === presetId);
-    const amount = targetPreset?.amount ?? (presetId === "max-all" ? optimalMaxTotal : 23500);
-    const optStrategy = calculateRetirementStrategy(scenario, assumptions, {
-      targetSavings: amount,
-      taxPreference: "traditional",
-      enableBackdoor: presetId === "max-all",
-      enableMegaBackdoor: presetId === "max-all",
-    });
-    const updated = applyRetirementStrategy(scenario, optStrategy);
-    onScenarioChange(updated);
-    const label =
-      presetId === "match-only"
-        ? "employer match only"
-        : presetId === "max-401k"
-          ? "max 401(k)"
-          : "optimal tax-advantaged accounts";
-    setStrategyNotice(`Applied ${label} (${money(amount)}/yr)!`);
-    setTimeout(() => setStrategyNotice(null), 4000);
-  };
-
-  const handleMaxOptimal = () => {
-    applyPresetStrategy("max-all");
-  };
+  const baseline = useRef<{
+    scenario: ScenarioV2;
+    assumptions: AssumptionsV2;
+    owned: Set<string>;
+  } | null>(null);
+  const [preview, setPreview] = useState<{
+    scenario: ScenarioV2;
+    assumptions: AssumptionsV2;
+  } | null>(null);
   // Check if an actual tech preset is already applied (legacy default "Columbus offer" has company: "Meta" from model.ts)
   const isPresetApplied =
     scenario.name !== "Columbus offer" &&
-    techCompanies.some((c) =>
-      scenario.role?.toLowerCase().includes(c.name.toLowerCase()) ||
-      scenario.name?.toLowerCase().includes(c.name.toLowerCase()) ||
-      scenario.issuers?.some((i) => i.name.toLowerCase().includes(c.name.toLowerCase())),
+    techCompanies.some(
+      (c) =>
+        scenario.role?.toLowerCase().includes(c.name.toLowerCase()) ||
+        scenario.name?.toLowerCase().includes(c.name.toLowerCase()) ||
+        scenario.issuers?.some((i) =>
+          i.name.toLowerCase().includes(c.name.toLowerCase()),
+        ),
     );
 
   const initialCompany = isPresetApplied
-    ? techCompanies.find((c) =>
-        scenario.role?.toLowerCase().includes(c.name.toLowerCase()) ||
-        scenario.name?.toLowerCase().includes(c.name.toLowerCase()) ||
-        scenario.company?.toLowerCase() === c.name.toLowerCase() ||
-        scenario.issuers?.some((i) => i.name.toLowerCase().includes(c.name.toLowerCase())),
+    ? techCompanies.find(
+        (c) =>
+          scenario.role?.toLowerCase().includes(c.name.toLowerCase()) ||
+          scenario.name?.toLowerCase().includes(c.name.toLowerCase()) ||
+          scenario.company?.toLowerCase() === c.name.toLowerCase() ||
+          scenario.issuers?.some((i) =>
+            i.name.toLowerCase().includes(c.name.toLowerCase()),
+          ),
       )?.id
     : undefined;
 
-  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(initialCompany || "google");
+  const [selectedCompanyId, setSelectedCompanyId] = useState<string>(
+    initialCompany || "google",
+  );
   const [selectedLevelId, setSelectedLevelId] = useState<string>(() => {
     const compId = initialCompany || "google";
     const levels = techLevels[compId] ?? techLevels.google;
-    const matched = levels.find((l) =>
-      scenario.name?.toLowerCase().includes(l.level.toLowerCase()) ||
-      scenario.role?.toLowerCase().includes(l.title.toLowerCase()),
+    const matched = levels.find(
+      (l) =>
+        scenario.name?.toLowerCase().includes(l.level.toLowerCase()) ||
+        scenario.role?.toLowerCase().includes(l.title.toLowerCase()),
     );
     return matched?.id ?? levels[2]?.id ?? levels[0]?.id ?? "l5";
   });
@@ -103,8 +91,19 @@ export function TechEstimatorHero({
   useEffect(() => {
     if (!initialized.current) {
       if (allowInitialPreset && !initialCompany) {
-        const location = scenario.taxProfile.location === "columbus" ? "san-francisco" : scenario.taxProfile.location;
-        applyTechPreset("google", "l5", location, scenario.taxProfile.filing, activeGrowthId, true, true);
+        const location =
+          scenario.taxProfile.location === "columbus"
+            ? "san-francisco"
+            : scenario.taxProfile.location;
+        applyTechPreset(
+          "google",
+          "l5",
+          location,
+          scenario.taxProfile.filing,
+          activeGrowthId,
+          true,
+          true,
+        );
       } else {
         getBaseline();
       }
@@ -112,18 +111,24 @@ export function TechEstimatorHero({
     }
   }, []);
 
-  function getBaseline(): { scenario: ScenarioV2; assumptions: AssumptionsV2; owned: Set<string> } {
+  function getBaseline(): {
+    scenario: ScenarioV2;
+    assumptions: AssumptionsV2;
+    owned: Set<string>;
+  } {
     if (baseline.current) return baseline.current;
 
     const compId = selectedCompanyId || "google";
     const levelId = selectedLevelId || "l5";
     const locId = scenario.taxProfile.location;
     const comp = findTechCompPoint(compId, levelId, locId);
-    const company = techCompanies.find((c) => c.id === compId) || techCompanies[0];
+    const company =
+      techCompanies.find((c) => c.id === compId) || techCompanies[0];
     const levels = techLevels[compId] || techLevels.google;
     const level = levels.find((l) => l.id === levelId) || levels[0];
     const housing = housingPresets[locId] || housingPresets["san-francisco"];
-    const living = scenario.taxProfile.filing === "joint" ? housing.family : housing.single;
+    const living =
+      scenario.taxProfile.filing === "joint" ? housing.family : housing.single;
 
     const owned = new Set<string>();
 
@@ -139,7 +144,8 @@ export function TechEstimatorHero({
     }
     if (scenario.signOnY1 === String(comp.signOnY1 ?? 0)) owned.add("signOnY1");
     if (scenario.signOnY2 === String(comp.signOnY2 ?? 0)) owned.add("signOnY2");
-    if (scenario.company?.toLowerCase() === company.name.toLowerCase()) owned.add("company");
+    if (scenario.company?.toLowerCase() === company.name.toLowerCase())
+      owned.add("company");
     if (
       scenario.name?.toLowerCase().includes(company.name.toLowerCase()) ||
       scenario.name?.toLowerCase().includes(level.level.toLowerCase())
@@ -156,13 +162,16 @@ export function TechEstimatorHero({
     const expectedRent = String(living.rent);
     if (scenario.expenses?.housing === expectedRent) owned.add("expenses");
 
-    if (scenario.employerMatch?.rate === String(company.matchPolicy.rate)) owned.add("employerMatch");
+    if (scenario.employerMatch?.rate === String(company.matchPolicy.rate))
+      owned.add("employerMatch");
 
     if (scenario.events.some((e) => e.presetProgression)) owned.add("events");
 
     const growth = growthPresets.find((g) => g.id === activeGrowthId);
-    if (growth && assumptions.returns === String(growth.returns)) owned.add("returns");
-    if (growth && assumptions.inflation === String(growth.inflation)) owned.add("inflation");
+    if (growth && assumptions.returns === String(growth.returns))
+      owned.add("returns");
+    if (growth && assumptions.inflation === String(growth.inflation))
+      owned.add("inflation");
 
     const baselineScenario: ScenarioV2 = {
       ...scenario,
@@ -191,12 +200,19 @@ export function TechEstimatorHero({
   const selectedFiling = scenario.taxProfile.filing;
 
   const [includeProgression, setIncludeProgression] = useState<boolean>(() => {
-    return scenario.events.some((e) => Boolean(e.presetProgression)) || scenario.events.length === 0;
+    return (
+      scenario.events.some((e) => Boolean(e.presetProgression)) ||
+      scenario.events.length === 0
+    );
   });
 
   // Find active growth preset
   const activeGrowthId: GrowthPreset["id"] =
-    Number(assumptions.returns) >= 9 ? "bull" : Number(assumptions.returns) >= 6.5 ? "moderate" : "conservative";
+    Number(assumptions.returns) >= 9
+      ? "bull"
+      : Number(assumptions.returns) >= 6.5
+        ? "moderate"
+        : "conservative";
 
   function handleCompanyChange(companyId: string) {
     setSelectedCompanyId(companyId);
@@ -204,7 +220,17 @@ export function TechEstimatorHero({
     const defaultLevel = levels[2]?.id || levels[0]?.id || "l5";
     setSelectedLevelId(defaultLevel);
     const full = !isPresetApplied;
-    applyTechPreset(companyId, defaultLevel, selectedLocationId, selectedFiling, activeGrowthId, includeProgression, full, false, ["company", "role", "name"]);
+    applyTechPreset(
+      companyId,
+      defaultLevel,
+      selectedLocationId,
+      selectedFiling,
+      activeGrowthId,
+      includeProgression,
+      full,
+      false,
+      ["company", "role", "name"],
+    );
   }
 
   function handleLevelChange(levelId: string) {
@@ -212,7 +238,17 @@ export function TechEstimatorHero({
     setSelectedCompanyId(companyId);
     setSelectedLevelId(levelId);
     const full = !isPresetApplied;
-    applyTechPreset(companyId, levelId, selectedLocationId, selectedFiling, activeGrowthId, includeProgression, full, false, ["role", "name"]);
+    applyTechPreset(
+      companyId,
+      levelId,
+      selectedLocationId,
+      selectedFiling,
+      activeGrowthId,
+      includeProgression,
+      full,
+      false,
+      ["role", "name"],
+    );
   }
 
   function handleLocationChange(locationId: TaxLocation) {
@@ -220,7 +256,14 @@ export function TechEstimatorHero({
     const levelId = selectedLevelId || "l5";
     setSelectedCompanyId(companyId);
     setSelectedLevelId(levelId);
-    applyTechPreset(companyId, levelId, locationId, selectedFiling, activeGrowthId, includeProgression);
+    applyTechPreset(
+      companyId,
+      levelId,
+      locationId,
+      selectedFiling,
+      activeGrowthId,
+      includeProgression,
+    );
   }
 
   function handleFilingChange(filing: "single" | "joint") {
@@ -228,13 +271,30 @@ export function TechEstimatorHero({
     const levelId = selectedLevelId || "l5";
     setSelectedCompanyId(companyId);
     setSelectedLevelId(levelId);
-    applyTechPreset(companyId, levelId, selectedLocationId, filing, activeGrowthId, includeProgression);
+    applyTechPreset(
+      companyId,
+      levelId,
+      selectedLocationId,
+      filing,
+      activeGrowthId,
+      includeProgression,
+    );
   }
 
   function handleProgressionToggle(enabled: boolean) {
     setIncludeProgression(enabled);
     if (selectedCompanyId) {
-      applyTechPreset(selectedCompanyId, selectedLevelId || "l5", selectedLocationId, selectedFiling, activeGrowthId, enabled, false, false, ["events"]);
+      applyTechPreset(
+        selectedCompanyId,
+        selectedLevelId || "l5",
+        selectedLocationId,
+        selectedFiling,
+        activeGrowthId,
+        enabled,
+        false,
+        false,
+        ["events"],
+      );
     }
   }
 
@@ -243,7 +303,11 @@ export function TechEstimatorHero({
     if (!growth) return;
     const shared = { ...assumptions, returns: String(growth.returns) };
     if (baseline.current) {
-      baseline.current = { ...baseline.current, assumptions: shared, owned: new Set([...baseline.current.owned, "returns"]) };
+      baseline.current = {
+        ...baseline.current,
+        assumptions: shared,
+        owned: new Set([...baseline.current.owned, "returns"]),
+      };
     }
     onAssumptionsChange(shared);
   }
@@ -259,19 +323,22 @@ export function TechEstimatorHero({
     previewOnly = false,
     forced: string[] = [],
   ) {
-    const company = techCompanies.find((c) => c.id === companyId) || techCompanies[0];
+    const company =
+      techCompanies.find((c) => c.id === companyId) || techCompanies[0];
     const levels = techLevels[companyId] || techLevels.google;
     const level = levels.find((l) => l.id === levelId) || levels[0];
     const comp = findTechCompPoint(companyId, levelId, locationId);
-    const housing = housingPresets[locationId] || housingPresets["san-francisco"];
+    const housing =
+      housingPresets[locationId] || housingPresets["san-francisco"];
     const living = filing === "joint" ? housing.family : housing.single;
-    const growth = growthPresets.find((g) => g.id === growthId) || growthPresets[0];
+    const growth =
+      growthPresets.find((g) => g.id === growthId) || growthPresets[0];
 
     // Setup 4-year grant and issuer for the detailed model
     const issuerId = scenario.employerId || uid();
     const grantId = uid();
     const vestingTemplate = company.defaultVestingTemplate;
-    const fourYearGrantValue = comp.grantTotal ?? (comp.annualRsu * 4);
+    const fourYearGrantValue = comp.grantTotal ?? comp.annualRsu * 4;
 
     const newIssuer = {
       id: issuerId,
@@ -358,26 +425,77 @@ export function TechEstimatorHero({
       inflation: String(growth.inflation),
     };
     if (previewOnly) {
-      setPreview({ scenario: updatedScenario, assumptions: updatedAssumptions });
+      setPreview({
+        scenario: updatedScenario,
+        assumptions: updatedAssumptions,
+      });
       return;
     }
     applyCandidate(updatedScenario, updatedAssumptions, fullApply, forced);
   }
 
-  function applyCandidate(candidate: ScenarioV2, nextAssumptions: AssumptionsV2, fullApply: boolean, forced: string[] = []) {
-    const keys = ["name", "role", "company", "base", "bonus", "stock", "signOnY1", "signOnY2", "stockMode", "includeStock", "employerId", "issuers", "grants", "events", "expenses", "employerMatch"] as const;
+  function applyCandidate(
+    candidate: ScenarioV2,
+    nextAssumptions: AssumptionsV2,
+    fullApply: boolean,
+    forced: string[] = [],
+  ) {
+    const keys = [
+      "name",
+      "role",
+      "company",
+      "base",
+      "bonus",
+      "stock",
+      "signOnY1",
+      "signOnY2",
+      "stockMode",
+      "includeStock",
+      "employerId",
+      "issuers",
+      "grants",
+      "events",
+      "expenses",
+      "employerMatch",
+    ] as const;
     const old = getBaseline();
-    const same = (left: unknown, right: unknown) => JSON.stringify(left) === JSON.stringify(right);
+    const same = (left: unknown, right: unknown) =>
+      JSON.stringify(left) === JSON.stringify(right);
     const owned = new Set<string>();
     const result = { ...scenario };
     for (const key of keys) {
-      if (fullApply || forced.includes(key) || (old?.owned.has(key) && same(scenario[key], old.scenario[key]))) {
+      if (
+        fullApply ||
+        forced.includes(key) ||
+        (old?.owned.has(key) && same(scenario[key], old.scenario[key]))
+      ) {
         // Keep linked stock settings together when the corresponding grants or
         // issuer have been customized, rather than orphaning a user's grant.
-        const linkedStock = ["stock", "stockMode", "includeStock", "employerId", "issuers", "grants"].includes(key);
-        const stockSafe = fullApply || !linkedStock || (["stock", "stockMode", "includeStock", "employerId", "issuers", "grants"] as const).every(
-          (field) => old?.owned.has(field) && same(scenario[field], old.scenario[field]),
-        );
+        const linkedStock = [
+          "stock",
+          "stockMode",
+          "includeStock",
+          "employerId",
+          "issuers",
+          "grants",
+        ].includes(key);
+        const stockSafe =
+          fullApply ||
+          !linkedStock ||
+          (
+            [
+              "stock",
+              "stockMode",
+              "includeStock",
+              "employerId",
+              "issuers",
+              "grants",
+            ] as const
+          ).every(
+            (field) =>
+              old?.owned.has(field) &&
+              same(scenario[field], old.scenario[field]),
+          );
         if (stockSafe) {
           Object.assign(result, { [key]: candidate[key] });
           owned.add(key);
@@ -385,10 +503,18 @@ export function TechEstimatorHero({
       }
     }
     // Location and household are explicit controls, not inferred preset edits.
-    result.taxProfile = { ...scenario.taxProfile, location: candidate.taxProfile.location, filing: candidate.taxProfile.filing };
+    result.taxProfile = {
+      ...scenario.taxProfile,
+      location: candidate.taxProfile.location,
+      filing: candidate.taxProfile.filing,
+    };
     const shared = { ...assumptions };
     for (const key of ["returns", "inflation"] as const) {
-      if (fullApply || forced.includes(key) || (old?.owned.has(key) && same(assumptions[key], old.assumptions[key]))) {
+      if (
+        fullApply ||
+        forced.includes(key) ||
+        (old?.owned.has(key) && same(assumptions[key], old.assumptions[key]))
+      ) {
         shared[key] = nextAssumptions[key];
         owned.add(key);
       }
@@ -399,8 +525,10 @@ export function TechEstimatorHero({
   }
 
   const currentLevels = techLevels[selectedCompanyId] || techLevels.google;
-  const selectedCompany = techCompanies.find((c) => c.id === selectedCompanyId) || techCompanies[0];
-  const selectedLocation = taxLocations.find((l) => l.id === selectedLocationId) || taxLocations[0];
+  const selectedCompany =
+    techCompanies.find((c) => c.id === selectedCompanyId) || techCompanies[0];
+  const selectedLocation =
+    taxLocations.find((l) => l.id === selectedLocationId) || taxLocations[0];
 
   return (
     <div className="tech-estimator-hero" aria-label="Big Tech Preset Selector">
@@ -408,7 +536,11 @@ export function TechEstimatorHero({
         {/* Company Selector */}
         <div className="hero-control-group">
           <label className="hero-label">Company</label>
-          <div className="pill-selector" role="group" aria-label="Big Tech Company">
+          <div
+            className="pill-selector"
+            role="group"
+            aria-label="Big Tech Company"
+          >
             {techCompanies.map((c) => (
               <button
                 key={c.id}
@@ -451,7 +583,9 @@ export function TechEstimatorHero({
             id="tech-location-select"
             className="hero-select"
             value={selectedLocationId}
-            onChange={(e) => handleLocationChange(e.target.value as TaxLocation)}
+            onChange={(e) =>
+              handleLocationChange(e.target.value as TaxLocation)
+            }
           >
             {taxLocations.map((loc) => (
               <option key={loc.id} value={loc.id}>
@@ -464,7 +598,11 @@ export function TechEstimatorHero({
         {/* Filing & Household Status */}
         <div className="hero-control-group">
           <label className="hero-label">Household</label>
-          <div className="pill-selector" role="group" aria-label="Household structure">
+          <div
+            className="pill-selector"
+            role="group"
+            aria-label="Household structure"
+          >
             <button
               type="button"
               className={`pill-btn ${selectedFiling === "single" ? "active" : ""}`}
@@ -487,7 +625,11 @@ export function TechEstimatorHero({
         {/* Growth Outlook */}
         <div className="hero-control-group">
           <label className="hero-label">Market Outlook</label>
-          <div className="pill-selector" role="group" aria-label="Market Outlook">
+          <div
+            className="pill-selector"
+            role="group"
+            aria-label="Market Outlook"
+          >
             {growthPresets.map((g) => (
               <button
                 key={g.id}
@@ -505,7 +647,10 @@ export function TechEstimatorHero({
 
         {/* Career Progression Toggle - One-line checkmark */}
         <div className="hero-control-group hero-full-width">
-          <label className="progression-checkbox-label" htmlFor="progression-model-toggle">
+          <label
+            className="progression-checkbox-label"
+            htmlFor="progression-model-toggle"
+          >
             <input
               id="progression-model-toggle"
               type="checkbox"
@@ -520,68 +665,131 @@ export function TechEstimatorHero({
         </div>
 
         {/* Optimal Retirement Strategy 1-Click Action */}
-        <div className="hero-control-group hero-full-width">
-          <label className="hero-label">1-Click Retirement Savings Strategy</label>
-          <div className="hero-strategy-row">
-            <div className="pill-selector" role="group" aria-label="Retirement savings target">
-              <button
-                type="button"
-                className="pill-btn"
-                title="Contribute just enough to capture 100% of employer 401(k) match"
-                onClick={() => applyPresetStrategy("match-only")}
-              >
-                Employer Match Only
-              </button>
-              <button
-                type="button"
-                className="pill-btn"
-                title="Max out employee 401(k) deferral limit ($23,500/yr)"
-                onClick={() => applyPresetStrategy("max-401k")}
-              >
-                Max 401(k)
-              </button>
-              <button
-                type="button"
-                className="max-optimal-hero-btn"
-                title={`Max out optimal accounts: 401(k), ${scenario.taxProfile.hsaCoverage !== "none" ? "HSA, " : ""}IRA, and Mega Backdoor (${money(optimalMaxTotal)} / year)`}
-                onClick={handleMaxOptimal}
-              >
-                Max Out Retirement Accounts ({money(optimalMaxTotal)}/yr)
-              </button>
-            </div>
-            {strategyNotice && (
-              <span className="applied-pill" role="status">
-                {strategyNotice}
-              </span>
-            )}
-          </div>
-        </div>
       </div>
-      <p className="hint">Preset changes keep values you have customized. Saved values are kept unless you choose to replace them. Market outlook changes the investment return only.</p>
-      <button type="button" className="secondary small" onClick={() => applyTechPreset(selectedCompanyId, selectedLevelId, selectedLocationId, selectedFiling, activeGrowthId, includeProgression, false, true)}>
+      <p className="hint">
+        Preset changes keep values you have customized. Saved values are kept
+        unless you choose to replace them. Market outlook changes the investment
+        return only.
+      </p>
+      <button
+        ref={previewButton}
+        type="button"
+        className="secondary small"
+        onClick={() =>
+          applyTechPreset(
+            selectedCompanyId,
+            selectedLevelId,
+            selectedLocationId,
+            selectedFiling,
+            activeGrowthId,
+            includeProgression,
+            false,
+            true,
+          )
+        }
+      >
         Preview full preset
       </button>
-      {preview && (
-        <div className="preset-preview" role="region" aria-label="Full preset preview">
-          <strong>Replace values with this preset?</strong>
-          <p>This replaces the scenario name, pay, bonuses, stock grants and employers (including any starting shares and cost basis), living costs, match, generated promotions, and market assumptions. Review these estimates before applying.</p>
-          <ul>
-            <li>Annual salary: {scenario.base} → {preview.scenario.base}</li>
-            <li>Annual bonus: {scenario.bonus} → {preview.scenario.bonus}</li>
-            <li>Annual stock: {scenario.stock} → {preview.scenario.stock}</li>
-            <li>Sign-on bonuses (years 1 / 2): {scenario.signOnY1} / {scenario.signOnY2} → {preview.scenario.signOnY1} / {preview.scenario.signOnY2}</li>
-            <li>Employer: {scenario.issuers.map((i) => i.name).join(", ") || "None"} → {preview.scenario.issuers.map((i) => i.name).join(", ") || "None"}</li>
-            <li>Stock grants: {scenario.grants.length} → {preview.scenario.grants.length} (existing grants will be replaced)</li>
-            <li>Career events: {scenario.events.length} → {preview.scenario.events.length} (manual events are retained)</li>
-            <li>Employer match: {scenario.employerMatch.type} → {preview.scenario.employerMatch.rate}% up to {preview.scenario.employerMatch.payPercent}% of pay</li>
-            <li>Monthly living costs: {Object.values(scenario.expenses).reduce((n, v) => n + (Number(v) || 0), 0)} → {Object.values(preview.scenario.expenses).reduce((n, v) => n + (Number(v) || 0), 0)}</li>
-            <li>Investment return: {assumptions.returns}% → {preview.assumptions.returns}%</li>
-            <li>Expense inflation: {assumptions.inflation}% → {preview.assumptions.inflation}%</li>
-          </ul>
-          <button type="button" onClick={() => { applyCandidate(preview.scenario, preview.assumptions, true); setPreview(null); }}>Apply full preset</button>{" "}
-          <button type="button" className="text-button" onClick={() => setPreview(null)}>Cancel</button>
-        </div>
-      )}
+      <Dialog
+        open={!!preview}
+        onOpenChange={(open) => {
+          if (!open) setPreview(null);
+        }}
+      >
+        <DialogContent
+          onCloseAutoFocus={(event) => {
+            event.preventDefault();
+            previewButton.current?.focus();
+          }}
+        >
+          {preview && (
+            <div
+              className="preset-preview"
+              role="region"
+              aria-label="Full preset preview"
+            >
+              <DialogHeader>
+                <DialogTitle>Replace values with this preset?</DialogTitle>
+                <DialogDescription>
+                  This replaces the scenario name, pay, bonuses, stock grants
+                  and employers (including any starting shares and cost basis),
+                  living costs, match, generated promotions, and market
+                  assumptions. Review these estimates before applying.
+                </DialogDescription>
+              </DialogHeader>
+              <ul>
+                <li>
+                  Annual salary: {scenario.base} → {preview.scenario.base}
+                </li>
+                <li>
+                  Annual bonus: {scenario.bonus} → {preview.scenario.bonus}
+                </li>
+                <li>
+                  Annual stock: {scenario.stock} → {preview.scenario.stock}
+                </li>
+                <li>
+                  Sign-on bonuses (years 1 / 2): {scenario.signOnY1} /{" "}
+                  {scenario.signOnY2} → {preview.scenario.signOnY1} /{" "}
+                  {preview.scenario.signOnY2}
+                </li>
+                <li>
+                  Employer:{" "}
+                  {scenario.issuers.map((i) => i.name).join(", ") || "None"} →{" "}
+                  {preview.scenario.issuers.map((i) => i.name).join(", ") ||
+                    "None"}
+                </li>
+                <li>
+                  Stock grants: {scenario.grants.length} →{" "}
+                  {preview.scenario.grants.length} (existing grants will be
+                  replaced)
+                </li>
+                <li>
+                  Career events: {scenario.events.length} →{" "}
+                  {preview.scenario.events.length} (manual events are retained)
+                </li>
+                <li>
+                  Employer match: {scenario.employerMatch.type} →{" "}
+                  {preview.scenario.employerMatch.rate}% up to{" "}
+                  {preview.scenario.employerMatch.payPercent}% of pay
+                </li>
+                <li>
+                  Monthly living costs:{" "}
+                  {Object.values(scenario.expenses).reduce(
+                    (n, v) => n + (Number(v) || 0),
+                    0,
+                  )}{" "}
+                  →{" "}
+                  {Object.values(preview.scenario.expenses).reduce(
+                    (n, v) => n + (Number(v) || 0),
+                    0,
+                  )}
+                </li>
+                <li>
+                  Investment return: {assumptions.returns}% →{" "}
+                  {preview.assumptions.returns}%
+                </li>
+                <li>
+                  Expense inflation: {assumptions.inflation}% →{" "}
+                  {preview.assumptions.inflation}%
+                </li>
+              </ul>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setPreview(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  onClick={() => {
+                    applyCandidate(preview.scenario, preview.assumptions, true);
+                    setPreview(null);
+                  }}
+                >
+                  Apply full preset
+                </Button>
+              </DialogFooter>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -1,3 +1,11 @@
+import { RotateCcw, ShieldCheck, ArrowUpRight } from "lucide-react";
+import { Button } from "./components/ui/button";
+import { AppearanceControl } from "./components/ThemeProvider";
+import {
+  ResultsNavigation,
+  destinations,
+} from "./components/ResultsNavigation";
+import type { Destination } from "./components/ResultsNavigation";
 import { useEffect, useMemo, useState } from "react";
 import type { PlannerV2 } from "./lib/planner";
 import {
@@ -6,7 +14,11 @@ import {
   validPlanner,
 } from "./lib/planner";
 import { loadPlanner, savePlanner } from "./lib/plannerStorage";
-import { parsePlannerUrlParams, readFullPlannerLink, fullPlannerUrl } from "./lib/plannerUrl";
+import {
+  parsePlannerUrlParams,
+  readFullPlannerLink,
+  fullPlannerUrl,
+} from "./lib/plannerUrl";
 import { projectScenario } from "./lib/projection";
 import { ScenarioForm } from "./components/ScenarioForm";
 import { Results } from "./components/Results";
@@ -15,7 +27,10 @@ import { PlannerBackup } from "./components/PlannerBackup";
 import { AppFooter } from "./components/AppFooter";
 import { analyticsConsent, track } from "./lib/analytics";
 import { StartupFields, emptyStartup } from "./components/StartupComparison";
-import { startupScenarioView, type StartupInputs } from "./lib/startupComparison";
+import {
+  startupScenarioView,
+  type StartupInputs,
+} from "./lib/startupComparison";
 
 function initial() {
   let linked: ReturnType<typeof readFullPlannerLink> = null;
@@ -55,21 +70,45 @@ function initial() {
 }
 
 const startupSessionKey = "careerworth:startup-v1";
-function initialStartup(): { scenario: number | null; inputs: [StartupInputs, StartupInputs] } {
-  const blank: [StartupInputs, StartupInputs] = [{ ...emptyStartup }, { ...emptyStartup }];
+function initialStartup(): {
+  scenario: number | null;
+  inputs: [StartupInputs, StartupInputs];
+} {
+  const blank: [StartupInputs, StartupInputs] = [
+    { ...emptyStartup },
+    { ...emptyStartup },
+  ];
   try {
-    if (new URLSearchParams(window.location.search).has("plan") && window.history.state?.ownPlan !== true) return { scenario: null, inputs: blank };
-    const saved = JSON.parse(window.localStorage.getItem(startupSessionKey) || "null");
-    if (!saved || ![null, 0, 1].includes(saved.scenario) || !Array.isArray(saved.inputs) || saved.inputs.length !== 2) return { scenario: null, inputs: blank };
+    if (
+      new URLSearchParams(window.location.search).has("plan") &&
+      window.history.state?.ownPlan !== true
+    )
+      return { scenario: null, inputs: blank };
+    const saved = JSON.parse(
+      window.localStorage.getItem(startupSessionKey) || "null",
+    );
+    if (
+      !saved ||
+      ![null, 0, 1].includes(saved.scenario) ||
+      !Array.isArray(saved.inputs) ||
+      saved.inputs.length !== 2
+    )
+      return { scenario: null, inputs: blank };
     const inputs = saved.inputs.map((entry: unknown) => {
-      if (!entry || typeof entry !== "object") throw new Error("Invalid startup session");
+      if (!entry || typeof entry !== "object")
+        throw new Error("Invalid startup session");
       const source = entry as Record<string, unknown>;
       const result = { ...emptyStartup };
       for (const key of Object.keys(result) as (keyof StartupInputs)[]) {
-        if (typeof source[key] !== "string" || source[key].length > 100) throw new Error("Invalid startup session");
+        if (typeof source[key] !== "string" || source[key].length > 100)
+          throw new Error("Invalid startup session");
         Object.assign(result, { [key]: source[key] });
       }
-      if (!['unknown', 'common', 'preferred'].includes(result.currentPriceType) || !['share', 'company'].includes(result.exitMode)) throw new Error("Invalid startup session");
+      if (
+        !["unknown", "common", "preferred"].includes(result.currentPriceType) ||
+        !["share", "company"].includes(result.exitMode)
+      )
+        throw new Error("Invalid startup session");
       return result;
     }) as [StartupInputs, StartupInputs];
     return { scenario: saved.scenario, inputs };
@@ -79,10 +118,16 @@ function initialStartup(): { scenario: number | null; inputs: [StartupInputs, St
 }
 
 export default function App() {
+  const [destination, setDestination] = useState<Destination>("overview");
+  const [selectedYear, setSelectedYear] = useState(0);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(analyticsConsent);
   const [startupSession] = useState(initialStartup);
-  const [startupScenario, setStartupScenario] = useState<number | null>(startupSession.scenario);
-  const [startupInputs, setStartupInputs] = useState<[StartupInputs, StartupInputs]>(startupSession.inputs);
+  const [startupScenario, setStartupScenario] = useState<number | null>(
+    startupSession.scenario,
+  );
+  const [startupInputs, setStartupInputs] = useState<
+    [StartupInputs, StartupInputs]
+  >(startupSession.inputs);
   const [loaded] = useState(initial),
     [state, setState] = useState<PlannerV2>(loaded.state),
     [active, setActive] = useState(0),
@@ -100,18 +145,33 @@ export default function App() {
 
   useEffect(() => {
     try {
-      window.localStorage.setItem(startupSessionKey, JSON.stringify({ scenario: startupScenario, inputs: startupInputs }));
+      window.localStorage.setItem(
+        startupSessionKey,
+        JSON.stringify({ scenario: startupScenario, inputs: startupInputs }),
+      );
     } catch {
-      setStorageMessage("Browser storage is unavailable. Your startup inputs will not be saved.");
+      setStorageMessage(
+        "Browser storage is unavailable. Your startup inputs will not be saved.",
+      );
     }
   }, [startupScenario, startupInputs]);
 
   const valid = validPlanner(state);
 
-  const projectedState = useMemo(() => startupScenario === null ? state : {
-    ...state,
-    scenarios: state.scenarios.map((scenario, index) => index === startupScenario ? startupScenarioView(scenario) : scenario) as PlannerV2["scenarios"],
-  }, [state, startupScenario]);
+  const projectedState = useMemo(
+    () =>
+      startupScenario === null
+        ? state
+        : {
+            ...state,
+            scenarios: state.scenarios.map((scenario, index) =>
+              index === startupScenario
+                ? startupScenarioView(scenario)
+                : scenario,
+            ) as PlannerV2["scenarios"],
+          },
+    [state, startupScenario],
+  );
 
   const calculation = useMemo(() => {
     if (!valid) return { series: [], error: "" };
@@ -187,27 +247,31 @@ export default function App() {
             Career<span>Worth</span>
           </a>
           <span className="header-description">
-            A little clarity for your next move.
+            Your next move, in perspective.
           </span>
+          <AppearanceControl />
           <span className="private-badge">
-            <span aria-hidden="true">◈</span> Private by design
+            <ShieldCheck size={14} aria-hidden="true" /> Private by design
           </span>
         </div>
       </header>
       <main>
         <div className="intro">
           <div>
-            <p className="eyebrow">A CLEARER START FOR YOUR MONEY</p>
-            <h1>Get a quick view of your financial future</h1>
+            <h1>Your financial future</h1>
             <p>
-              Replace the sample values with yours. Add more detail whenever you’re ready.
+              Replace the sample values. Explore your future. Compare your next
+              move.
             </p>
           </div>
-          <button
+          <Button
+            variant="outline"
             type="button"
-            className="text-button reset-button"
+            className="reset-button"
+            aria-label="Reset inputs"
             onClick={() => {
               setState(defaultPlanner());
+              setSelectedYear(0);
               setActive(0);
               setResetVersion((v) => v + 1);
               setStorageMessage("");
@@ -216,8 +280,8 @@ export default function App() {
               setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
             }}
           >
-            ↺ Reset inputs
-          </button>
+            <RotateCcw size={14} aria-hidden="true" /> Reset inputs
+          </Button>
         </div>
         {storageMessage.startsWith("Saved inputs upgraded") && (
           <p className="migration-note">{storageMessage}</p>
@@ -240,6 +304,7 @@ export default function App() {
                   return;
                 }
                 setState(candidate);
+                setSelectedYear(0);
                 setStartupScenario(null);
                 setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
                 setActive(0);
@@ -258,157 +323,248 @@ export default function App() {
             {linkError && <p role="alert">{linkError}</p>}
           </section>
         )}
-        <div className="calculator-layout">
-          <aside className="inputs-panel" aria-label="Calculator inputs">
-            <div className="inputs-heading">
-              {state.comparison ? (
-                <div
-                  className="scenario-switcher"
-                  role="group"
-                  aria-label="Select scenario to edit"
-                >
-                  {state.scenarios.slice(0, 2).map((s, i) => (
-                    <button
-                      type="button"
-                      key={i}
-                      className={`scenario-tab ${active === i ? "active" : ""}`}
-                      aria-pressed={active === i}
-                      onClick={() => setActive(i)}
-                    >
-                      <span className={`scenario-letter series-${i}`}>
-                        {i === 0 ? "A" : "B"}
-                      </span>
-                      <span className="truncate">
-                        {s.name.trim() || `Scenario ${i === 0 ? "A" : "B"}`}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  className="add-comparison"
-                  onClick={() => {
-                    setState((s) => ({ ...s, comparison: true }));
-                    setActive(1);
-                    track("comparison_added");
-                  }}
-                >
-                  + Add comparison
-                </button>
-              )}
-              <span className="muted small-text">All amounts in USD</span>
-            </div>
-
-            {state.comparison && (
-              <div className="comparison-toolbar">
-                <span className="hint">
-                  Editing scenario {active === 0 ? "A" : "B"}
-                </span>
-                <div className="comparison-actions">
-                  {active === 1 && (
-                    <button
-                      type="button"
-                      className="text-button small-text clone-scenario-btn"
-                      onClick={() => {
-                        const cloned = {
-                          ...state.scenarios[0],
-                          name: state.scenarios[1].name || "Scenario B",
-                        };
-                        setState((s) => ({
-                          ...s,
-                          scenarios: [s.scenarios[0], cloned],
-                        }));
-                      }}
-                      title="Copy all compensation, benefits, and expenses from Scenario A"
-                    >
-                      Copy from Scenario A
-                    </button>
-                  )}
+        <div className="workspace-layout">
+          <ResultsNavigation
+            destination={destination}
+            onNavigate={(next) => {
+              setDestination(next);
+              if (window.innerWidth < 1200)
+                requestAnimationFrame(() =>
+                  document
+                    .getElementById("results")
+                    ?.scrollIntoView({ behavior: "instant" }),
+                );
+            }}
+          />
+          <div className="calculator-layout">
+            <aside
+              id="calculator-inputs"
+              className="inputs-panel"
+              aria-label="Calculator inputs"
+            >
+              <div className="input-panel-title">
+                <h2>Your scenarios</h2>
+                <span className="period-tag">USD</span>
+              </div>
+              <div className="inputs-heading">
+                {state.comparison ? (
+                  <div
+                    className="scenario-switcher"
+                    role="group"
+                    aria-label="Select scenario to edit"
+                  >
+                    {state.scenarios.slice(0, 2).map((s, i) => (
+                      <button
+                        type="button"
+                        key={i}
+                        className={`scenario-tab ${active === i ? "active" : ""}`}
+                        aria-pressed={active === i}
+                        onClick={() => setActive(i)}
+                      >
+                        <span className={`scenario-letter series-${i}`}>
+                          {i === 0 ? "A" : "B"}
+                        </span>
+                        <span className="truncate">
+                          {s.name.trim() || `Scenario ${i === 0 ? "A" : "B"}`}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                ) : (
                   <button
                     type="button"
-                    className="text-button small-text"
+                    className="add-comparison"
                     onClick={() => {
-                      setState((s) => ({ ...s, comparison: false }));
-                      setActive(0);
+                      setState((s) => ({ ...s, comparison: true }));
+                      setActive(1);
+                      track("comparison_added");
                     }}
                   >
-                    Remove comparison
+                    + Add comparison
                   </button>
-                </div>
+                )}
               </div>
-            )}
 
-            <StartupFields
-              enabled={startupScenario === active}
-              onToggle={(enabled) => setStartupScenario(enabled ? active : null)}
-              input={startupInputs[active]}
-              onChange={(input) => setStartupInputs((current) => active === 0 ? [input, current[1]] : [current[0], input])}
-              onApplyExample={(choice) => {
-                const base = { 'series-a': '170000', 'series-b': '175000', 'series-c': '175000' }[choice];
-                const input: StartupInputs = { ...emptyStartup, grant: { 'series-a': '16000', 'series-b': '12000', 'series-c': '8000' }[choice], strike: '1.25', vesting: 'cliff' };
-                setStartupInputs((current) => active === 0 ? [input, current[1]] : [current[0], input]);
-                setState((current) => ({
-                  ...current,
-                  scenarios: current.scenarios.map((scenario, index) => index !== active ? scenario : {
-                    ...scenario, name: `Example Series ${choice.slice(-1).toUpperCase()}`, base, bonus: '0', growth: '0', signOnY1: '0', signOnY2: '0',
-                    employerMatch: { ...scenario.employerMatch, type: 'none' as const },
-                  }) as PlannerV2['scenarios'],
-                }));
-              }}
-            />
-            <ScenarioForm
-              key={`${active}-${resetVersion}`}
-              scenario={state.scenarios[active]}
-              assumptions={state.shared}
-              showName={state.comparison}
-              allowInitialPreset={allowInitialPreset}
-              startup={startupScenario === active}
-              onChange={(next) =>
-                setState((s) => ({
-                  ...s,
-                  scenarios: s.scenarios.map((old, i) =>
-                    i === active ? next : old,
-                  ) as PlannerV2["scenarios"],
-                }))
-              }
-              onAssumptionsChange={(shared) =>
-                setState((s) => ({ ...s, shared }))
-              }
-            />
-          </aside>
-          <div id="results" className="results-column" tabIndex={-1}>
-            {ready ? (
-              <Results state={projectedState} series={calculation.series} startupScenario={startupScenario} startupInput={startupInputs[startupScenario ?? 0]} />
-            ) : (
-              <section className="invalid-results" role="status">
-                <span className="empty-icon" aria-hidden="true">
-                  —
-                </span>
-                <h2>A few details need a second look</h2>
-                <p>
-                  {calculation.error ||
-                    "Correct the highlighted inputs to see your projection. Check both scenarios when comparing."}
-                </p>
-                <p className="hint">
-                  Results and export are paused until the inputs are valid.
-                </p>
-              </section>
-            )}
+              {state.comparison && (
+                <div className="comparison-toolbar">
+                  <span className="hint">
+                    Editing scenario {active === 0 ? "A" : "B"}
+                  </span>
+                  <div className="comparison-actions">
+                    {active === 1 && (
+                      <button
+                        type="button"
+                        className="text-button small-text clone-scenario-btn"
+                        onClick={() => {
+                          const cloned = {
+                            ...state.scenarios[0],
+                            name: state.scenarios[1].name || "Scenario B",
+                          };
+                          setState((s) => ({
+                            ...s,
+                            scenarios: [s.scenarios[0], cloned],
+                          }));
+                        }}
+                        title="Copy all compensation, benefits, and expenses from Scenario A"
+                      >
+                        Copy from Scenario A
+                      </button>
+                    )}
+                    <button
+                      type="button"
+                      className="text-button small-text"
+                      onClick={() => {
+                        setState((s) => ({ ...s, comparison: false }));
+                        setActive(0);
+                      }}
+                    >
+                      Remove comparison
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              <a className="jump-to-results" href="#results">
+                View results <ArrowUpRight size={14} aria-hidden="true" />
+              </a>
+              <StartupFields
+                enabled={startupScenario === active}
+                onToggle={(enabled) =>
+                  setStartupScenario(enabled ? active : null)
+                }
+                input={startupInputs[active]}
+                onChange={(input) =>
+                  setStartupInputs((current) =>
+                    active === 0 ? [input, current[1]] : [current[0], input],
+                  )
+                }
+                onApplyExample={(choice) => {
+                  const base = {
+                    "series-a": "170000",
+                    "series-b": "175000",
+                    "series-c": "175000",
+                  }[choice];
+                  const input: StartupInputs = {
+                    ...emptyStartup,
+                    grant: {
+                      "series-a": "16000",
+                      "series-b": "12000",
+                      "series-c": "8000",
+                    }[choice],
+                    strike: "1.25",
+                    vesting: "cliff",
+                  };
+                  setStartupInputs((current) =>
+                    active === 0 ? [input, current[1]] : [current[0], input],
+                  );
+                  setState((current) => ({
+                    ...current,
+                    scenarios: current.scenarios.map((scenario, index) =>
+                      index !== active
+                        ? scenario
+                        : {
+                            ...scenario,
+                            name: `Example Series ${choice.slice(-1).toUpperCase()}`,
+                            base,
+                            bonus: "0",
+                            growth: "0",
+                            signOnY1: "0",
+                            signOnY2: "0",
+                            employerMatch: {
+                              ...scenario.employerMatch,
+                              type: "none" as const,
+                            },
+                          },
+                    ) as PlannerV2["scenarios"],
+                  }));
+                }}
+              />
+              <ScenarioForm
+                key={`${active}-${resetVersion}`}
+                scenario={state.scenarios[active]}
+                assumptions={state.shared}
+                showName={state.comparison}
+                allowInitialPreset={allowInitialPreset}
+                startup={startupScenario === active}
+                onChange={(next) =>
+                  setState((s) => ({
+                    ...s,
+                    scenarios: s.scenarios.map((old, i) =>
+                      i === active ? next : old,
+                    ) as PlannerV2["scenarios"],
+                  }))
+                }
+                onAssumptionsChange={(shared) =>
+                  setState((s) => ({ ...s, shared }))
+                }
+              />
+            </aside>
+            <div id="results" className="results-column" tabIndex={-1}>
+              <div className="workspace-heading">
+                <div>
+                  <h2>
+                    {
+                      destinations.find((item) => item.id === destination)
+                        ?.label
+                    }
+                  </h2>
+                  <p className="hint">
+                    {destination === "overview"
+                      ? "A clearer picture of your money"
+                      : destination === "cash"
+                        ? "Follow your income, spending, and savings"
+                        : destination === "taxes"
+                          ? "Understand your estimated annual liability"
+                          : "Every year of your projection, in detail"}
+                  </p>
+                </div>
+                <a className="back-to-inputs" href="#calculator-inputs">
+                  Edit inputs <ArrowUpRight size={14} aria-hidden="true" />
+                </a>
+              </div>
+              {ready ? (
+                <Results
+                  selectedYear={selectedYear}
+                  onYearChange={setSelectedYear}
+                  destination={destination}
+                  state={projectedState}
+                  series={calculation.series}
+                  startupScenario={startupScenario}
+                  startupInput={startupInputs[startupScenario ?? 0]}
+                />
+              ) : (
+                <section className="invalid-results" role="status">
+                  <span className="empty-icon" aria-hidden="true">
+                    —
+                  </span>
+                  <h2>A few details need a second look</h2>
+                  <p>
+                    {calculation.error ||
+                      "Correct the highlighted inputs to see your projection. Check both scenarios when comparing."}
+                  </p>
+                  <p className="hint">
+                    Results and export are paused until the inputs are valid.
+                  </p>
+                </section>
+              )}
+            </div>
           </div>
         </div>
-        <PlannerBackup
-          state={state}
-          startupActive={startupScenario !== null}
-          onRestore={(restored) => {
-            setState(restored);
-            setStartupScenario(null);
-            setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
-            setActive(0);
-            setResetVersion((version) => version + 1);
-          }}
-        />
-        <RetirementGuide />
+        <div className="planner-resources">
+          <PlannerBackup
+            state={state}
+            startupActive={startupScenario !== null}
+            onRestore={(restored) => {
+              setState(restored);
+              setSelectedYear(0);
+              setStartupScenario(null);
+              setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
+              setActive(0);
+              setResetVersion((version) => version + 1);
+            }}
+          />
+          <RetirementGuide />
+        </div>
         <AppFooter
           ready={ready}
           storageMessage={storageMessage}
