@@ -1,7 +1,13 @@
+import { QuickRetirementPresets } from "./QuickRetirementPresets";
+import { Input } from "./ui/input";
 import { useState, useEffect, useRef } from "react";
 import type { Category } from "../lib/model";
 import type { ScenarioV2 as Scenario, AssumptionsV2 } from "../lib/planner";
-import { plannerScenarioErrors, plannerSharedErrors, uid } from "../lib/planner";
+import {
+  plannerScenarioErrors,
+  plannerSharedErrors,
+  uid,
+} from "../lib/planner";
 import { AutoDetails, NumberField, SelectField } from "./EditorFields";
 import { TaxEditor, BenefitsEditor } from "./TaxEditor";
 import { EquityEditor } from "./EquityEditor";
@@ -56,13 +62,16 @@ export function ScenarioForm({
     ...plannerSharedErrors(a),
   };
   const location = locationPresets.find((p) => p.id === s.location);
-  const hasSignOn = (Number(s.signOnY1) || 0) > 0 || (Number(s.signOnY2) || 0) > 0;
+  const hasSignOn =
+    (Number(s.signOnY1) || 0) > 0 || (Number(s.signOnY2) || 0) > 0;
 
   const set = <K extends keyof Scenario>(key: K, value: Scenario[K]) =>
     onChange({ ...s, [key]: value });
 
-  const shared = <K extends keyof AssumptionsV2>(key: K, value: AssumptionsV2[K]) =>
-    onAssumptionsChange({ ...a, [key]: value });
+  const shared = <K extends keyof AssumptionsV2>(
+    key: K,
+    value: AssumptionsV2[K],
+  ) => onAssumptionsChange({ ...a, [key]: value });
 
   function setTotalExpenses(value: string) {
     setExpenseDraft(value);
@@ -104,7 +113,9 @@ export function ScenarioForm({
     const next = { ...s, expenses: { ...s.expenses, [key]: value } };
     const sum = monthlyExpenses(next);
     setExpenseDraft(
-      categoryKeys.some((k) => !!fieldError(next.expenses[k], "monthlyExpenses"))
+      categoryKeys.some(
+        (k) => !!fieldError(next.expenses[k], "monthlyExpenses"),
+      )
         ? ""
         : String(Number(sum.toFixed(8))),
     );
@@ -114,16 +125,31 @@ export function ScenarioForm({
   const startingAccountTotal =
     Number(a.starting) +
     a.startingAccounts.reduce((sum, row) => sum + Number(row.balance), 0) +
-    Number(a.startingRetirement) + Number(a.startingHsa) +
-    Number(a.startingSpouseRetirement) + Number(a.startingSpouseHsa);
-
+    Number(a.startingRetirement) +
+    Number(a.startingHsa) +
+    Number(a.startingSpouseRetirement) +
+    Number(a.startingSpouseHsa);
 
   const formRef = useRef<HTMLDivElement>(null);
   const [allExpanded, setAllExpanded] = useState(false);
+  useEffect(() => {
+    formRef.current
+      ?.querySelectorAll<HTMLDetailsElement>("details.advanced-accordion")
+      .forEach((section) => {
+        const summary = section.querySelector(":scope > summary");
+        if (summary)
+          summary.toggleAttribute(
+            "data-has-errors",
+            !!section.querySelector('[aria-invalid="true"], .error'),
+          );
+      });
+  });
 
   const toggleAllSections = () => {
     if (!formRef.current) return;
-    const accordions = formRef.current.querySelectorAll<HTMLDetailsElement>("details.advanced-accordion");
+    const accordions = formRef.current.querySelectorAll<HTMLDetailsElement>(
+      "details.advanced-accordion",
+    );
     const anyClosed = Array.from(accordions).some((d) => !d.open);
     accordions.forEach((d) => {
       d.open = anyClosed;
@@ -136,7 +162,7 @@ export function ScenarioForm({
       {showName && (
         <div className="field">
           <label htmlFor="scenario-name">Scenario name</label>
-          <input
+          <Input
             id="scenario-name"
             type="text"
             maxLength={100}
@@ -154,43 +180,55 @@ export function ScenarioForm({
       )}
 
       {/* 1-Click Company & Role Preset Hero */}
-      {!startup && <TechEstimatorHero
-        allowInitialPreset={allowInitialPreset}
-        scenario={s}
-        assumptions={a}
-        onScenarioChange={onChange}
-        onAssumptionsChange={onAssumptionsChange}
-      />}
+      {!startup && (
+        <details className="preset-section">
+          <summary>
+            Company presets <span className="optional">Optional</span>
+          </summary>
+          <TechEstimatorHero
+            allowInitialPreset={allowInitialPreset}
+            scenario={s}
+            assumptions={a}
+            onScenarioChange={onChange}
+            onAssumptionsChange={onAssumptionsChange}
+          />
+        </details>
+      )}
 
+      <h2 className="input-section-title">Offer</h2>
       {/* Core 4 Inputs */}
-      <div className="two-cols">
+      <div className="essential-fields">
         <Field
           label="Annual base salary"
+          unit="USD / year"
           value={s.base}
           onChange={(base) => set("base", base)}
           error={errors.base}
         />
-        {!startup && <Field
-          label="Annual stock / RSUs"
-          value={s.stock}
-          onChange={(stock) => {
-            const annualVal = Number(stock) || 0;
-            const updatedGrants =
-              s.grants &&
-              s.grants.length === 1 &&
-              s.grants[0].employmentId === "initial" &&
-              s.grants[0].presetCompensation === "tech-quick"
-                ? [{ ...s.grants[0], value: String(annualVal * 4) }]
-                : s.grants;
-            onChange({
-              ...s,
-              stock,
-              includeStock: annualVal > 0 ? true : s.includeStock,
-              grants: updatedGrants,
-            });
-          }}
-          error={errors.stock}
-        />}
+        {!startup && (
+          <Field
+            label="Annual stock / RSUs"
+            unit="USD / year"
+            value={s.stock}
+            onChange={(stock) => {
+              const annualVal = Number(stock) || 0;
+              const updatedGrants =
+                s.grants &&
+                s.grants.length === 1 &&
+                s.grants[0].employmentId === "initial" &&
+                s.grants[0].presetCompensation === "tech-quick"
+                  ? [{ ...s.grants[0], value: String(annualVal * 4) }]
+                  : s.grants;
+              onChange({
+                ...s,
+                stock,
+                includeStock: annualVal > 0 ? true : s.includeStock,
+                grants: updatedGrants,
+              });
+            }}
+            error={errors.stock}
+          />
+        )}
       </div>
 
       {hasSignOn || showSignOn ? (
@@ -222,7 +260,44 @@ export function ScenarioForm({
 
       <div className="two-cols">
         <Field
+          label="Recurring cash bonus"
+          unit="USD / year"
+          value={s.bonus}
+          onChange={(bonus) => set("bonus", bonus)}
+          error={errors.bonus}
+        />
+        <div>
+          <Field
+            label="Annual salary growth"
+            unit="%"
+            value={s.growth}
+            onChange={(growth) => set("growth", growth)}
+            error={errors.growth}
+          />
+          <div
+            className="quick-chip-row"
+            role="group"
+            aria-label="Salary growth presets"
+          >
+            {["0", "3", "5", "7", "10"].map((pct) => (
+              <button
+                key={pct}
+                type="button"
+                className={`chip-btn ${s.growth === pct ? "active" : ""}`}
+                onClick={() => set("growth", pct)}
+                title={`${pct}% annual salary growth`}
+              >
+                {pct}%
+              </button>
+            ))}
+          </div>
+        </div>
+      </div>
+      <h2 className="input-section-title">Living costs</h2>
+      <div className="essential-fields">
+        <Field
           label="Monthly living expenses"
+          unit="USD / month"
           value={expenseDraft}
           onChange={setTotalExpenses}
           error={
@@ -235,6 +310,7 @@ export function ScenarioForm({
         />
         <Field
           label="Current invested savings"
+          unit="USD"
           value={a.starting}
           onChange={(starting) => shared("starting", starting)}
           error={errors.starting}
@@ -265,81 +341,11 @@ export function ScenarioForm({
         </div>
       </div>
 
-      {/* 1-Click 401(k) Match Preset Bar */}
-      <div className="quick-match-row">
-        <span className="quick-match-label">401(k) match:</span>
-        <div className="pill-selector" role="group" aria-label="401(k) employer match presets">
-          <button
-            type="button"
-            className={`pill-btn ${s.employerMatch.type === "none" || (s.employerMatch.type === "simple" && Number(s.employerMatch.rate) === 0) ? "active" : ""}`}
-            onClick={() =>
-              set("employerMatch", {
-                type: "none",
-                rate: "0",
-                payPercent: "0",
-                cap: "0",
-                tiers: [],
-                vestingType: "immediate",
-                vestingSchedule: ["100"],
-              })
-            }
-          >
-            None (0%)
-          </button>
-          <button
-            type="button"
-            className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "50" && s.employerMatch.payPercent === "6" && (!s.employerMatch.cap || s.employerMatch.cap === "0") ? "active" : ""}`}
-            onClick={() =>
-              set("employerMatch", {
-                type: "simple",
-                rate: "50",
-                payPercent: "6",
-                cap: "0",
-                tiers: [],
-                vestingType: "immediate",
-                vestingSchedule: ["100"],
-              })
-            }
-          >
-            50% up to 6%
-          </button>
-          <button
-            type="button"
-            className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "100" && s.employerMatch.payPercent === "4" ? "active" : ""}`}
-            onClick={() =>
-              set("employerMatch", {
-                type: "simple",
-                rate: "100",
-                payPercent: "4",
-                cap: "0",
-                tiers: [],
-                vestingType: "immediate",
-                vestingSchedule: ["100"],
-              })
-            }
-          >
-            100% up to 4%
-          </button>
-          <button
-            type="button"
-            className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "100" && s.employerMatch.payPercent === "6" ? "active" : ""}`}
-            onClick={() =>
-              set("employerMatch", {
-                type: "simple",
-                rate: "100",
-                payPercent: "6",
-                cap: "0",
-                tiers: [],
-                vestingType: "immediate",
-                vestingSchedule: ["100"],
-              })
-            }
-          >
-            100% up to 6%
-          </button>
-        </div>
-      </div>
-
+      {Object.keys(errors).length > 0 && (
+        <p className="error advanced-error">
+          Check highlighted fields in the sections below.
+        </p>
+      )}
       {/* 1-Click Expand/Collapse All Accordions */}
       <div className="accordion-toggle-bar">
         <button
@@ -351,11 +357,12 @@ export function ScenarioForm({
         </button>
       </div>
 
-      {/* Progressive Accordion 1: Living Cost Breakdown & Location */}
+      {/* Progressive Accordion 1: Living costs */}
       <details className="advanced-accordion">
         <summary>
-          Living Cost Breakdown & Location{" "}
+          Living costs{" "}
           <span className="optional">Categories & location budgets</span>
+          <span className="section-error">Check inputs</span>
         </summary>
         <div className="details-body">
           <div className="location-picker">
@@ -384,43 +391,15 @@ export function ScenarioForm({
                 if (location) {
                   onChange({ ...s, ...applyLocation(s, location) });
                   setExpenseDraft(
-                    String(monthlyExpenses({ ...s, expenses: location.expenses })),
+                    String(
+                      monthlyExpenses({ ...s, expenses: location.expenses }),
+                    ),
                   );
                 }
               }}
             >
               Apply budget
             </button>
-          </div>
-          <div className="two-cols">
-            <Field
-              label="Recurring cash bonus"
-              value={s.bonus}
-              onChange={(bonus) => set("bonus", bonus)}
-              error={errors.bonus}
-            />
-            <div>
-              <Field
-                label="Annual salary growth"
-                unit="%"
-                value={s.growth}
-                onChange={(growth) => set("growth", growth)}
-                error={errors.growth}
-              />
-              <div className="quick-chip-row" role="group" aria-label="Salary growth presets">
-                {["0", "3", "5", "7", "10"].map((pct) => (
-                  <button
-                    key={pct}
-                    type="button"
-                    className={`chip-btn ${s.growth === pct ? "active" : ""}`}
-                    onClick={() => set("growth", pct)}
-                    title={`${pct}% annual salary growth`}
-                  >
-                    {pct}%
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
           <AutoDetails hasErrors={categoryKeys.some((k) => !!errors[k])}>
             <summary>Expense category breakdown</summary>
@@ -442,19 +421,107 @@ export function ScenarioForm({
       {/* Progressive Accordion 2: Retirement & Benefits */}
       <details className="advanced-accordion">
         <summary>
-          Retirement & Pretax Benefits{" "}
+          Retirement & benefits{" "}
           <span className="optional">401(k), Match, HSA, Health</span>
+          <span className="section-error">Check inputs</span>
         </summary>
         <div className="details-body">
+          {/* 1-Click 401(k) Match Preset Bar */}
+          <div className="quick-match-row">
+            <span className="quick-match-label">401(k) match:</span>
+            <div
+              className="pill-selector"
+              role="group"
+              aria-label="401(k) employer match presets"
+            >
+              <button
+                type="button"
+                className={`pill-btn ${s.employerMatch.type === "none" || (s.employerMatch.type === "simple" && Number(s.employerMatch.rate) === 0) ? "active" : ""}`}
+                onClick={() =>
+                  set("employerMatch", {
+                    type: "none",
+                    rate: "0",
+                    payPercent: "0",
+                    cap: "0",
+                    tiers: [],
+                    vestingType: "immediate",
+                    vestingSchedule: ["100"],
+                  })
+                }
+              >
+                None (0%)
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "50" && s.employerMatch.payPercent === "6" && (!s.employerMatch.cap || s.employerMatch.cap === "0") ? "active" : ""}`}
+                onClick={() =>
+                  set("employerMatch", {
+                    type: "simple",
+                    rate: "50",
+                    payPercent: "6",
+                    cap: "0",
+                    tiers: [],
+                    vestingType: "immediate",
+                    vestingSchedule: ["100"],
+                  })
+                }
+              >
+                50% up to 6%
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "100" && s.employerMatch.payPercent === "4" ? "active" : ""}`}
+                onClick={() =>
+                  set("employerMatch", {
+                    type: "simple",
+                    rate: "100",
+                    payPercent: "4",
+                    cap: "0",
+                    tiers: [],
+                    vestingType: "immediate",
+                    vestingSchedule: ["100"],
+                  })
+                }
+              >
+                100% up to 4%
+              </button>
+              <button
+                type="button"
+                className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "100" && s.employerMatch.payPercent === "6" ? "active" : ""}`}
+                onClick={() =>
+                  set("employerMatch", {
+                    type: "simple",
+                    rate: "100",
+                    payPercent: "6",
+                    cap: "0",
+                    tiers: [],
+                    vestingType: "immediate",
+                    vestingSchedule: ["100"],
+                  })
+                }
+              >
+                100% up to 6%
+              </button>
+            </div>
+          </div>
+
+          <QuickRetirementPresets
+            scenario={s}
+            assumptions={a}
+            onScenarioChange={onChange}
+          />
           <BenefitsEditor s={s} a={a} onChange={onChange} />
         </div>
       </details>
 
-      {/* Progressive Accordion 3: Taxes & Deductions */}
+      {/* Progressive Accordion 3: Taxes */}
       <details className="advanced-accordion">
         <summary>
-          Taxes & Deductions{" "}
-          <span className="optional">Filing status, standard/itemized, state</span>
+          Taxes{" "}
+          <span className="optional">
+            Filing status, standard/itemized, state
+          </span>
+          <span className="section-error">Check inputs</span>
         </summary>
         <div className="details-body">
           <TaxEditor s={s} a={a} onChange={onChange} />
@@ -464,8 +531,9 @@ export function ScenarioForm({
       {/* Progressive Accordion 4: Equity Grants & Schedules */}
       <details className="advanced-accordion">
         <summary>
-          Equity Grants & Vesting Schedules{" "}
+          Equity{" "}
           <span className="optional">Vesting, refreshers, hold vs sell</span>
+          <span className="section-error">Check inputs</span>
         </summary>
         <div className="details-body">
           <div id="starting-employer-shares">
@@ -474,11 +542,12 @@ export function ScenarioForm({
         </div>
       </details>
 
-      {/* Progressive Accordion 5: Career Moves & Promotions */}
+      {/* Progressive Accordion 5: Career changes */}
       <details className="advanced-accordion">
         <summary>
-          Career Moves & Promotions{" "}
+          Career changes{" "}
           <span className="optional">Promotions, employer changes</span>
+          <span className="section-error">Check inputs</span>
         </summary>
         <div className="details-body">
           <CareerEditor s={s} a={a} onChange={onChange} />
@@ -488,14 +557,27 @@ export function ScenarioForm({
       {/* Progressive Accordion 6: Starting Accounts & Assumptions */}
       <details className="advanced-accordion">
         <summary>
-          Starting Accounts & Economic Assumptions{" "}
-          <span className="optional">Past 401(k) balances, return %, inflation</span>
+          Starting balances & assumptions{" "}
+          <span className="optional">
+            Past 401(k) balances, return %, inflation
+          </span>
+          <span className="section-error">Check inputs</span>
         </summary>
         <div className="details-body">
+          <h3>Starting balances</h3>
+          <p className="hint">
+            Shared by both scenarios. Taxable investments are entered above.
+          </p>
           {a.startingAccounts.length > 0 && (
             <div className="metric-row starting-total">
-              <span>Starting assets <small>Taxable + retirement accounts</small></span>
-              <strong>{Number.isFinite(startingAccountTotal) ? money(startingAccountTotal) : "Check balances"}</strong>
+              <span>
+                Starting assets <small>Taxable + retirement accounts</small>
+              </span>
+              <strong>
+                {Number.isFinite(startingAccountTotal)
+                  ? money(startingAccountTotal)
+                  : "Check balances"}
+              </strong>
             </div>
           )}
           {a.startingAccounts.map((account, index) => (
@@ -503,16 +585,41 @@ export function ScenarioForm({
               <SelectField
                 label={`Account ${index + 1} type`}
                 value={account.type}
-                onChange={(value) => onAssumptionsChange({ ...a, startingAccounts: a.startingAccounts.map((row) => row.id === account.id ? { ...row, type: value as RetirementAccountType } : row) })}
+                onChange={(value) =>
+                  onAssumptionsChange({
+                    ...a,
+                    startingAccounts: a.startingAccounts.map((row) =>
+                      row.id === account.id
+                        ? { ...row, type: value as RetirementAccountType }
+                        : row,
+                    ),
+                  })
+                }
               >
-                {(Object.entries(retirementAccountLabels) as [RetirementAccountType, string][]).map(([type, label]) => (
-                  <option key={type} value={type}>{label}</option>
+                {(
+                  Object.entries(retirementAccountLabels) as [
+                    RetirementAccountType,
+                    string,
+                  ][]
+                ).map(([type, label]) => (
+                  <option key={type} value={type}>
+                    {label}
+                  </option>
                 ))}
               </SelectField>
               <SelectField
                 label={`Account ${index + 1} owner`}
                 value={account.owner}
-                onChange={(value) => onAssumptionsChange({ ...a, startingAccounts: a.startingAccounts.map((row) => row.id === account.id ? { ...row, owner: value as "primary" | "spouse" } : row) })}
+                onChange={(value) =>
+                  onAssumptionsChange({
+                    ...a,
+                    startingAccounts: a.startingAccounts.map((row) =>
+                      row.id === account.id
+                        ? { ...row, owner: value as "primary" | "spouse" }
+                        : row,
+                    ),
+                  })
+                }
               >
                 <option value="primary">You</option>
                 <option value="spouse">Spouse</option>
@@ -520,14 +627,28 @@ export function ScenarioForm({
               <Field
                 label={`${account.owner === "spouse" ? "Spouse" : "Your"} ${retirementAccountLabels[account.type]} balance`}
                 value={account.balance}
-                onChange={(value) => onAssumptionsChange({ ...a, startingAccounts: a.startingAccounts.map((row) => row.id === account.id ? { ...row, balance: value } : row) })}
+                onChange={(value) =>
+                  onAssumptionsChange({
+                    ...a,
+                    startingAccounts: a.startingAccounts.map((row) =>
+                      row.id === account.id ? { ...row, balance: value } : row,
+                    ),
+                  })
+                }
                 error={errors[`startingAccounts.${index}.balance`]}
               />
               <button
                 type="button"
                 className="text-button small-text"
                 aria-label={`Remove ${retirementAccountLabels[account.type]} starting balance`}
-                onClick={() => onAssumptionsChange({ ...a, startingAccounts: a.startingAccounts.filter((row) => row.id !== account.id) })}
+                onClick={() =>
+                  onAssumptionsChange({
+                    ...a,
+                    startingAccounts: a.startingAccounts.filter(
+                      (row) => row.id !== account.id,
+                    ),
+                  })
+                }
               >
                 Remove
               </button>
@@ -537,13 +658,28 @@ export function ScenarioForm({
             type="button"
             className="secondary small"
             disabled={a.startingAccounts.length >= 40}
-            onClick={() => onAssumptionsChange({ ...a, startingAccounts: [...a.startingAccounts, { id: uid(), owner: "primary", type: "traditional-401k", balance: "0" }] })}
+            onClick={() =>
+              onAssumptionsChange({
+                ...a,
+                startingAccounts: [
+                  ...a.startingAccounts,
+                  {
+                    id: uid(),
+                    owner: "primary",
+                    type: "traditional-401k",
+                    balance: "0",
+                  },
+                ],
+              })
+            }
           >
             + Add retirement account balance
           </button>
-          {errors.startingAccounts && <p className="error">{errors.startingAccounts}</p>}
+          {errors.startingAccounts && (
+            <p className="error">{errors.startingAccounts}</p>
+          )}
 
-          <div style={{ marginTop: "16px" }}>
+          <div className="economic-assumptions">
             <NumberField
               label="Projection start calendar year"
               unit="January 1"
@@ -562,7 +698,11 @@ export function ScenarioForm({
                   onChange={(v) => shared("returns", v)}
                   error={errors.returns}
                 />
-                <div className="quick-chip-row" role="group" aria-label="Investment return presets">
+                <div
+                  className="quick-chip-row"
+                  role="group"
+                  aria-label="Investment return presets"
+                >
                   {["5", "7", "8.5", "10", "12"].map((pct) => (
                     <button
                       key={pct}
@@ -584,7 +724,11 @@ export function ScenarioForm({
                   onChange={(v) => shared("inflation", v)}
                   error={errors.inflation}
                 />
-                <div className="quick-chip-row" role="group" aria-label="Expense inflation presets">
+                <div
+                  className="quick-chip-row"
+                  role="group"
+                  aria-label="Expense inflation presets"
+                >
                   {["2", "2.5", "3", "4"].map((pct) => (
                     <button
                       key={pct}

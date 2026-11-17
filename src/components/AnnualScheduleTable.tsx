@@ -7,27 +7,25 @@ import type { TaxResultSeries } from "./TaxBreakdownTable";
 export function AnnualScheduleTable({
   series,
   years,
-  isOpen,
 }: {
   series: TaxResultSeries[];
   years: number;
-  isOpen?: boolean;
 }) {
   const [tableColumnsMode, setTableColumnsMode] = useState<"full" | "summary">(
     "full",
   );
 
   return (
-    <details open={isOpen ? true : undefined}>
-      <summary>
+    <section className="cash-panel annual-schedule">
+      <h3>
         Year-by-year projection <span className="optional">{years} years</span>
-      </summary>
+      </h3>
       <div className="details-body">
         <div className="table-header-controls">
           <p className="hint">
-            All values are nominal USD. Gross includes vested equity whether sold
-            or held. Portfolio balance excludes unvested awards. CSV contains
-            full precision and detailed tax components.
+            All values are nominal USD. Gross includes vested equity whether
+            sold or held. Portfolio balance excludes unvested awards. CSV
+            contains full precision and detailed tax components.
           </p>
           <div
             className="table-density-switch"
@@ -48,7 +46,7 @@ export function AnnualScheduleTable({
               aria-pressed={tableColumnsMode === "full"}
               onClick={() => setTableColumnsMode("full")}
             >
-              Full detail (27 cols)
+              Full detail
             </button>
           </div>
         </div>
@@ -212,6 +210,6 @@ export function AnnualScheduleTable({
           </div>
         ))}
       </div>
-    </details>
+    </section>
   );
 }

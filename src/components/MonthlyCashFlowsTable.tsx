@@ -1,40 +1,26 @@
 import { money } from "../lib/format";
-import { exportProjection } from "../lib/plannerCsv";
-import { track } from "../lib/analytics";
 import type { TaxResultSeries } from "./TaxBreakdownTable";
 
 export function MonthlyCashFlowsTable({
   series,
   activeYear,
-  isOpen,
 }: {
   series: TaxResultSeries[];
   activeYear: number;
-  isOpen?: boolean;
 }) {
   const activeCalYear = series[0].projection.rows[activeYear].calendarYear;
 
   return (
-    <details open={isOpen ? true : undefined}>
-      <summary>
+    <section className="cash-panel monthly-schedule">
+      <h3>
         Monthly cash flows & vesting{" "}
         <span className="optional">{activeCalYear}</span>
-      </summary>
+      </h3>
       <div className="details-body">
         <div className="table-toolbar">
           <p className="hint">
             Change the results year above to inspect another calendar year.
           </p>
-          <button
-            type="button"
-            className="secondary small"
-            onClick={() => {
-              exportProjection(series, true);
-              track("csv_exported", { period: "monthly" });
-            }}
-          >
-            Export monthly CSV
-          </button>
         </div>
         {series.map((s) => (
           <div className="yearly-table-block" key={s.index}>
@@ -116,6 +102,6 @@ export function MonthlyCashFlowsTable({
           </div>
         ))}
       </div>
-    </details>
+    </section>
   );
 }

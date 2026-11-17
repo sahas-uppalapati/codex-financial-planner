@@ -6,7 +6,6 @@ import {
   uid,
 } from "../lib/planner";
 import {
-  AutoDetails,
   ErrorList,
   SelectField,
   TextField,
@@ -75,22 +74,7 @@ export function CareerEditor({
     });
   };
   return (
-    <AutoDetails
-      className="advanced-section"
-      hasErrors={
-        Object.keys(errors).some(
-          (k) => k.startsWith("events") || k === "role",
-        ) || undefined
-      }
-    >
-      <summary>
-        Career progression{" "}
-        <span className="optional">
-          {s.events.length
-            ? `${s.events.length} planned changes`
-            : "Promotions & job changes"}
-        </span>
-      </summary>
+    <div className="advanced-section">
       <div className="details-body">
         <SelectField
           label="Initial employer"
@@ -141,6 +125,6 @@ export function CareerEditor({
         </div>
         <ErrorList errors={errors} prefix="events" />
       </div>
-    </AutoDetails>
+    </div>
   );
 }

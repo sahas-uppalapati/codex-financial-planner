@@ -6,24 +6,42 @@ import { defaultPlanner } from "../src/lib/planner";
 import { exportPlannerBackup } from "../src/lib/plannerBackup";
 import { templateSchedule } from "../src/data/vesting";
 
-async function openDetailed(page: Page) {
-  await page.addInitScript(() => {
-    window.sessionStorage.setItem("careerworth:mode", "detailed");
-  });
-  const button = page.getByRole("button", { name: /Add more detail/ });
-  if (await button.isVisible()) {
-    await button.click();
-  }
+async function openAdvanced(page: Page, name: string) {
+  const summary = page
+    .locator(".advanced-accordion > summary")
+    .filter({ hasText: name });
+  if (
+    !(await summary.evaluate(
+      (element) => (element.parentElement as HTMLDetailsElement).open,
+    ))
+  )
+    await summary.click();
+}
+
+async function navigate(
+  page: Page,
+  name: "Overview" | "Cash Flow" | "Taxes" | "Annual Schedule",
+) {
+  await page
+    .getByRole("navigation", { name: "Results navigation" })
+    .getByRole("button", { name, exact: true })
+    .click();
 }
 
 test.beforeEach(async ({ page }) => {
-  await openDetailed(page);
+  await page.goto("/");
+  await page.evaluate(
+    (plan) => localStorage.setItem("careerworth:v3", JSON.stringify(plan)),
+    defaultPlanner(),
+  );
   await page.goto("/");
 });
 
 test("backup download contains the current plan", async ({ page }) => {
   await page.getByLabel("Annual base salary").fill("123456");
-  const backup = page.locator("section").filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
+  const backup = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
   const downloading = page.waitForEvent("download");
   await backup.getByRole("button", { name: "Download backup" }).click();
   const downloaded = await downloading;
@@ -32,23 +50,45 @@ test("backup download contains the current plan", async ({ page }) => {
   expect(data.planner.scenarios[0].base).toBe("123456");
 });
 
-test("backup restores a plan only after validation and confirmation", async ({ page }) => {
+test("backup restores a plan only after validation and confirmation", async ({
+  page,
+}) => {
   const salary = page.getByLabel("Annual base salary");
-  const backup = page.locator("section").filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
+  const backup = page
+    .locator("section")
+    .filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
   const file = backup.locator('input[type="file"]');
   const plan = defaultPlanner();
   plan.scenarios[0].base = "123456";
   const data = Buffer.from(exportPlannerBackup(plan));
   await salary.fill("200000");
-  page.once("dialog", (dialog) => dialog.dismiss());
-  await file.setInputFiles({ name: "plan.json", mimeType: "application/json", buffer: data });
+  await file.setInputFiles({
+    name: "plan.json",
+    mimeType: "application/json",
+    buffer: data,
+  });
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Cancel", exact: true })
+    .click();
   await expect(salary).toHaveValue("200000");
   await expect(backup.getByRole("status")).toContainText("canceled");
-  await file.setInputFiles({ name: "broken.json", mimeType: "application/json", buffer: Buffer.from("{broken") });
+  await file.setInputFiles({
+    name: "broken.json",
+    mimeType: "application/json",
+    buffer: Buffer.from("{broken"),
+  });
   await expect(backup.getByRole("status")).toContainText("not a valid");
   await expect(salary).toHaveValue("200000");
-  page.once("dialog", (dialog) => dialog.accept());
-  await file.setInputFiles({ name: "plan.json", mimeType: "application/json", buffer: data });
+  await file.setInputFiles({
+    name: "plan.json",
+    mimeType: "application/json",
+    buffer: data,
+  });
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Restore plan", exact: true })
+    .click();
   await expect(salary).toHaveValue("123456");
   await page.reload();
   await expect(salary).toHaveValue("123456");
@@ -63,11 +103,13 @@ test("unified view defaults, inputs, progressive accordions and calculations", a
   });
   await page.goto("/?mode=quick");
   await expect(
-    page.getByRole("heading", { name: "Get a quick view of your financial future" }),
+    page.getByRole("heading", { name: "Your financial future" }),
   ).toBeVisible();
   await expect(page.getByLabel("Annual base salary")).toHaveValue("241000");
   await expect(page.getByLabel("Monthly living expenses")).toHaveValue("4500");
-  await expect(page.getByLabel("Current invested savings")).toHaveValue("20000");
+  await expect(page.getByLabel("Current invested savings")).toHaveValue(
+    "20000",
+  );
   await expect(page.getByLabel("Projection length")).toHaveValue("10");
 
   // Edit input
@@ -75,14 +117,27 @@ test("unified view defaults, inputs, progressive accordions and calculations", a
   await expect(page.getByLabel("Annual base salary")).toHaveValue("260000");
 
   // Verify progressive accordions are present and expandable
-  const retirementAccordion = page.getByRole("group").filter({ hasText: "Retirement & Pretax Benefits" }).first();
-  await expect(page.getByText("Retirement & Pretax Benefits")).toBeVisible();
-  await expect(page.getByText("Taxes & Deductions")).toBeVisible();
-  await expect(page.getByText("Equity Grants & Vesting Schedules")).toBeVisible();
-  await expect(page.getByText("Career Moves & Promotions")).toBeVisible();
-  await expect(page.getByText("Starting Accounts & Economic Assumptions")).toBeVisible();
+  await expect(
+    page
+      .locator(".advanced-accordion > summary")
+      .filter({ hasText: "Retirement & benefits" }),
+  ).toBeVisible();
+  await expect(
+    page.locator("summary").filter({ hasText: /^Taxes / }),
+  ).toBeVisible();
+  await expect(
+    page
+      .locator(".advanced-accordion > summary")
+      .filter({ hasText: /^Equity / }),
+  ).toBeVisible();
+  await expect(
+    page.locator("summary").filter({ hasText: /^Career changes/ }),
+  ).toBeVisible();
+  await expect(page.getByText("Starting balances & assumptions")).toBeVisible();
 });
-test("quick presets preserve edits and full replacement requires confirmation", async ({ page }) => {
+test("quick presets preserve edits and full replacement requires confirmation", async ({
+  page,
+}) => {
   await page.evaluate(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -91,9 +146,14 @@ test("quick presets preserve edits and full replacement requires confirmation", 
   const salary = page.getByLabel("Annual base salary");
   await expect(salary).toHaveValue("241000");
   await salary.fill("300001");
-  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Meta" }).click();
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await page
+    .getByRole("group", { name: "Big Tech Company" })
+    .getByRole("button", { name: "Meta" })
+    .click();
   await expect(salary).toHaveValue("300001");
   await page.reload();
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await page.getByLabel("Location", { exact: true }).selectOption("seattle");
   await expect(salary).toHaveValue("300001");
   await page.getByRole("button", { name: "Preview full preset" }).click();
@@ -105,7 +165,9 @@ test("quick presets preserve edits and full replacement requires confirmation", 
   await preview.getByRole("button", { name: "Apply full preset" }).click();
   await expect(salary).not.toHaveValue("300001");
 });
-test("switching company and level updates pay and stock when not manually customized", async ({ page }) => {
+test("switching company and level updates pay and stock when not manually customized", async ({
+  page,
+}) => {
   await page.evaluate(() => {
     window.localStorage.clear();
     window.sessionStorage.clear();
@@ -117,28 +179,44 @@ test("switching company and level updates pay and stock when not manually custom
   await expect(stock).toHaveValue("176000");
 
   // Switch to Meta: compensation should change to Meta E5
-  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Meta" }).click();
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await page
+    .getByRole("group", { name: "Big Tech Company" })
+    .getByRole("button", { name: "Meta" })
+    .click();
   await expect(salary).toHaveValue("231000");
   await expect(stock).toHaveValue("225000");
 
   // Switch to Level E6: compensation should change to Meta E6
-  await page.getByRole("group", { name: "Job Level" }).getByRole("button", { name: "E6" }).click();
+  await page
+    .getByRole("group", { name: "Job Level" })
+    .getByRole("button", { name: "E6" })
+    .click();
   await expect(salary).toHaveValue("275000");
   await expect(stock).toHaveValue("380000");
 
   // Switch to Amazon: compensation should change to Amazon L6 (default senior level)
-  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Amazon" }).click();
+  await page
+    .getByRole("group", { name: "Big Tech Company" })
+    .getByRole("button", { name: "Amazon" })
+    .click();
   await expect(salary).toHaveValue("218000");
   await expect(stock).toHaveValue("166000");
 
   // Reload page: switching company should still update pay
   await page.reload();
   await expect(salary).toHaveValue("218000");
-  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Google" }).click();
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await page
+    .getByRole("group", { name: "Big Tech Company" })
+    .getByRole("button", { name: "Google" })
+    .click();
   await expect(salary).toHaveValue("241000");
   await expect(stock).toHaveValue("176000");
 });
-test("quick forecast separates cash from sold stock and explains negative balances", async ({ page }) => {
+test("quick forecast separates cash from sold stock and explains negative balances", async ({
+  page,
+}) => {
   const plan = defaultPlanner();
   const scenario = plan.scenarios[0];
   scenario.base = "120000";
@@ -165,14 +243,32 @@ test("held stock stays out of spendable cash", async ({ page }) => {
   scenario.taxProfile.mode = "manual";
   scenario.stock = "12000";
   scenario.includeStock = true;
-  scenario.grants = [{ id: "held", name: "Held grant", issuerId: scenario.employerId, employmentId: "initial", month: "2026-01", units: "dollars", value: "48000", priceMode: "modeled", grantPrice: "100", schedule: templateSchedule("quarterly"), template: "quarterly", treatment: "hold", keepOnDeparture: false }];
+  scenario.grants = [
+    {
+      id: "held",
+      name: "Held grant",
+      issuerId: scenario.employerId,
+      employmentId: "initial",
+      month: "2026-01",
+      units: "dollars",
+      value: "48000",
+      priceMode: "modeled",
+      grantPrice: "100",
+      schedule: templateSchedule("quarterly"),
+      template: "quarterly",
+      treatment: "hold",
+      keepOnDeparture: false,
+    },
+  ];
   await page.addInitScript((saved) => {
     localStorage.setItem("careerworth:v3", JSON.stringify(saved));
   }, plan);
   await page.goto("/");
   await expect(page.getByTestId("quick-cash-0")).toContainText("$7,000");
   await page.getByLabel("Annual stock / RSUs").fill("30000");
-  const saved = await page.evaluate(() => JSON.parse(localStorage.getItem("careerworth:v3")!));
+  const saved = await page.evaluate(() =>
+    JSON.parse(localStorage.getItem("careerworth:v3")!),
+  );
   expect(saved.scenarios[0].grants[0].value).toBe("48000");
 });
 test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
@@ -185,27 +281,35 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   await page.goto("/");
   const errors: string[] = [];
   page.on("pageerror", (e) => errors.push(e.message));
-  await page.getByRole("tab", { name: "Cash Flow & Budget" }).click();
+  await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   await expect(page.getByTestId("take-home-0")).toHaveText("$6,197");
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
   const initial = await page.getByTestId("ending-0").textContent();
   await page.getByLabel("Annual base salary").fill("120000");
   await expect(page.getByLabel("Annual base salary")).toBeFocused();
+  await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   await expect(page.getByTestId("take-home-0")).toHaveText("$7,282");
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(page.getByTestId("ending-0")).not.toHaveText(initial!);
   await page.getByRole("button", { name: "Add comparison" }).click();
-  await expect(page.getByRole("button", { name: "Copy from Scenario A" })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Copy from Scenario A" }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   await expect(page.getByTestId("take-home-1")).toHaveText("$8,751");
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(
     page.getByRole("img", { name: "Projected investment balance by year" }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Annual Schedule" }).click();
+  await page
+    .getByRole("button", { name: "Annual Schedule", exact: true })
+    .click();
   await expect(
-    page
-      .getByRole("table")
-      .filter({
-        has: page.locator("caption", { hasText: "Annual compensation" }),
-      }),
+    page.getByRole("table").filter({
+      has: page.locator("caption", { hasText: "Annual compensation" }),
+    }),
   ).toHaveCount(2);
   const download = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export CSV", exact: true }).click();
@@ -216,8 +320,7 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   expect(csv).toContain("Seattle offer");
   expect(csv).toContain("Forfeited unvested equity");
   expect(csv.split("\r\n")).toHaveLength(23);
-  await page.getByRole("tab", { name: "Cash Flow & Budget" }).click();
-  await page.locator(".yearly-section summary").filter({ hasText: "Monthly cash flows & vesting" }).click();
+  await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   const monthly = page.waitForEvent("download");
   await page.getByRole("button", { name: "Export monthly CSV" }).click();
   const monthlyFile = await monthly;
@@ -226,15 +329,20 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
     (await readFile((await monthlyFile.path())!, "utf8")).split("\r\n"),
   ).toHaveLength(243);
   await page.getByRole("button", { name: "Reset inputs" }).click();
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
   await expect(page.getByTestId("ending-1")).toHaveCount(0);
   expect(errors).toEqual([]);
 });
-test.skip("cash presets, independent tax location, budget edits and reload", async ({
+test("cash presets, independent tax location, budget edits and reload", async ({
   page,
 }) => {
-  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Apple" }).click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("221000");
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await page
+    .getByRole("group", { name: "Big Tech Company" })
+    .getByRole("button", { name: "Apple" })
+    .click();
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("194480");
   await page.getByLabel("Annual base salary").fill("150001");
   await page
     .locator(".inputs-panel summary")
@@ -246,11 +354,12 @@ test.skip("cash presets, independent tax location, budget edits and reload", asy
     .selectOption("new-york");
   await page
     .locator(".inputs-panel summary")
-    .filter({ hasText: "Living Cost Breakdown" })
+    .filter({ hasText: "Living costs" })
     .first()
     .click();
+  const budget = await page.getByLabel("Monthly living expenses").inputValue();
   await page.getByLabel("Location budget").selectOption("seattle");
-  await expect(page.getByLabel("Monthly living expenses")).toHaveValue("3000");
+  await expect(page.getByLabel("Monthly living expenses")).toHaveValue(budget);
   await page.getByRole("button", { name: "Apply budget" }).click();
   await expect(page.getByLabel("Tax residence and work location")).toHaveValue(
     "new-york",
@@ -268,35 +377,37 @@ test.skip("cash presets, independent tax location, budget edits and reload", asy
   );
   await page
     .locator(".inputs-panel summary")
-    .filter({ hasText: "Living Cost Breakdown" })
+    .filter({ hasText: "Living costs" })
     .first()
     .click();
-  await page.getByLabel("Food", { exact: false }).fill("600");
+  await page.getByText("Expense category breakdown", { exact: true }).click();
+  await page.getByLabel("Food", { exact: true }).fill("600");
   await page.reload();
   await page
     .locator(".inputs-panel summary")
-    .filter({ hasText: "Living Cost Breakdown" })
+    .filter({ hasText: "Living costs" })
     .first()
     .click();
-  await expect(page.getByLabel("Food", { exact: false })).toHaveValue("600");
+  await page.getByText("Expense category breakdown", { exact: true }).click();
+  await expect(page.getByLabel("Food", { exact: true })).toHaveValue("600");
 });
 test("equity schedule preview, held shares, progressive tax and custom row validation", async ({
   page,
 }) => {
   await page.getByLabel("Projection length").fill("1");
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Equity grants / })
-    .click();
+  await openAdvanced(page, "Equity");
+
   await page.getByRole("button", { name: "Add equity grant" }).click();
   await page.locator("summary").filter({ hasText: "New equity grant" }).click();
   await page.getByLabel("Total grant value").fill("100000");
   await page
     .getByLabel("Vested-share treatment", { exact: true })
     .selectOption("hold");
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$25,000");
+  await navigate(page, "Overview");
   await expect(page.getByTestId("employerStock-0")).toHaveText("$16,211");
-  await page.locator("summary").filter({ hasText: "Tax breakdown" }).click();
+  await navigate(page, "Taxes");
   await expect(page.getByTestId("equity-tax-0")).toHaveText("$8,789");
   await page.getByRole("button", { name: "Edit custom vesting rows" }).click();
   await page.getByLabel("Vesting row 1 percentage").fill("20");
@@ -304,8 +415,10 @@ test("equity schedule preview, held shares, progressive tax and custom row valid
   await expect(
     page.getByText("Vesting percentages must total 100%.").first(),
   ).toBeVisible();
+  await navigate(page, "Overview");
   await page.getByLabel("Vesting row 1 percentage").fill("25");
   await expect(page.getByLabel("Vesting row 1 percentage")).toBeFocused();
+  await navigate(page, "Overview");
   await expect(page.getByTestId("ending-0")).toBeVisible();
   await page
     .getByText("Choose and preview a schedule", { exact: true })
@@ -313,21 +426,21 @@ test("equity schedule preview, held shares, progressive tax and custom row valid
   await page
     .getByLabel("Vesting template", { exact: true })
     .selectOption("amazon-historical");
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$25,000");
   await page
     .getByRole("button", { name: "Apply schedule", exact: true })
     .click();
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$5,000");
   await page.reload();
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$5,000");
 });
 test("midyear promotions, new employers and role equity update annual and monthly results", async ({
   page,
 }) => {
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Career progression / })
-    .click();
+  await openAdvanced(page, "Career changes");
   await page.getByRole("button", { name: "Add promotion" }).click();
   await page.locator("summary").filter({ hasText: "Next level" }).click();
   await page.getByLabel("Role starts in").fill("2026-07");
@@ -337,15 +450,10 @@ test("midyear promotions, new employers and role equity update annual and monthl
     .getByText("Promotion / new-hire equity award", { exact: true })
     .click();
   await page.getByLabel("New role total equity award").fill("40000");
-  await page
-    .locator("summary")
-    .filter({ hasText: "Year-by-year projection" })
-    .click();
-  const annual = page
-    .getByRole("table")
-    .filter({
-      has: page.locator("caption", { hasText: "Annual compensation" }),
-    });
+  await navigate(page, "Annual Schedule");
+  const annual = page.getByRole("table").filter({
+    has: page.locator("caption", { hasText: "Annual compensation" }),
+  });
   await expect(
     annual.getByRole("cell", { name: "$150,000", exact: true }).first(),
   ).toBeVisible();
@@ -353,6 +461,7 @@ test("midyear promotions, new employers and role equity update annual and monthl
     annual.getByRole("cell", { name: "$12,000", exact: true }).first(),
   ).toBeVisible();
   await page.getByLabel("Results for calendar year").selectOption("1");
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$10,000");
   await page
     .getByRole("button", { name: "Change employer", exact: false })
@@ -364,10 +473,7 @@ test("midyear promotions, new employers and role equity update annual and monthl
   ).not.toHaveValue("employer-initial");
   await page.reload();
   await expect(page.getByTestId("ending-0")).toBeVisible();
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Career progression / })
-    .click();
+  await openAdvanced(page, "Career changes");
   await expect(
     page.locator("summary").filter({ hasText: "New role" }),
   ).toBeVisible();
@@ -375,7 +481,8 @@ test("midyear promotions, new employers and role equity update annual and monthl
 test("household benefits, shared HSA validation, and healthcare offset", async ({
   page,
 }) => {
-  await page.getByText("Expense breakdown", { exact: true }).click();
+  await openAdvanced(page, "Living costs");
+  await page.getByText("Expense category breakdown", { exact: true }).click();
   await page
     .getByRole("textbox", { name: "Healthcare", exact: true })
     .fill("1000");
@@ -385,10 +492,8 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
     .click();
   await page.getByLabel("Filing status").selectOption("joint");
   await page.getByLabel("Spouse annual cash wages").fill("100000");
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Pretax benefits / })
-    .click();
+  await openAdvanced(page, "Retirement & benefits");
+
   await expect(
     page.getByLabel("Your annual payroll HSA contribution"),
   ).toHaveCount(0);
@@ -416,10 +521,8 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
   await expect(page.getByTestId("traditional-401k-0")).not.toHaveText("$0");
   await expect(page.getByTestId("hsa-0")).not.toHaveText("$0");
   await page.reload();
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Pretax benefits / })
-    .click();
+  await openAdvanced(page, "Retirement & benefits");
+
   await expect(
     page.getByLabel("Your annual pretax health premiums"),
   ).toHaveValue("6000");
@@ -430,6 +533,11 @@ test("household benefits, shared HSA validation, and healthcare offset", async (
 test("invalid drafts pause results and exports; zero income and negative returns remain usable", async ({
   page,
 }) => {
+  await page.evaluate(
+    (plan) => localStorage.setItem("careerworth:v3", JSON.stringify(plan)),
+    defaultPlanner(),
+  );
+  await page.reload();
   await page.getByLabel("Annual base salary").fill("");
   await expect(
     page.getByText("A few details need a second look"),
@@ -437,16 +545,18 @@ test("invalid drafts pause results and exports; zero income and negative returns
   await expect(page.getByTestId("ending-0")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Export CSV" })).toHaveCount(0);
   await page.getByLabel("Annual base salary").fill("0");
+  await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   await expect(page.getByTestId("take-home-0")).toHaveText("$0");
   await expect(page.getByTestId("savings-0")).toHaveText("-$3,000");
   await expect(page.getByText("N/A", { exact: true })).toBeVisible();
   await page.getByLabel("Projection length").fill("2.5");
   await expect(page.getByText("Use a whole number of years.")).toBeVisible();
   await page.getByLabel("Projection length").fill("40");
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(page.getByTestId("ending-0")).toBeVisible();
   await page
     .locator("summary")
-    .filter({ hasText: /^Assumptions / })
+    .filter({ hasText: /^Starting balances & assumptions/ })
     .click();
   await page.getByLabel("Annual investment return").fill("-100");
   await expect(page.getByTestId("ending-0")).toHaveCount(0);
@@ -466,24 +576,25 @@ test("v1 migration preserves inputs and supports explicit legacy equity conversi
     localStorage.setItem("careerworth:v1", JSON.stringify(old));
   }, old);
   await page.reload();
-  await openDetailed(page);
   await expect(
     page.getByText("Saved inputs upgraded.", { exact: false }).first(),
   ).toBeVisible();
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("take-home-0")).toHaveText("$6,250");
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$50,000");
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Equity grants / })
-    .click();
+  await openAdvanced(page, "Equity");
+
   await expect(page.getByLabel("Legacy annualized stock")).toHaveValue("50000");
   await page
     .getByRole("button", { name: "Replace legacy stock with this grant" })
     .click();
   await expect(page.getByLabel("Legacy annualized stock")).toHaveCount(0);
   await page.getByLabel("Results for calendar year").selectOption("4");
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$0");
   await page.reload();
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$50,000");
   expect(
     await page.evaluate(() => localStorage.getItem("careerworth:v1")),
@@ -497,6 +608,7 @@ test("malformed or unavailable storage does not break calculations", async ({
     localStorage.setItem("careerworth:v2", "{broken");
   });
   await page.reload();
+  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
   await expect(
     page.getByText("Saved inputs could not be restored.", { exact: false }),
@@ -509,9 +621,10 @@ test("malformed or unavailable storage does not break calculations", async ({
     });
   });
   await page.reload();
-  await openDetailed(page);
   await page.getByLabel("Annual base salary").fill("120000");
+  await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   await expect(page.getByTestId("take-home-0")).toHaveText("$7,282");
+  await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(
     page.getByText("Browser storage is unavailable.", { exact: false }),
   ).toBeVisible();
@@ -519,6 +632,7 @@ test("malformed or unavailable storage does not break calculations", async ({
 test("long names and expanded editors/tables fit phone, tablet and desktop widths", async ({
   page,
 }, testInfo) => {
+  await page.getByRole("button", { name: "Add comparison" }).click();
   await page
     .getByLabel("Scenario name")
     .fill(
@@ -526,26 +640,26 @@ test("long names and expanded editors/tables fit phone, tablet and desktop width
         .repeat(3)
         .slice(0, 100),
     );
-  await page.getByRole("button", { name: "Add comparison" }).click();
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Equity grants / })
-    .click();
+  await openAdvanced(page, "Equity");
+
   await page.getByRole("button", { name: "Add equity grant" }).click();
   await page.locator("summary").filter({ hasText: "New equity grant" }).click();
   await page.getByRole("button", { name: "Edit custom vesting rows" }).click();
   await page
-    .locator("summary")
-    .filter({ hasText: "Year-by-year projection" })
+    .getByRole("button", { name: "Annual Schedule", exact: true })
     .click();
-  for (const width of [320, 390, 768, 1024, 1440]) {
-    await page.setViewportSize({ width, height: 1000 });
-    expect(
-      await page.evaluate(
-        () => document.documentElement.scrollWidth <= innerWidth,
-      ),
-    ).toBe(true);
+  for (const theme of ["light", "dark"]) {
+    await page.getByLabel("Appearance").selectOption(theme);
+    for (const width of [320, 390, 768, 1024, 1440]) {
+      await page.setViewportSize({ width, height: 1000 });
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth,
+        ),
+      ).toBe(true);
+    }
   }
+
   await page.getByRole("button", { name: "Reset inputs" }).click();
   await page.setViewportSize({
     width: testInfo.project.name === "mobile" ? 390 : 1440,
@@ -577,4 +691,46 @@ test("keyboard controls open editors, switch scenarios and inspect chart years",
   await expect(range).toHaveValue("0");
   await page.keyboard.press("ArrowRight");
   await expect(range).toHaveValue("1");
+});
+
+test("results navigation keeps the inspected year and theme persists", async ({
+  page,
+}) => {
+  const salary = page.getByLabel("Annual base salary");
+  await salary.fill("185000");
+  const saved = await page.evaluate(() =>
+    localStorage.getItem("careerworth:v3"),
+  );
+  await page.getByRole("button", { name: "Yr 5", exact: true }).click();
+  for (const destination of [
+    "Cash Flow",
+    "Taxes",
+    "Annual Schedule",
+    "Overview",
+  ] as const) {
+    await navigate(page, destination);
+    await expect(page.getByLabel("Results for calendar year")).toHaveValue("4");
+    await expect(salary).toHaveValue("185000");
+  }
+  await expect(page.getByText("2030 average")).toBeVisible();
+  await salary.fill("");
+  await openAdvanced(page, "Starting balances & assumptions");
+  await navigate(page, "Taxes");
+  await expect(salary).toHaveValue("");
+  await salary.fill("185000");
+  await expect(page.getByLabel("Results for calendar year")).toHaveValue("4");
+  await page.getByLabel("Appearance").selectOption("dark");
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  expect(
+    await page.evaluate(() => localStorage.getItem("careerworth:v3")),
+  ).toBe(saved);
+  await page.reload();
+  await expect(page.getByLabel("Appearance")).toHaveValue("dark");
+  await page.getByLabel("Appearance").selectOption("light");
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
+  await page.getByLabel("Appearance").selectOption("system");
+  await page.emulateMedia({ colorScheme: "dark" });
+  await expect(page.locator("html")).toHaveClass(/dark/);
+  await page.emulateMedia({ colorScheme: "light" });
+  await expect(page.locator("html")).not.toHaveClass(/dark/);
 });
