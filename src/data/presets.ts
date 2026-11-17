@@ -1,3 +1,5 @@
+import compensationData from "./compensation.json" with { type: "json" };
+import locationBudgetData from "./locationBudgets.json" with { type: "json" };
 import type { Categories, Scenario } from "../lib/model";
 import type { CareerEvent, ScenarioV2 } from "../lib/planner";
 import { monthLabel, uid } from "../lib/planner";
@@ -39,9 +41,8 @@ export interface CompensationPreset {
   accessed: string;
   reportedPeriod: string;
 }
-// A small, manually curated reference snapshot, not a scraper or live data feed.
-// The public Google snapshot labels stock as first-year and combines bonus with sign-on;
-// it is intentionally not represented as recurring compensation. Unverified levels are omitted.
+// Manually curated from Levels.fyi's public "Average Compensation By Level" tables.
+// Values retain the precision shown publicly (components are rounded); these are not offer quotes.
 const snapshot = (
   company: string,
   stage: string,
@@ -81,69 +82,12 @@ const snapshot = (
             : "annual",
   statistic: "Reported average",
   source: `https://www.levels.fyi/companies/${company.toLowerCase()}/salaries/software-engineer${scope === "United States" ? "/locations/united-states" : `/locations/${scope === "San Francisco Bay Area" ? "san-francisco-bay-area" : scope === "Greater Seattle Area" ? "greater-seattle-area" : "new-york-city-area"}`}`,
-  accessed: "2026-10-27",
-  reportedPeriod: `Public aggregate snapshot; source updated ${company === "Apple" ? "2026-10-25" : "2026-10-26"}; submission window not stated`,
+  accessed: "2026-11-17",
+  reportedPeriod: "Levels.fyi public aggregate snapshot accessed 2026-11-17; source update date is shown on the linked page",
 });
-export const compensationPresets: CompensationPreset[] = [
-  // United States: current public Average Compensation By Level snapshots.
-  snapshot("Meta", "entry", "E3", 146000, 32000, 9200),
-  snapshot("Meta", "mid", "E4", 185000, 103000, 17700),
-  snapshot("Meta", "senior", "E5", 226000, 208000, 25000),
-  snapshot("Microsoft", "entry", "59 · SDE", 129000, 23300, 17700),
-  snapshot("Microsoft", "mid", "61 · SDE II", 158000, 28900, 17700),
-  snapshot("Amazon", "entry", "L4 · SDE I", 137000, 31100, 13800),
-  snapshot("Amazon", "mid", "L5 · SDE II", 178000, 92200, 3500),
-  snapshot("Amazon", "senior", "L6 · SDE III", 218000, 166000, 1600),
-  snapshot("Apple", "entry", "ICT2 · Junior software engineer", 142000, 25300, 4000),
-  snapshot("Apple", "mid", "ICT3 · Software engineer", 172000, 66000, 12700),
-  snapshot("Apple", "senior", "ICT4 · Senior software engineer", 216000, 134000, 22900),
-  snapshot("Google", "entry", "L3 · SWE II", 156000, 43800, 14300),
-  snapshot("Google", "mid", "L4 · SWE III", 194000, 96700, 23600),
-  snapshot("Google", "senior", "L5 · Senior SWE", 232000, 175000, 29800),
-  // San Francisco Bay Area.
-  snapshot("Meta", "entry", "E3", 147000, 36400, 11700, "San Francisco Bay Area"),
-  snapshot("Meta", "mid", "E4", 185000, 102000, 20300, "San Francisco Bay Area"),
-  snapshot("Meta", "senior", "E5", 231000, 225000, 25900, "San Francisco Bay Area"),
-  snapshot("Google", "entry", "L3 · SWE II", 166000, 44300, 20100, "San Francisco Bay Area"),
-  snapshot("Google", "mid", "L4 · SWE III", 204000, 125000, 30900, "San Francisco Bay Area"),
-  snapshot("Google", "senior", "L5 · Senior SWE", 241000, 176000, 25000, "San Francisco Bay Area"),
-  snapshot("Apple", "entry", "ICT2 · Junior software engineer", 149000, 27400, 7700, "San Francisco Bay Area"),
-  snapshot("Apple", "mid", "ICT3 · Software engineer", 177000, 69100, 12000, "San Francisco Bay Area"),
-  snapshot("Apple", "senior", "ICT4 · Senior software engineer", 221000, 135000, 24100, "San Francisco Bay Area"),
-  snapshot("Amazon", "entry", "L4 · SDE I", 141000, 32500, 9600, "San Francisco Bay Area"),
-  snapshot("Microsoft", "entry", "59 · SDE", 135000, 25600, 15300, "San Francisco Bay Area"),
-  snapshot("Microsoft", "mid", "61 · SDE II", 169000, 29700, 14100, "San Francisco Bay Area"),
-  // Greater Seattle Area.
-  snapshot("Meta", "entry", "E3", 132000, 31400, 12900, "Greater Seattle Area"),
-  snapshot("Meta", "mid", "E4", 183000, 85700, 16700, "Greater Seattle Area"),
-  snapshot("Meta", "senior", "E5", 217000, 197000, 29100, "Greater Seattle Area"),
-  snapshot("Google", "entry", "L3 · SWE II", 155000, 36900, 14400, "Greater Seattle Area"),
-  snapshot("Google", "mid", "L4 · SWE III", 181000, 102000, 32800, "Greater Seattle Area"),
-  snapshot("Google", "senior", "L5 · Senior SWE", 219000, 193000, 36800, "Greater Seattle Area"),
-  snapshot("Amazon", "entry", "L4 · SDE I", 134000, 31700, 16400, "Greater Seattle Area"),
-  snapshot("Amazon", "mid", "L5 · SDE II", 173000, 92200, 3600, "Greater Seattle Area"),
-  snapshot("Amazon", "senior", "L6 · SDE III", 211000, 168000, 2800, "Greater Seattle Area"),
-  snapshot("Apple", "entry", "ICT2 · Junior software engineer", 125000, 28200, 9200, "Greater Seattle Area"),
-  snapshot("Apple", "mid", "ICT3 · Software engineer", 172000, 59200, 18500, "Greater Seattle Area"),
-  snapshot("Apple", "senior", "ICT4 · Senior software engineer", 219000, 142000, 20000, "Greater Seattle Area"),
-  snapshot("Microsoft", "entry", "59 · SDE", 125000, 23000, 6900, "Greater Seattle Area"),
-  snapshot("Microsoft", "mid", "61 · SDE II", 154000, 27200, 8400, "Greater Seattle Area"),
-  // New York City Area.
-  snapshot("Meta", "entry", "E3", 148000, 27500, 4500, "New York City Area"),
-  snapshot("Meta", "mid", "E4", 197000, 98200, 17500, "New York City Area"),
-  snapshot("Meta", "senior", "E5", 222000, 159000, 19800, "New York City Area"),
-  snapshot("Google", "entry", "L3 · SWE II", 153000, 45300, 7500, "New York City Area"),
-  snapshot("Google", "mid", "L4 · SWE III", 200000, 72700, 5600, "New York City Area"),
-  snapshot("Google", "senior", "L5 · Senior SWE", 232000, 146000, 36000, "New York City Area"),
-  snapshot("Amazon", "entry", "L4 · SDE I", 152000, 30700, 9800, "New York City Area"),
-  snapshot("Amazon", "mid", "L5 · SDE II", 186000, 106000, 0, "New York City Area"),
-  snapshot("Amazon", "senior", "L6 · SDE III", 223000, 176000, 8600, "New York City Area"),
-  snapshot("Apple", "entry", "ICT2 · Junior software engineer", 133000, 19100, 2400, "New York City Area"),
-  snapshot("Apple", "mid", "ICT3 · Software engineer", 167000, 45900, 9300, "New York City Area"),
-  snapshot("Apple", "senior", "ICT4 · Senior software engineer", 221000, 139000, 15200, "New York City Area"),
-  snapshot("Microsoft", "entry", "59 · SDE", 135000, 23700, 8400, "New York City Area"),
-  snapshot("Microsoft", "mid", "61 · SDE II", 166000, 28800, 9500, "New York City Area"),
-];
+export const compensationPresets: CompensationPreset[] = compensationData.map(({ company, stage, level, base, stock, bonus, scope }) =>
+  snapshot(company, stage, level, base, stock, bonus, scope as CompensationPreset["scope"]),
+);
 export const levelMappings: Record<string, string[]> = {
   Google: ["L3 · SWE II", "L4 · SWE III", "L5 · Senior SWE"],
   Meta: ["E3", "E4", "E5"],
@@ -173,11 +117,12 @@ export function applyCompensation(
   s: Scenario,
   p: CompensationPreset,
 ): Scenario {
+  const recurringStock = p.stockKind === "annualized" ? p.stock : 0;
   return {
     ...s,
     base: String(p.base),
     bonus: String(p.bonusProjection),
-    stock: String(p.stock),
+    stock: String(recurringStock),
     appliedCompensation: p.id,
   };
 }
@@ -249,7 +194,7 @@ export function compensationStatus(s: Scenario): string {
   if (!p) return "Manual entry";
   return Number(s.base) === p.base &&
     Number(s.bonus) === p.bonusProjection &&
-    Number(s.stock) === p.stock
+    Number(s.stock) === (p.stockKind === "annualized" ? p.stock : 0)
     ? `${p.company} · ${p.level}`
     : "Customized";
 }
@@ -266,7 +211,9 @@ export interface LocationPreset {
   id: string;
   label: string;
   expenses: Categories;
+  familyExpenses: Categories;
   annualPublished: AnnualBudget;
+  familyAnnualPublished: AnnualBudget;
   scope: string;
   sourceYear: string;
   accessed: string;
@@ -274,108 +221,38 @@ export interface LocationPreset {
   kind: string;
 }
 // Seven manually curated county references fall within the source FAQ's <=10-location allowance.
-// Monthly fields are derived from annual published categories, rounded to cents at preset creation.
+// Monthly fields for both household types are derived from annual categories and rounded to cents.
+const monthlyExpenses = (annual: AnnualBudget): Categories => ({
+  housing: ((annual.housing + annual.internetMobile) / 12).toFixed(2),
+  food: (annual.food / 12).toFixed(2),
+  transportation: (annual.transportation / 12).toFixed(2),
+  healthcare: (annual.medical / 12).toFixed(2),
+  other: ((annual.civic + annual.other) / 12).toFixed(2),
+});
 const location = (
   id: string,
   label: string,
   county: string,
   fips: string,
   annual: AnnualBudget,
-  accessed = "2026-10-27",
+  familyAnnual: AnnualBudget,
+  accessed = "2026-11-17",
 ): LocationPreset => ({
   id,
   label,
-  expenses: {
-    housing: ((annual.housing + annual.internetMobile) / 12).toFixed(2),
-    food: (annual.food / 12).toFixed(2),
-    transportation: (annual.transportation / 12).toFixed(2),
-    healthcare: (annual.medical / 12).toFixed(2),
-    other: ((annual.civic + annual.other) / 12).toFixed(2),
-  },
+  expenses: monthlyExpenses(annual),
+  familyExpenses: monthlyExpenses(familyAnnual),
   annualPublished: annual,
+  familyAnnualPublished: familyAnnual,
   scope: county,
   sourceYear: "2026; updated February 15, 2026",
   accessed,
   source: `https://livingwage.mit.edu/counties/${fips}`,
   kind: "Derived minimum-needs budget",
 });
-export const locationPresets = [
-  location("columbus", "Columbus, OH", "Franklin County, Ohio", "39049", {
-    housing: 13698,
-    food: 4358,
-    transportation: 7912,
-    medical: 3658,
-    civic: 3347,
-    internetMobile: 1497,
-    other: 4549,
-  }),
-  location("seattle", "Seattle, WA", "King County, Washington", "53033", {
-    housing: 25589,
-    food: 5234,
-    transportation: 8441,
-    medical: 3032,
-    civic: 3876,
-    internetMobile: 2397,
-    other: 4992,
-  }),
-  location("los-angeles", "Los Angeles, CA", "Los Angeles County, California", "06037", {
-    housing: 22471,
-    food: 4463,
-    transportation: 8681,
-    medical: 3255,
-    civic: 3876,
-    internetMobile: 1517,
-    other: 4992,
-  }, "2026-11-16"),
-  location(
-    "san-francisco",
-    "San Francisco, CA",
-    "San Francisco County, California",
-    "06075",
-    {
-      housing: 27517,
-      food: 5807,
-      transportation: 6691,
-      medical: 3828,
-      civic: 3876,
-      internetMobile: 1971,
-      other: 4992,
-    },
-  ),
-  location(
-    "new-york",
-    "New York, NY",
-    "New York County (Manhattan), New York",
-    "36061",
-    {
-      housing: 35525,
-      food: 7116,
-      transportation: 4710,
-      medical: 4695,
-      civic: 3456,
-      internetMobile: 1627,
-      other: 4715,
-    },
-  ),
-  location("austin", "Austin, TX", "Travis County, Texas", "48453", {
-    housing: 18213,
-    food: 4159,
-    transportation: 8465,
-    medical: 3075,
-    civic: 2583,
-    internetMobile: 1479,
-    other: 4067,
-  }),
-  location("boston", "Boston, MA", "Suffolk County, Massachusetts", "25025", {
-    housing: 29455,
-    food: 5141,
-    transportation: 5991,
-    medical: 4257,
-    civic: 3456,
-    internetMobile: 2359,
-    other: 4715,
-  }),
-];
+export const locationPresets = locationBudgetData.map(({ id, label, county, fips, annual, familyAnnual }) =>
+  location(id, label, county, fips, annual, familyAnnual),
+);
 export function applyLocation(s: Scenario, p: LocationPreset): Scenario {
   return { ...s, expenses: { ...p.expenses }, appliedLocation: p.id };
 }

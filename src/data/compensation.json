@@ -1,0 +1,506 @@
+[
+  {
+    "company": "Meta",
+    "stage": "entry",
+    "level": "E3",
+    "base": 145000,
+    "stock": 35700,
+    "bonus": 12700,
+    "scope": "United States"
+  },
+  {
+    "company": "Meta",
+    "stage": "mid",
+    "level": "E4",
+    "base": 192000,
+    "stock": 86700,
+    "bonus": 21000,
+    "scope": "United States"
+  },
+  {
+    "company": "Meta",
+    "stage": "senior",
+    "level": "E5",
+    "base": 227000,
+    "stock": 195000,
+    "bonus": 26300,
+    "scope": "United States"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "entry",
+    "level": "59 · SDE",
+    "base": 129000,
+    "stock": 23000,
+    "bonus": 15000,
+    "scope": "United States"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "mid",
+    "level": "61 · SDE II",
+    "base": 154000,
+    "stock": 27600,
+    "bonus": 14200,
+    "scope": "United States"
+  },
+  {
+    "company": "Amazon",
+    "stage": "entry",
+    "level": "L4 · SDE I",
+    "base": 137000,
+    "stock": 32400,
+    "bonus": 16600,
+    "scope": "United States"
+  },
+  {
+    "company": "Amazon",
+    "stage": "mid",
+    "level": "L5 · SDE II",
+    "base": 179000,
+    "stock": 91200,
+    "bonus": 3500,
+    "scope": "United States"
+  },
+  {
+    "company": "Amazon",
+    "stage": "senior",
+    "level": "L6 · SDE III",
+    "base": 215000,
+    "stock": 165000,
+    "bonus": 1200,
+    "scope": "United States"
+  },
+  {
+    "company": "Apple",
+    "stage": "entry",
+    "level": "ICT2 · Junior software engineer",
+    "base": 148000,
+    "stock": 28600,
+    "bonus": 6800,
+    "scope": "United States"
+  },
+  {
+    "company": "Apple",
+    "stage": "mid",
+    "level": "ICT3 · Software engineer",
+    "base": 177000,
+    "stock": 73300,
+    "bonus": 13700,
+    "scope": "United States"
+  },
+  {
+    "company": "Apple",
+    "stage": "senior",
+    "level": "ICT4 · Senior software engineer",
+    "base": 217000,
+    "stock": 132000,
+    "bonus": 23100,
+    "scope": "United States"
+  },
+  {
+    "company": "Google",
+    "stage": "entry",
+    "level": "L3 · SWE II",
+    "base": 156000,
+    "stock": 41200,
+    "bonus": 12700,
+    "scope": "United States"
+  },
+  {
+    "company": "Google",
+    "stage": "mid",
+    "level": "L4 · SWE III",
+    "base": 195000,
+    "stock": 105000,
+    "bonus": 35000,
+    "scope": "United States"
+  },
+  {
+    "company": "Google",
+    "stage": "senior",
+    "level": "L5 · Senior SWE",
+    "base": 229000,
+    "stock": 166000,
+    "bonus": 29600,
+    "scope": "United States"
+  },
+  {
+    "company": "Meta",
+    "stage": "entry",
+    "level": "E3",
+    "base": 148000,
+    "stock": 37500,
+    "bonus": 16600,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "mid",
+    "level": "E4",
+    "base": 195000,
+    "stock": 75300,
+    "bonus": 23500,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "senior",
+    "level": "E5",
+    "base": 232000,
+    "stock": 181000,
+    "bonus": 27700,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Google",
+    "stage": "entry",
+    "level": "L3 · SWE II",
+    "base": 166000,
+    "stock": 38900,
+    "bonus": 20700,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Google",
+    "stage": "mid",
+    "level": "L4 · SWE III",
+    "base": 206000,
+    "stock": 124000,
+    "bonus": 43300,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Google",
+    "stage": "senior",
+    "level": "L5 · Senior SWE",
+    "base": 237000,
+    "stock": 168000,
+    "bonus": 28100,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "entry",
+    "level": "ICT2 · Junior software engineer",
+    "base": 152000,
+    "stock": 28100,
+    "bonus": 9400,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "mid",
+    "level": "ICT3 · Software engineer",
+    "base": 181000,
+    "stock": 69300,
+    "bonus": 12100,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "senior",
+    "level": "ICT4 · Senior software engineer",
+    "base": 217000,
+    "stock": 147000,
+    "bonus": 23700,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "entry",
+    "level": "L4 · SDE I",
+    "base": 152000,
+    "stock": 37900,
+    "bonus": 24800,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "mid",
+    "level": "L5 · SDE II",
+    "base": 200000,
+    "stock": 102000,
+    "bonus": 4800,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "senior",
+    "level": "L6 · SDE III",
+    "base": 250000,
+    "stock": 214000,
+    "bonus": 0,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "entry",
+    "level": "59 · SDE",
+    "base": 135000,
+    "stock": 24800,
+    "bonus": 13700,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "mid",
+    "level": "61 · SDE II",
+    "base": 168000,
+    "stock": 31200,
+    "bonus": 14100,
+    "scope": "San Francisco Bay Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "entry",
+    "level": "E3",
+    "base": 132000,
+    "stock": 31800,
+    "bonus": 10600,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "mid",
+    "level": "E4",
+    "base": 180000,
+    "stock": 91500,
+    "bonus": 18100,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "senior",
+    "level": "E5",
+    "base": 223000,
+    "stock": 203000,
+    "bonus": 25800,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Google",
+    "stage": "entry",
+    "level": "L3 · SWE II",
+    "base": 150000,
+    "stock": 35700,
+    "bonus": 16900,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Google",
+    "stage": "mid",
+    "level": "L4 · SWE III",
+    "base": 183000,
+    "stock": 96700,
+    "bonus": 28800,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Google",
+    "stage": "senior",
+    "level": "L5 · Senior SWE",
+    "base": 218000,
+    "stock": 183000,
+    "bonus": 34300,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "entry",
+    "level": "L4 · SDE I",
+    "base": 134000,
+    "stock": 31700,
+    "bonus": 16500,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "mid",
+    "level": "L5 · SDE II",
+    "base": 175000,
+    "stock": 87500,
+    "bonus": 2500,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "senior",
+    "level": "L6 · SDE III",
+    "base": 207000,
+    "stock": 143000,
+    "bonus": 2400,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "entry",
+    "level": "ICT2 · Junior software engineer",
+    "base": 125000,
+    "stock": 28200,
+    "bonus": 9200,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "mid",
+    "level": "ICT3 · Software engineer",
+    "base": 174000,
+    "stock": 61800,
+    "bonus": 17200,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "senior",
+    "level": "ICT4 · Senior software engineer",
+    "base": 220000,
+    "stock": 134000,
+    "bonus": 22400,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "entry",
+    "level": "59 · SDE",
+    "base": 128000,
+    "stock": 24300,
+    "bonus": 17500,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "mid",
+    "level": "61 · SDE II",
+    "base": 155000,
+    "stock": 27600,
+    "bonus": 11800,
+    "scope": "Greater Seattle Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "entry",
+    "level": "E3",
+    "base": 146000,
+    "stock": 28400,
+    "bonus": 5900,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "mid",
+    "level": "E4",
+    "base": 200000,
+    "stock": 111000,
+    "bonus": 14500,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Meta",
+    "stage": "senior",
+    "level": "E5",
+    "base": 227000,
+    "stock": 202000,
+    "bonus": 22800,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Google",
+    "stage": "entry",
+    "level": "L3 · SWE II",
+    "base": 148000,
+    "stock": 46800,
+    "bonus": 5400,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Google",
+    "stage": "mid",
+    "level": "L4 · SWE III",
+    "base": 195000,
+    "stock": 82200,
+    "bonus": 14100,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Google",
+    "stage": "senior",
+    "level": "L5 · Senior SWE",
+    "base": 238000,
+    "stock": 161000,
+    "bonus": 33400,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "entry",
+    "level": "L4 · SDE I",
+    "base": 149000,
+    "stock": 37000,
+    "bonus": 10000,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "mid",
+    "level": "L5 · SDE II",
+    "base": 193000,
+    "stock": 106000,
+    "bonus": 0,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Amazon",
+    "stage": "senior",
+    "level": "L6 · SDE III",
+    "base": 222000,
+    "stock": 174000,
+    "bonus": 8600,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "entry",
+    "level": "ICT2 · Junior software engineer",
+    "base": 133000,
+    "stock": 19100,
+    "bonus": 2400,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "mid",
+    "level": "ICT3 · Software engineer",
+    "base": 166000,
+    "stock": 46300,
+    "bonus": 7300,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Apple",
+    "stage": "senior",
+    "level": "ICT4 · Senior software engineer",
+    "base": 219000,
+    "stock": 140000,
+    "bonus": 14500,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "entry",
+    "level": "59 · SDE",
+    "base": 136000,
+    "stock": 22900,
+    "bonus": 8800,
+    "scope": "New York City Area"
+  },
+  {
+    "company": "Microsoft",
+    "stage": "mid",
+    "level": "61 · SDE II",
+    "base": 166000,
+    "stock": 28800,
+    "bonus": 9500,
+    "scope": "New York City Area"
+  }
+]

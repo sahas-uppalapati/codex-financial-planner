@@ -1,0 +1,170 @@
+[
+  {
+    "id": "columbus",
+    "label": "Columbus, OH",
+    "county": "Franklin County, Ohio",
+    "fips": "39049",
+    "annual": {
+      "housing": 13698,
+      "food": 4358,
+      "transportation": 7912,
+      "medical": 3658,
+      "civic": 3347,
+      "internetMobile": 1497,
+      "other": 4549
+    },
+    "familyAnnual": {
+      "housing": 14721,
+      "food": 7990,
+      "transportation": 9156,
+      "medical": 7150,
+      "civic": 5650,
+      "internetMobile": 2033,
+      "other": 8272
+    }
+  },
+  {
+    "id": "seattle",
+    "label": "Seattle, WA",
+    "county": "King County, Washington",
+    "fips": "53033",
+    "annual": {
+      "housing": 25589,
+      "food": 5234,
+      "transportation": 8441,
+      "medical": 3032,
+      "civic": 3876,
+      "internetMobile": 2397,
+      "other": 4992
+    },
+    "familyAnnual": {
+      "housing": 26477,
+      "food": 9596,
+      "transportation": 9769,
+      "medical": 6684,
+      "civic": 6543,
+      "internetMobile": 3020,
+      "other": 9077
+    }
+  },
+  {
+    "id": "los-angeles",
+    "label": "Los Angeles, CA",
+    "county": "Los Angeles County, California",
+    "fips": "06037",
+    "annual": {
+      "housing": 22471,
+      "food": 4463,
+      "transportation": 8681,
+      "medical": 3255,
+      "civic": 3876,
+      "internetMobile": 1517,
+      "other": 4992
+    },
+    "familyAnnual": {
+      "housing": 25149,
+      "food": 8183,
+      "transportation": 10046,
+      "medical": 6712,
+      "civic": 6543,
+      "internetMobile": 2140,
+      "other": 9077
+    }
+  },
+  {
+    "id": "san-francisco",
+    "label": "San Francisco, CA",
+    "county": "San Francisco County, California",
+    "fips": "06075",
+    "annual": {
+      "housing": 27517,
+      "food": 5807,
+      "transportation": 6691,
+      "medical": 3828,
+      "civic": 3876,
+      "internetMobile": 1971,
+      "other": 4992
+    },
+    "familyAnnual": {
+      "housing": 32965,
+      "food": 10646,
+      "transportation": 7743,
+      "medical": 8142,
+      "civic": 6543,
+      "internetMobile": 2594,
+      "other": 9077
+    }
+  },
+  {
+    "id": "new-york",
+    "label": "New York, NY",
+    "county": "New York County (Manhattan), New York",
+    "fips": "36061",
+    "annual": {
+      "housing": 35525,
+      "food": 7116,
+      "transportation": 4710,
+      "medical": 4695,
+      "civic": 3456,
+      "internetMobile": 1627,
+      "other": 4715
+    },
+    "familyAnnual": {
+      "housing": 37295,
+      "food": 13045,
+      "transportation": 5451,
+      "medical": 10176,
+      "civic": 5834,
+      "internetMobile": 2203,
+      "other": 8573
+    }
+  },
+  {
+    "id": "austin",
+    "label": "Austin, TX",
+    "county": "Travis County, Texas",
+    "fips": "48453",
+    "annual": {
+      "housing": 18213,
+      "food": 4159,
+      "transportation": 8465,
+      "medical": 3075,
+      "civic": 2583,
+      "internetMobile": 1479,
+      "other": 4067
+    },
+    "familyAnnual": {
+      "housing": 19301,
+      "food": 7626,
+      "transportation": 9796,
+      "medical": 7350,
+      "civic": 4360,
+      "internetMobile": 2053,
+      "other": 7395
+    }
+  },
+  {
+    "id": "boston",
+    "label": "Boston, MA",
+    "county": "Suffolk County, Massachusetts",
+    "fips": "25025",
+    "annual": {
+      "housing": 29455,
+      "food": 5141,
+      "transportation": 5991,
+      "medical": 4257,
+      "civic": 3456,
+      "internetMobile": 2359,
+      "other": 4715
+    },
+    "familyAnnual": {
+      "housing": 30916,
+      "food": 9425,
+      "transportation": 6933,
+      "medical": 7686,
+      "civic": 5834,
+      "internetMobile": 2934,
+      "other": 8573
+    }
+  }
+]

@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { computeTechReality, computeVestingSchedule, getStatutoryStateSupplementalRate } from "./techComp";
 import type { TechRealityInput } from "./techComp";
 import {
@@ -6,6 +6,27 @@ import {
   buildTechProgressionEvents,
 } from "../data/techCompPresets";
 import type { CareerEvent } from "./planner";
+
+vi.mock("../data/techPresets.json", async (importOriginal) => {
+  const original = await importOriginal<{ default: typeof import("../data/techPresets.json") }>();
+  return { default: {
+    ...original.default,
+    techLevels: { ...original.default.techLevels, google: [
+      { id: "l3", level: "Junior", title: "Junior", stage: "entry", experienceYears: 1 },
+      { id: "l4", level: "Senior", title: "Senior", stage: "mid", experienceYears: 3 },
+      { id: "l5", level: "Lead", title: "Lead", stage: "senior", experienceYears: 6 },
+    ] },
+  } };
+});
+
+vi.mock("../data/presets", async (importOriginal) => {
+  const original = await importOriginal<typeof import("../data/presets")>();
+  const example = original.compensationPresets[0];
+  return { ...original, compensationPresets: [
+    { ...example, company: "Google", stage: "entry", scope: "United States", base: 100000, stock: 20000, bonusProjection: 5000, stockKind: "annualized" },
+    { ...example, company: "Google", stage: "mid", scope: "United States", base: 150000, stock: 30000, bonusProjection: 10000, stockKind: "annualized" },
+  ] };
+});
 
 describe("techComp calculations", () => {
   it("computes accurate 4-year vesting schedule for Amazon historical 5/15/40/40", () => {
@@ -138,117 +159,34 @@ describe("techComp calculations", () => {
   });
 
   describe("career progression & promotion timelines", () => {
-    it("generates full 4-step progression timeline for Google starting at L3", () => {
-      const steps = getTechProgressionTimeline("google", "l3", "san-francisco", 2026, 10);
-      expect(steps).toHaveLength(4);
-
-      // Step 0: Starting L3
+    it("builds a timeline and promotion from available compensation, stopping at missing data", () => {
+      const steps = getTechProgressionTimeline("google", "l3", "columbus", 2026, 10);
+      expect(steps).toHaveLength(2);
       expect(steps[0]).toMatchObject({
-        levelId: "l3",
-        levelName: "L3",
-        monthsFromStart: 0,
-        yearsFromStart: 0,
-        yearsFromPrev: 0,
-        monthLabel: "2026-01",
-        base: 166000,
-        bonus: 20000,
-        annualRsu: 44000,
-        totalComp: 230000,
-        isCurrent: true,
+        levelId: "l3", monthsFromStart: 0, monthLabel: "2026-01",
+        totalComp: 125000, isCurrent: true,
       });
-
-      // Step 1: L4 (+2 yrs = 24 months)
       expect(steps[1]).toMatchObject({
-        levelId: "l4",
-        levelName: "L4",
-        monthsFromStart: 24,
-        yearsFromStart: 2,
-        yearsFromPrev: 2,
-        monthLabel: "2028-01",
-        base: 204000,
-        bonus: 30000,
-        annualRsu: 125000,
-        totalComp: 359000,
-        compDelta: 129000,
-        isCurrent: false,
+        levelId: "l4", monthsFromStart: 24, monthLabel: "2028-01",
+        base: 150000, bonus: 10000, annualRsu: 30000,
+        totalComp: 190000, compDelta: 65000, isCurrent: false,
       });
-
-      // Step 2: L5 (+3 yrs = 60 months total)
-      expect(steps[2]).toMatchObject({
-        levelId: "l5",
-        levelName: "L5",
-        monthsFromStart: 60,
-        yearsFromStart: 5,
-        yearsFromPrev: 3,
-        monthLabel: "2031-01",
-        base: 241000,
-        bonus: 36000,
-        annualRsu: 176000,
-        totalComp: 453000,
-        compDelta: 94000,
-        isCurrent: false,
-      });
-
-      // Step 3: L6 (+3 yrs = 96 months total)
-      expect(steps[3]).toMatchObject({
-        levelId: "l6",
-        levelName: "L6",
-        monthsFromStart: 96,
-        yearsFromStart: 8,
-        yearsFromPrev: 3,
-        monthLabel: "2034-01",
-        base: 280000,
-        bonus: 55000,
-        annualRsu: 275000,
-        totalComp: 610000,
-        compDelta: 157000,
-        isCurrent: false,
-      });
-    });
-
-    it("handles terminal level gracefully", () => {
-      const steps = getTechProgressionTimeline("google", "l6", "san-francisco", 2026, 10);
-      expect(steps).toHaveLength(1);
-      expect(steps[0].levelId).toBe("l6");
-      expect(steps[0].isCurrent).toBe(true);
-
-      const events = buildTechProgressionEvents("google", "l6", "san-francisco", "emp-1", 2026, 10);
-      expect(events).toEqual([]);
-    });
-
-    it("generates correct CareerEvents with promotion equity awards", () => {
-      const events = buildTechProgressionEvents("google", "l4", "san-francisco", "emp-google", 2026, 10);
-      // L4 -> L5 (+3 yrs = 36mo), L5 -> L6 (+3 yrs = 72mo)
-      expect(events).toHaveLength(2);
-
+      const events = buildTechProgressionEvents("google", "l3", "columbus", "emp-1", 2026, 10);
+      expect(events).toHaveLength(1);
       expect(events[0]).toMatchObject({
-        kind: "promotion",
-        month: "2029-01",
-        issuerId: "emp-google",
-        base: "241000",
-        bonus: "36000",
-        awardValue: String(176000 * 4), // $704,000 4-year award
-        awardTemplate: "google-quarterly",
-        presetProgression: "google",
+        kind: "promotion", month: "2028-01", issuerId: "emp-1",
+        base: "150000", bonus: "10000", awardValue: "120000",
+        awardTemplate: "google-quarterly", presetProgression: "google",
       });
-
-      expect(events[1]).toMatchObject({
-        kind: "promotion",
-        month: "2032-01",
-        issuerId: "emp-google",
-        base: "280000",
-        bonus: "55000",
-        awardValue: String(275000 * 4), // $1,100,000 4-year award
-        awardTemplate: "google-quarterly",
-        presetProgression: "google",
-      });
+      expect(getTechProgressionTimeline("google", "l5", "columbus", 2026, 10)).toEqual([]);
+      expect(buildTechProgressionEvents("google", "l5", "columbus", "emp-1", 2026, 10)).toEqual([]);
     });
 
     it("preserves manual career events and truncates on collision", () => {
       const manualEvent: CareerEvent = {
         id: "manual-job",
         kind: "job",
-        month: "2030-06",
+        month: "2027-06",
         issuerId: "other-emp",
         role: "Startup CTO",
         base: "300000",
@@ -264,23 +202,18 @@ describe("techComp calculations", () => {
         refresherTreatment: "sell",
       };
 
-      // Starting at L3: promotions proposed at 2028-01 (L4), 2031-01 (L5), 2034-01 (L6)
-      // Manual event at 2030-06 should collide with 2031-01, leaving only 2028-01 + manual event!
+      // A manual event before the first promotion prevents generated events from overriding it.
       const events = buildTechProgressionEvents(
         "google",
         "l3",
-        "san-francisco",
+        "columbus",
         "emp-google",
         2026,
         10,
         [manualEvent],
       );
 
-      expect(events).toHaveLength(2);
-      expect(events[0].month).toBe("2028-01");
-      expect(events[0].kind).toBe("promotion");
-      expect(events[1].month).toBe("2030-06");
-      expect(events[1].kind).toBe("job");
+      expect(events).toEqual([manualEvent]);
     });
   });
 });

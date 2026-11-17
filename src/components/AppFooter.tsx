@@ -88,16 +88,19 @@ export function AppFooter({
           <summary>About these estimates</summary>
           <div className="details-body prose">
             <p>
-              Company cash-pay references are a small static snapshot of reported
-              US-wide software engineer averages from{" "}
+              Company compensation presets are a small static snapshot of reported
+              software engineer averages from{" "}
               <a href="https://www.levels.fyi" target="_blank" rel="noreferrer">
                 Levels.fyi
               </a>
-              , accessed October 27, 2026. They are not city-specific offers or
-              guaranteed pay. Annualized stock averages do not establish actual
-              grant amounts; those must be entered separately. Google and some
-              level compensation presets remain omitted where comparable recurring
-              figures could not be verified.
+              , checked November 17, 2026. U.S., Bay Area, Seattle, and New York
+              snapshots are available where the public table reports comparable
+              components; other tax locations use the U.S. snapshot. These are
+              rounded public averages, not city-specific offers or guaranteed pay.
+              Google first-year stock and combined bonus / sign-on figures are
+              excluded from recurring projections. For other companies, annualized
+              stock averages do not establish actual grant amounts; any modeled
+              grant is an illustration.
             </p>
             <p>
               Vesting presets are reported examples with source dates and editable
@@ -115,9 +118,11 @@ export function AppFooter({
               >
                 Living Wage Institute
               </a>
-              , updated February 15, 2026 and accessed October 27, 2026. They
-              describe one renting adult without children and are not average
-              discretionary spending. Joint households should edit these amounts.
+              , updated February 15, 2026 and checked November 17, 2026. The main
+              location presets describe one renting adult without children; the
+              quick estimator also offers a two-adult, one-worker household with
+              no children. These are minimum-needs estimates, not average
+              discretionary spending. Adjust them to your household.
               Budgets use county data; New York uses Manhattan.
             </p>
             <ul className="source-list">
@@ -164,7 +169,7 @@ export function AppFooter({
       </div>
       <footer>
         <p>
-          ◈ Your planner inputs stay securely in this browser. Optional analytics only records basic actions and never transmits sensitive user data. CareerWorth provides deterministic planning estimates only and does not constitute formal financial, investment, tax, legal, or benefits advice.
+          ◈ Your planner inputs are stored in this browser. Optional analytics records basic actions only. Results are planning estimates.
         </p>
         {analyticsConfigured() && (
           <p className="analytics-preference">

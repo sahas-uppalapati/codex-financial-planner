@@ -37,6 +37,16 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/");
 });
 
+test("fresh plans start with the Amazon L4 Seattle preset", async ({ page }) => {
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/");
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await expect(page.getByRole("button", { name: "Amazon", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByRole("group", { name: "Job Level" }).getByRole("button", { name: "L4", exact: true })).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByLabel("Location", { exact: true }).first()).toHaveValue("seattle");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("134000");
+});
+
 test("backup download contains the current plan", async ({ page }) => {
   await page.getByLabel("Annual base salary").fill("123456");
   const backup = page
