@@ -24,44 +24,44 @@ export function ResultInsights({
   return (
     <>
       {view === "comparison" && comparison && (
-        <section
-          className="cash-panel"
-          aria-labelledby="comparison-insights-heading"
-        >
-          <div className="panel-heading">
-            <div>
-              <p className="eyebrow">SCENARIO COMPARISON</p>
-              <h2 id="comparison-insights-heading">
-                What differs between scenarios
-              </h2>
+        <details className="cash-panel">
+          <summary>Explore contributing differences</summary>
+          <div aria-labelledby="comparison-insights-heading">
+            <div className="panel-heading">
+              <div>
+                <p className="eyebrow">SCENARIO COMPARISON</p>
+                <h2 id="comparison-insights-heading">
+                  What differs between scenarios
+                </h2>
+              </div>
+              <span className="period-tag">Full projection</span>
             </div>
-            <span className="period-tag">Full projection</span>
+            <p className="hint">
+              Totals over the full projection. Differences are {series[1].name}{" "}
+              minus {series[0].name}; these related figures do not add up to the
+              ending balance difference.
+            </p>
+            <div className="insight-list">
+              {comparison[0].map((item, i) => {
+                const delta = comparison[1][i].value - item.value;
+                return (
+                  <div className="insight-line" key={item.label}>
+                    <span>{item.label}</span>
+                    <strong>
+                      {delta > 0 ? "+" : ""}
+                      {money(delta)}
+                    </strong>
+                  </div>
+                );
+              })}
+            </div>
+            <p className="hint">
+              Investment gains exclude changes in employer share prices. Tax and
+              living-cost increases reduce assets; other factors include
+              employer match and forfeitures.
+            </p>
           </div>
-          <p className="hint">
-            Totals over the full projection. Differences are {series[1].name}{" "}
-            minus {series[0].name}; these related figures do not add up to the
-            ending balance difference.
-          </p>
-          <div className="insight-list">
-            {comparison[0].map((item, i) => {
-              const delta = comparison[1][i].value - item.value;
-              return (
-                <div className="insight-line" key={item.label}>
-                  <span>{item.label}</span>
-                  <strong>
-                    {delta > 0 ? "+" : ""}
-                    {money(delta)}
-                  </strong>
-                </div>
-              );
-            })}
-          </div>
-          <p className="hint">
-            Investment gains exclude changes in employer share prices. Tax and
-            living-cost increases reduce assets; other factors include employer
-            match and forfeitures.
-          </p>
-        </section>
+        </details>
       )}
       {view === "income" && (
         <section
