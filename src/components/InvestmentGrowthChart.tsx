@@ -25,6 +25,7 @@ export function InvestmentGrowthChart({
       {series.map((scenario) => {
         let cumulativeAdded = 0;
         let cumulativeGrowth = 0;
+        let previousUnvestedMatch = 0;
         const points = scenario.projection.rows.map((row) => {
           const added =
             row.surplus +
@@ -37,7 +38,9 @@ export function InvestmentGrowthChart({
             row.rothIraContribution +
             row.megaBackdoorContribution +
             row.employerMatch -
-            row.forfeitedMatch;
+            row.forfeitedMatch -
+            (row.unvestedMatch - previousUnvestedMatch);
+          previousUnvestedMatch = row.unvestedMatch;
           const growth = row.endingBalance - row.openingBalance - added;
           cumulativeAdded += added;
           cumulativeGrowth += growth;
@@ -154,6 +157,13 @@ export function InvestmentGrowthChart({
                 })}
               </svg>
             </div>
+            <details>
+              <summary>View chart values</summary>
+              <table>
+                <thead><tr><th scope="col">Year</th><th scope="col">Money added so far</th><th scope="col">Investment growth so far</th></tr></thead>
+                <tbody>{points.map((point) => <tr key={point.year}><th scope="row">{point.year}</th><td>{money(point.added)}</td><td>{money(point.growth)}</td></tr>)}</tbody>
+              </table>
+            </details>
             <div className="growth-chart-legend">
               <span>
                 <i className="growth-legend-swatch added" aria-hidden="true" />
