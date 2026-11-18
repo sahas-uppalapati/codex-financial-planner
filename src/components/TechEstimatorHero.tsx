@@ -19,6 +19,7 @@ import {
   buildTechProgressionEvents,
 } from "../data/techCompPresets";
 import type { GrowthPreset } from "../data/techCompPresets";
+import { compensationPresets, locationPresets } from "../data/presets";
 import { templateSchedule } from "../data/vesting";
 import { uid } from "../lib/planner";
 
@@ -28,6 +29,12 @@ interface TechEstimatorHeroProps {
   assumptions: AssumptionsV2;
   onScenarioChange: (scenario: ScenarioV2) => void;
   onAssumptionsChange: (assumptions: AssumptionsV2) => void;
+}
+
+function availableLevels(companyId: string, locationId: TaxLocation) {
+  return (techLevels[companyId] || techLevels.google).filter((level) =>
+    findTechCompPoint(companyId, level.id, locationId),
+  );
 }
 
 export function TechEstimatorHero({
@@ -75,30 +82,26 @@ export function TechEstimatorHero({
     : undefined;
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(
-    initialCompany || "google",
+    initialCompany || "amazon",
   );
   const [selectedLevelId, setSelectedLevelId] = useState<string>(() => {
-    const compId = initialCompany || "google";
-    const levels = techLevels[compId] ?? techLevels.google;
+    const compId = initialCompany || "amazon";
+    const levels = availableLevels(compId, scenario.taxProfile.location);
     const matched = levels.find(
       (l) =>
         scenario.name?.toLowerCase().includes(l.level.toLowerCase()) ||
         scenario.role?.toLowerCase().includes(l.title.toLowerCase()),
     );
-    return matched?.id ?? levels[2]?.id ?? levels[0]?.id ?? "l5";
+    return matched?.id ?? (initialCompany ? levels[2]?.id : "l4") ?? levels[0]?.id ?? "l4";
   });
 
   useEffect(() => {
     if (!initialized.current) {
       if (allowInitialPreset && !initialCompany) {
-        const location =
-          scenario.taxProfile.location === "columbus"
-            ? "san-francisco"
-            : scenario.taxProfile.location;
         applyTechPreset(
-          "google",
-          "l5",
-          location,
+          "amazon",
+          "l4",
+          "seattle",
           scenario.taxProfile.filing,
           activeGrowthId,
           true,
@@ -122,11 +125,16 @@ export function TechEstimatorHero({
     const levelId = selectedLevelId || "l5";
     const locId = scenario.taxProfile.location;
     const comp = findTechCompPoint(compId, levelId, locId);
+    if (!comp) {
+      const result = { scenario, assumptions, owned: new Set<string>() };
+      baseline.current = result;
+      return result;
+    }
     const company =
       techCompanies.find((c) => c.id === compId) || techCompanies[0];
     const levels = techLevels[compId] || techLevels.google;
     const level = levels.find((l) => l.id === levelId) || levels[0];
-    const housing = housingPresets[locId] || housingPresets["san-francisco"];
+    const housing = housingPresets[locId];
     const living =
       scenario.taxProfile.filing === "joint" ? housing.family : housing.single;
 
@@ -159,8 +167,15 @@ export function TechEstimatorHero({
       owned.add("role");
     }
 
-    const expectedRent = String(living.rent);
-    if (scenario.expenses?.housing === expectedRent) owned.add("expenses");
+    if (
+      Object.keys(living).every(
+        (key) =>
+          Number(scenario.expenses[key as keyof typeof living]) ===
+          Number(living[key as keyof typeof living]),
+      )
+    ) {
+      owned.add("expenses");
+    }
 
     if (scenario.employerMatch?.rate === String(company.matchPolicy.rate))
       owned.add("employerMatch");
@@ -183,6 +198,7 @@ export function TechEstimatorHero({
       company: company.name,
       name: `${company.name} ${level.level}`,
       role: `${level.title} at ${company.name}`,
+      expenses: { ...living },
     };
 
     const initial = {
@@ -216,7 +232,7 @@ export function TechEstimatorHero({
 
   function handleCompanyChange(companyId: string) {
     setSelectedCompanyId(companyId);
-    const levels = techLevels[companyId] || techLevels.google;
+    const levels = availableLevels(companyId, selectedLocationId);
     const defaultLevel = levels[2]?.id || levels[0]?.id || "l5";
     setSelectedLevelId(defaultLevel);
     const full = !isPresetApplied;
@@ -328,8 +344,8 @@ export function TechEstimatorHero({
     const levels = techLevels[companyId] || techLevels.google;
     const level = levels.find((l) => l.id === levelId) || levels[0];
     const comp = findTechCompPoint(companyId, levelId, locationId);
-    const housing =
-      housingPresets[locationId] || housingPresets["san-francisco"];
+    if (!comp) return;
+    const housing = housingPresets[locationId];
     const living = filing === "joint" ? housing.family : housing.single;
     const growth =
       growthPresets.find((g) => g.id === growthId) || growthPresets[0];
@@ -401,13 +417,7 @@ export function TechEstimatorHero({
         location: locationId,
         filing,
       },
-      expenses: {
-        housing: String(living.rent),
-        food: String(Math.round(living.livingExpenses * 0.4)),
-        transportation: String(Math.round(living.livingExpenses * 0.2)),
-        healthcare: String(Math.round(living.livingExpenses * 0.15)),
-        other: String(Math.round(living.livingExpenses * 0.25)),
-      },
+      expenses: { ...living },
       employerMatch: {
         type: "simple",
         rate: String(company.matchPolicy.rate),
@@ -524,9 +534,26 @@ export function TechEstimatorHero({
     onAssumptionsChange(shared);
   }
 
-  const currentLevels = techLevels[selectedCompanyId] || techLevels.google;
+  const currentLevels = availableLevels(selectedCompanyId, selectedLocationId);
   const selectedCompany =
     techCompanies.find((c) => c.id === selectedCompanyId) || techCompanies[0];
+  const scope =
+    selectedLocationId === "san-francisco"
+      ? "San Francisco Bay Area"
+      : selectedLocationId === "seattle"
+        ? "Greater Seattle Area"
+        : selectedLocationId === "new-york"
+          ? "New York City Area"
+          : "United States";
+  const sourcePreset = compensationPresets.find(
+    (item) =>
+      item.company === selectedCompany.name &&
+      item.stage === currentLevels.find((level) => level.id === selectedLevelId)?.stage &&
+      item.scope === scope,
+  );
+  const budgetSource = locationPresets.find(
+    (item) => item.id === selectedLocationId,
+  );
   const selectedLocation =
     taxLocations.find((l) => l.id === selectedLocationId) || taxLocations[0];
 
@@ -669,7 +696,18 @@ export function TechEstimatorHero({
       <p className="hint">
         Preset changes keep values you have customized. Saved values are kept
         unless you choose to replace them. Market outlook changes the investment
-        return only.
+        return only. Pay references are public Levels.fyi averages; city data is
+        used for San Francisco, Seattle, and New York, and the U.S. aggregate is
+        used for other locations. Google first-year stock and combined bonus / sign-on
+        figures are excluded from recurring projections. Cost presets use MIT's
+        2026 county budgets for one adult or two adults with one worker, with no
+        children; the two-adult household is the planner's joint option.
+        {sourcePreset && (
+          <> <a href={sourcePreset.source} target="_blank" rel="noreferrer">View source data</a>.</>
+        )}
+        {budgetSource && (
+          <> <a href={budgetSource.source} target="_blank" rel="noreferrer">View {budgetSource.scope} cost data</a>.</>
+        )}
       </p>
       <button
         ref={previewButton}

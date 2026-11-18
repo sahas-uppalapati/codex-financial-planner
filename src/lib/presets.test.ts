@@ -41,7 +41,7 @@ describe("presets and persistence", () => {
         applied = applyCompensation(original, p);
       expect(applied).toMatchObject({
         base: String(p.base),
-        stock: String(p.stock),
+        stock: String(p.stockKind === "annualized" ? p.stock : 0),
         bonus: String(p.bonusProjection),
         tax: original.tax,
         expenses: original.expenses,
