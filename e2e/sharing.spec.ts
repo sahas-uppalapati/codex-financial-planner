@@ -113,7 +113,8 @@ test("example indicator and isolated what-if respond to the selected year", asyn
   await expect(details).not.toHaveAttribute("open", "");
   await details.locator("summary").focus();
   await page.keyboard.press("Enter");
-  await page.getByLabel("Results for calendar year").selectOption("1");
+  await page.getByLabel("Results for calendar year").click();
+  await page.getByRole("option", { name: "2027" }).click();
   await page.setViewportSize({ width: 320, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await details.getByLabel("Monthly housing cost").fill("2000");
@@ -125,6 +126,7 @@ test("example indicator and isolated what-if respond to the selected year", asyn
   expect(
     await page.evaluate(() => localStorage.getItem("careerworth:v3")),
   ).toBe(before);
-  await page.getByLabel("Results for calendar year").selectOption("0");
+  await page.getByLabel("Results for calendar year").click();
+  await page.getByRole("option", { name: "2026" }).click();
   await expect(details.getByText(/monthly cash .* →/)).toHaveCount(0);
 });
