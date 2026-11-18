@@ -75,6 +75,30 @@ function event(p: PlannerV2, patch: Partial<CareerEvent> = {}): CareerEvent {
   };
 }
 describe("monthly career and investment engine", () => {
+  it("adds hypothetical after-tax deposits once at month-end and makes them available for IRA funding", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "1";
+    p.shared.returns = "12";
+    const baseline = projectScenario(s, p.shared);
+    expect(projectScenario(s, p.shared, { additionalMonthlyDeposit: 0 })).toEqual(baseline);
+    const added = projectScenario(s, p.shared, { additionalMonthlyDeposit: 1000 });
+    const monthly = 1.12 ** (1 / 12) - 1;
+    expect(added.months[0].endingBalance).toBe(1000);
+    expect(added.rows[0].endingBalance).toBeCloseTo(1000 * ((1 + monthly) ** 12 - 1) / monthly, 6);
+    expect(added.rows[0].taxes).toBe(baseline.rows[0].taxes);
+    p.shared.returns = "0";
+    s.base = "12000";
+    s.expenses.housing = "1000";
+    s.retirementProfiles.primary.workplacePlanCoverage = false;
+    s.retirementTargets.primary.traditionalIra = "7500";
+    expect(projectScenario(s, p.shared).rows[0].traditionalIraContribution).toBe(0);
+    const funded = projectScenario(s, p.shared, { additionalMonthlyDeposit: 625 }).rows[0];
+    expect(funded.traditionalIraContribution).toBeCloseTo(7500, 6);
+    expect(funded.endingBalance).toBeCloseTo(7500, 6);
+    expect(funded.balances.taxable).toBeCloseTo(0, 6);
+    for (const amount of [NaN, Infinity, -1, 1000001])
+      expect(() => projectScenario(s, p.shared, { additionalMonthlyDeposit: amount })).toThrow(RangeError);
+  });
   it("matches a separately computed zero-return cash accumulation", () => {
     const p = fixture(),
       s = p.scenarios[0];

@@ -1,5 +1,9 @@
 # Preset provenance
 
+## Investment calculator assumptions
+
+The standalone investment calculators use user-entered amounts and returns with deterministic monthly compounding; they do not use market data or recommended return forecasts. Career mode reuses the planner’s sourced tax and compensation assumptions and actual monthly projection. Additional monthly money and starting investments are hypothetical after-tax funding, not compensation benchmarks. Targets, supported limits, timing, and the 40-year extrapolation are documented in the README’s Investment calculators section.
+
 ## Startup option illustration
 
 Fictional Series A, B, and C examples use base salary medians reported by [Cadre](https://www.yourcadre.com/comp) for its 2020–2026 engineering placements (updated September 2026, accessed November 16, 2026; CC BY 4.0). The source combines seed–Series A and Series B–C respectively; it does not establish separate B and C medians. Option counts, strike price and vesting are invented for illustration, not sourced company offers or equity benchmarks.

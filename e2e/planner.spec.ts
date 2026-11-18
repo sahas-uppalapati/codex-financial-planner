@@ -573,9 +573,9 @@ test("invalid drafts pause results and exports; zero income and negative returns
     .locator("summary")
     .filter({ hasText: /^Starting balances & assumptions/ })
     .click();
-  await page.getByLabel("Annual investment return").fill("-100");
+  await page.getByRole("complementary", { name: "Calculator inputs" }).getByLabel("Annual investment return").fill("-100");
   await expect(page.getByTestId("ending-0")).toHaveCount(0);
-  await page.getByLabel("Annual investment return").fill("-50");
+  await page.getByRole("complementary", { name: "Calculator inputs" }).getByLabel("Annual investment return").fill("-50");
   await expect(page.getByTestId("ending-0")).toBeVisible();
   expect(await page.locator("body").innerText()).not.toMatch(/NaN|Infinity/);
 });

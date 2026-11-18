@@ -25,6 +25,7 @@ import { projectScenario } from "./lib/projection";
 import { QuickSetup } from "./components/QuickSetup";
 import { ScenarioForm } from "./components/ScenarioForm";
 import { Results } from "./components/Results";
+import { InvestmentCalculators } from "./components/InvestmentCalculators";
 import { RetirementGuide } from "./components/RetirementGuide";
 import { PlannerBackup } from "./components/PlannerBackup";
 import { AppFooter } from "./components/AppFooter";
@@ -122,6 +123,7 @@ function incomingLink() {
 export default function App() {
   const [destination, setDestination] = useState<Destination>("overview");
   const [selectedYear, setSelectedYear] = useState(0);
+  const [calculatorEntry, setCalculatorEntry] = useState(0);
   const [analyticsEnabled, setAnalyticsEnabled] = useState(analyticsConsent);
   const [startupSession] = useState(initialStartup);
   const [startupScenario, setStartupScenario] = useState<number | null>(
@@ -258,7 +260,7 @@ export default function App() {
 
   return (
     <>
-      <a className="skip-link" href="#results">
+      <a className="skip-link" href={destination === "calculators" ? "#investment-calculator-results" : "#results"}>
         Skip to results
       </a>
       <header className="site-header">
@@ -289,7 +291,7 @@ export default function App() {
               move.
             </p>
           </div>
-          <Button
+          {destination !== "calculators" && <Button
             variant="outline"
             type="button"
             className="reset-button"
@@ -308,7 +310,7 @@ export default function App() {
             }}
           >
             <RotateCcw size={14} aria-hidden="true" /> Reset inputs
-          </Button>
+          </Button>}
         </div>
         {storageMessage.startsWith("Saved inputs upgraded") && (
           <p className="migration-note">{storageMessage}</p>
@@ -454,12 +456,13 @@ export default function App() {
                 if (window.innerWidth < 1200)
                   requestAnimationFrame(() =>
                     document
-                      .getElementById("results")
+                      .getElementById(next === "calculators" ? "investment-calculator-results" : "results")
                       ?.scrollIntoView({ behavior: "instant" }),
                   );
               }}
             />
-            <div className="calculator-layout">
+            <InvestmentCalculators visible={destination === "calculators"} entry={calculatorEntry} plan={projectedState} careerReady={ready} startupActive={startupScenario !== null} onEditPlan={() => { setDestination("overview"); requestAnimationFrame(() => document.getElementById("calculator-inputs")?.scrollIntoView({ behavior: "instant" })); }} />
+            <div className="calculator-layout" style={{ display: destination === "calculators" ? "none" : undefined }}> 
               <aside
                 id="calculator-inputs"
                 className="inputs-panel"
@@ -655,6 +658,7 @@ export default function App() {
                   <Results
                     selectedYear={selectedYear}
                     onYearChange={setSelectedYear}
+                    onOpenCalculators={() => { setCalculatorEntry((value) => value + 1); setDestination("calculators"); requestAnimationFrame(() => document.getElementById("investment-calculator-inputs")?.scrollIntoView({ behavior: "instant" })); }}
                     destination={destination}
                     state={projectedState}
                     series={calculation.series}

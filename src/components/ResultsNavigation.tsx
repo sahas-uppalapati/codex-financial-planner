@@ -4,15 +4,17 @@ import {
   ReceiptText,
   CalendarDays,
   LockKeyhole,
+  Calculator,
 } from "lucide-react";
 import { Button } from "./ui/button";
 
-export type Destination = "overview" | "cash" | "taxes" | "yearly";
+export type Destination = "overview" | "cash" | "taxes" | "yearly" | "calculators";
 export const destinations = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "cash", label: "Cash Flow", icon: ArrowLeftRight },
   { id: "taxes", label: "Taxes", icon: ReceiptText },
   { id: "yearly", label: "Annual Schedule", icon: CalendarDays },
+  { id: "calculators", label: "Calculators", icon: Calculator },
 ] as const;
 
 export function ResultsNavigation({

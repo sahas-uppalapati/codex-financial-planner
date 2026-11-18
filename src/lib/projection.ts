@@ -201,7 +201,14 @@ function combineWorkers(
 function sumRequest(request: IraContributionRequest): number {
   return request.traditional + request.roth + request.backdoor + request.megaBackdoor;
 }
-export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
+export interface ProjectionOptions {
+  /** Hypothetical extra after-tax cash at each month-end; not additional wages. */
+  additionalMonthlyDeposit?: number;
+}
+export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: ProjectionOptions = {}): Projection {
+  const extraDeposit = options.additionalMonthlyDeposit ?? 0;
+  if (!Number.isFinite(extraDeposit) || extraDeposit < 0 || extraDeposit > 1_000_000)
+    throw new RangeError("Extra monthly deposits must be between $0 and $1,000,000.");
   const errors = { ...plannerSharedErrors(a), ...plannerScenarioErrors(s, a) };
   if (Object.keys(errors).length)
     throw new RangeError(Object.values(errors)[0]);
@@ -488,7 +495,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
         const tax = annualStock > 0 ? baselineFullTax.total * v.value / annualStock : 0;
         return v.treatment === "sell" ? v.value - tax : -Math.max(0, tax - v.value);
       }));
-      fundingCash += Math.max(0, fundingCash) * monthlyReturn + m.cashGross - m.health - m.retirement - m.roth401k - m.hsa - cashTaxes - expenses + equityCash;
+      fundingCash += Math.max(0, fundingCash) * monthlyReturn + m.cashGross - m.health - m.retirement - m.roth401k - m.hsa - cashTaxes - expenses + equityCash + extraDeposit;
       const payrollRequest = (request: IraContributionRequest, worker: WorkerTaxInput): IraContributionRequest => {
         const workerTax = m.cashGross > 0 ? cashTaxes * worker.cash / m.cashGross : 0;
         const payrollRoom = Math.max(0, worker.cash - worker.health - worker.retirement - (worker.roth401k ?? 0) - worker.hsa - workerTax);
@@ -589,7 +596,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2): Projection {
       balances.taxable +=
         Math.max(0, balances.taxable) * monthlyReturn +
         surplus +
-        stockContribution;
+        stockContribution + extraDeposit;
       for (const type of accountTypes)
         accountBalances[type] *= 1 + monthlyReturn;
       ownerIraBalances.primary *= 1 + monthlyReturn;
