@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Download, Upload } from "lucide-react";
 import type { PlannerV2 } from "../lib/planner";
+import type { StartupSession } from "../lib/startupComparison";
+import type { PlannerSession } from "../lib/plannerBackup";
 import {
   exportPlannerBackup,
   importPlannerBackup,
@@ -20,21 +22,21 @@ import {
 export function PlannerBackup({
   state,
   onRestore,
-  startupActive = false,
+  startup,
 }: {
   state: PlannerV2;
-  onRestore: (state: PlannerV2) => void;
-  startupActive?: boolean;
+  onRestore: (state: PlannerSession) => void;
+  startup: StartupSession;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const restoreButton = useRef<HTMLButtonElement>(null);
   const [message, setMessage] = useState("");
-  const [pending, setPending] = useState<PlannerV2 | null>(null);
+  const [pending, setPending] = useState<PlannerSession | null>(null);
 
   function download() {
     try {
       downloadText(
-        exportPlannerBackup(state),
+        exportPlannerBackup(state, startup),
         "careerworth-plan.json",
         "application/json",
       );
@@ -80,12 +82,6 @@ export function PlannerBackup({
         Download a JSON backup to move your plan to another browser or restore
         it later. The file contains your financial inputs; keep it private.
       </p>
-      {startupActive && (
-        <p>
-          Startup details and mode are not included. Restoring this backup may
-          re-enable the scenario's original stock grants and promotions.
-        </p>
-      )}
       <div className="button-row">
         <Button variant="outline" size="sm" onClick={download}>
           <Download aria-hidden="true" />
@@ -130,8 +126,7 @@ export function PlannerBackup({
           <DialogHeader>
             <DialogTitle>Restore this backup?</DialogTitle>
             <DialogDescription>
-              This will replace the current plan in this browser. Startup
-              details are not included in backups.
+              This will replace the current plan and startup details in this browser.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>

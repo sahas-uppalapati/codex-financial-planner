@@ -53,3 +53,5 @@ Each derived monthly field is rounded to cents when the preset is created. There
 The quick Tech Estimator's Los Angeles housing defaults are rounded monthly groupings of the same county source: one adult with no children for single, and two adults with one working and no children for family. They are minimum-needs approximations; adjust them to the household. No LA-specific tech compensation snapshot is supplied; the existing estimator fallback applies.
 
 Tax calculation and vesting provenance for the v2 monthly model is documented in [TAX_SOURCES.md](TAX_SOURCES.md).
+
+The decision summary, what-if preview, and salary-gap estimate reuse the existing projections and sourced assumptions. Preview inputs do not alter the saved plan.

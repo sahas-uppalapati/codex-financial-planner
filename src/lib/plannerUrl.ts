@@ -1,3 +1,4 @@
+import { parseStartupSession, type StartupSession } from "./startupComparison";
 import type { PlannerV2, TaxLocation } from "./planner";
 import { defaultPlanner } from "./planner";
 import { loadPlanner, PLANNER_KEY } from "./plannerStorage";
@@ -29,14 +30,35 @@ type FullPlanPayload = FullPlanFormat1 | FullPlanFormat2;
 function parseFullPlanPayload(data: unknown): FullPlanPayload | null {
   if (!data || typeof data !== "object" || Array.isArray(data)) return null;
   const obj = data as Record<string, unknown>;
-  if (obj.quickMode !== undefined && typeof obj.quickMode !== "boolean") return null;
+  if (obj.quickMode !== undefined && typeof obj.quickMode !== "boolean")
+    return null;
   if (obj.format === 1) {
-    if (!obj.planner || typeof obj.planner !== "object" || Array.isArray(obj.planner)) return null;
-    return { format: 1, quickMode: obj.quickMode, planner: obj.planner as Record<string, unknown> };
+    if (
+      !obj.planner ||
+      typeof obj.planner !== "object" ||
+      Array.isArray(obj.planner) ||
+      ![2, 3].includes((obj.planner as Record<string, unknown>).version as number)
+    )
+      return null;
+    return {
+      format: 1,
+      quickMode: obj.quickMode,
+      planner: obj.planner as Record<string, unknown>,
+    };
   }
   if (obj.format === 2) {
-    if (obj.delta !== undefined && (!obj.delta || typeof obj.delta !== "object" || Array.isArray(obj.delta))) return null;
-    return { format: 2, quickMode: obj.quickMode, delta: obj.delta as Record<string, unknown> | undefined };
+    if (
+      obj.delta !== undefined &&
+      (!obj.delta || typeof obj.delta !== "object" || Array.isArray(obj.delta))
+    )
+      return null;
+    const delta = obj.delta as Record<string, unknown> | undefined;
+    if (delta && (
+      (delta.comparison !== undefined && typeof delta.comparison !== "boolean") ||
+      (delta.shared !== undefined && (!delta.shared || typeof delta.shared !== "object" || Array.isArray(delta.shared))) ||
+      (delta.scenarios !== undefined && (!Array.isArray(delta.scenarios) || delta.scenarios.length > 2 || delta.scenarios.some((scenario) => !scenario || typeof scenario !== "object" || Array.isArray(scenario))))
+    )) return null;
+    return { format: 2, quickMode: obj.quickMode, delta };
   }
   return null;
 }
@@ -62,7 +84,8 @@ export function parsePlannerUrlParams(search: string): {
   const growth = params.get("growth") ?? params.get("raise");
   const location = params.get("location") ?? params.get("city");
   const filing = params.get("filing");
-  const spouseSalary = params.get("spouse_salary") ?? params.get("spouse_wages");
+  const spouseSalary =
+    params.get("spouse_salary") ?? params.get("spouse_wages");
   const savings = params.get("savings") ?? params.get("invested");
   const years = params.get("years");
   const returns = params.get("returns");
@@ -72,20 +95,20 @@ export function parsePlannerUrlParams(search: string): {
 
   const hasParams = Boolean(
     params.get("share") === "1" ||
-    salary !== null ||
-    bonus !== null ||
-    stock !== null ||
-    expenses !== null ||
-    growth !== null ||
-    location !== null ||
-    filing !== null ||
-    spouseSalary !== null ||
-    savings !== null ||
-    years !== null ||
-    returns !== null ||
-    inflation !== null ||
-    matchRate !== null ||
-    matchPayPercent !== null
+      salary !== null ||
+      bonus !== null ||
+      stock !== null ||
+      expenses !== null ||
+      growth !== null ||
+      location !== null ||
+      filing !== null ||
+      spouseSalary !== null ||
+      savings !== null ||
+      years !== null ||
+      returns !== null ||
+      inflation !== null ||
+      matchRate !== null ||
+      matchPayPercent !== null,
   );
 
   const applyTo = (planner: PlannerV2): PlannerV2 => {
@@ -161,8 +184,26 @@ export function parsePlannerUrlParams(search: string): {
     };
   };
 
-  const numbers = [salary, bonus, stock, expenses, growth, spouseSalary, savings, years, returns, inflation, matchRate, matchPayPercent];
-  const valid = numbers.every((value) => value === null || (value.trim() !== "" && Number.isFinite(Number(value)))) &&
+  const numbers = [
+    salary,
+    bonus,
+    stock,
+    expenses,
+    growth,
+    spouseSalary,
+    savings,
+    years,
+    returns,
+    inflation,
+    matchRate,
+    matchPayPercent,
+  ];
+  const valid =
+    numbers.every(
+      (value) =>
+        value === null ||
+        (value.trim() !== "" && Number.isFinite(Number(value))),
+    ) &&
     (location === null || VALID_LOCATIONS.has(location as TaxLocation)) &&
     (filing === null || filing === "single" || filing === "joint") &&
     (params.get("mode") === null || mode !== undefined);
@@ -174,7 +215,7 @@ export function parsePlannerUrlParams(search: string): {
  */
 export function buildPlannerSearchString(
   planner: PlannerV2,
-  quickMode: boolean
+  quickMode: boolean,
 ): string {
   const params = new URLSearchParams();
   const s0 = planner.scenarios[0];
@@ -213,8 +254,10 @@ export function buildPlannerSearchString(
 
   // Detailed mode additions or non-default values
   if (s0.bonus && s0.bonus !== "0") params.set("bonus", s0.bonus);
-  if (s0.stock && s0.stock !== "0" && s0.includeStock) params.set("equity", s0.stock);
-  if (s0.growth && s0.growth !== defaultS0.growth) params.set("growth", s0.growth);
+  if (s0.stock && s0.stock !== "0" && s0.includeStock)
+    params.set("equity", s0.stock);
+  if (s0.growth && s0.growth !== defaultS0.growth)
+    params.set("growth", s0.growth);
   if (s0.taxProfile.filing !== defaultS0.taxProfile.filing) {
     params.set("filing", s0.taxProfile.filing);
   }
@@ -222,10 +265,16 @@ export function buildPlannerSearchString(
     params.set("spouse_salary", s0.taxProfile.spouseWages);
   }
   if (s0.employerMatch?.type === "simple") {
-    if (s0.employerMatch.rate && s0.employerMatch.rate !== defaultS0.employerMatch.rate) {
+    if (
+      s0.employerMatch.rate &&
+      s0.employerMatch.rate !== defaultS0.employerMatch.rate
+    ) {
       params.set("match_rate", s0.employerMatch.rate);
     }
-    if (s0.employerMatch.payPercent && s0.employerMatch.payPercent !== defaultS0.employerMatch.payPercent) {
+    if (
+      s0.employerMatch.payPercent &&
+      s0.employerMatch.payPercent !== defaultS0.employerMatch.payPercent
+    ) {
       params.set("match_percent", s0.employerMatch.payPercent);
     }
   }
@@ -251,7 +300,9 @@ function isPlainObject(v: unknown): v is Record<string, unknown> {
  * Computes a minimal delta between the current state and default planner inputs.
  * When comparison is disabled, untouched second scenario inputs are omitted completely.
  */
-export function diffPlannerState(target: PlannerV2): Record<string, unknown> | undefined {
+export function diffPlannerState(
+  target: PlannerV2,
+): Record<string, unknown> | undefined {
   const defaults = defaultPlanner();
 
   function diffValues(base: unknown, curr: unknown): unknown {
@@ -283,16 +334,25 @@ export function diffPlannerState(target: PlannerV2): Record<string, unknown> | u
     changed = true;
   }
 
-  const sharedDiff = diffValues(defaults.shared, target.shared) as Record<string, unknown> | undefined;
+  const sharedDiff = diffValues(defaults.shared, target.shared) as
+    | Record<string, unknown>
+    | undefined;
   if (sharedDiff) {
     result.shared = sharedDiff;
     changed = true;
   }
 
-  const s0Diff = diffValues(defaults.scenarios[0], target.scenarios[0]) as Record<string, unknown> | undefined;
-  const s1Diff = (target.comparison || JSON.stringify(defaults.scenarios[1]) !== JSON.stringify(target.scenarios[1]))
-    ? (diffValues(defaults.scenarios[1], target.scenarios[1]) as Record<string, unknown> | undefined)
-    : undefined;
+  const s0Diff = diffValues(defaults.scenarios[0], target.scenarios[0]) as
+    | Record<string, unknown>
+    | undefined;
+  const s1Diff =
+    target.comparison ||
+    JSON.stringify(defaults.scenarios[1]) !==
+      JSON.stringify(target.scenarios[1])
+      ? (diffValues(defaults.scenarios[1], target.scenarios[1]) as
+          | Record<string, unknown>
+          | undefined)
+      : undefined;
 
   if (s0Diff || s1Diff) {
     result.scenarios = s1Diff ? [s0Diff ?? {}, s1Diff] : [s0Diff ?? {}];
@@ -307,8 +367,16 @@ export function applyPlannerDelta(delta: unknown): PlannerV2 {
   const result = defaultPlanner();
   if (!isPlainObject(delta)) return result;
 
-  function merge(target: Record<string, unknown>, source: Record<string, unknown>) {
+  function merge(
+    target: Record<string, unknown>,
+    source: Record<string, unknown>,
+  ) {
     for (const key of Object.keys(source)) {
+      if (
+        !Object.hasOwn(target, key) ||
+        ["__proto__", "prototype", "constructor"].includes(key)
+      )
+        continue;
       const sVal = source[key];
       const tVal = target[key];
       if (isPlainObject(sVal) && isPlainObject(tVal)) {
@@ -327,17 +395,25 @@ export function applyPlannerDelta(delta: unknown): PlannerV2 {
   }
   if (Array.isArray(delta.scenarios)) {
     if (isPlainObject(delta.scenarios[0])) {
-      merge(result.scenarios[0] as unknown as Record<string, unknown>, delta.scenarios[0]);
+      merge(
+        result.scenarios[0] as unknown as Record<string, unknown>,
+        delta.scenarios[0],
+      );
     }
     if (isPlainObject(delta.scenarios[1])) {
-      merge(result.scenarios[1] as unknown as Record<string, unknown>, delta.scenarios[1]);
+      merge(
+        result.scenarios[1] as unknown as Record<string, unknown>,
+        delta.scenarios[1],
+      );
     }
   }
   return result;
 }
 
 /** Full links retain all planner inputs and the selected view. */
-export function readFullPlannerLink(search: string): { state: PlannerV2; quickMode: boolean } | null {
+export function readFullPlannerLink(
+  search: string,
+): { state: PlannerV2; quickMode: boolean } | null {
   const params = new URLSearchParams(search);
   const raw = params.get("plan");
   if (raw === null) return null;
@@ -351,7 +427,11 @@ export function readFullPlannerLink(search: string): { state: PlannerV2; quickMo
         ? (data.planner as unknown as PlannerV2)
         : applyPlannerDelta(data.delta);
 
-    const result = loadPlanner({ getItem: (key) => key === PLANNER_KEY ? JSON.stringify(stateToLoad) : null, setItem: () => {} });
+    const result = loadPlanner({
+      getItem: (key) =>
+        key === PLANNER_KEY ? JSON.stringify(stateToLoad) : null,
+      setItem: () => {},
+    });
     if (result.message.startsWith("Saved inputs could not")) throw new Error();
     return { state: result.state, quickMode: data.quickMode ?? false };
   } catch {
@@ -359,7 +439,11 @@ export function readFullPlannerLink(search: string): { state: PlannerV2; quickMo
   }
 }
 
-export function fullPlannerUrl(url: string, state: PlannerV2 | null, quickMode = false): string {
+export function fullPlannerUrl(
+  url: string,
+  state: PlannerV2 | null,
+  quickMode = false,
+): string {
   const next = new URL(url);
   next.search = "";
   if (state) {
@@ -370,5 +454,83 @@ export function fullPlannerUrl(url: string, state: PlannerV2 | null, quickMode =
     }
     next.searchParams.set("plan", JSON.stringify(payload));
   }
+  return next.toString();
+}
+
+/** Fragment links contain the complete session and never alter the current address. */
+export function sessionShareUrl(
+  url: string,
+  state: PlannerV2,
+  startup: StartupSession,
+): string {
+  const next = new URL(url);
+  next.search = "";
+  next.hash = new URLSearchParams({
+    plan: JSON.stringify({
+      format: 3,
+      planner: state,
+      startup: parseStartupSession(startup),
+    }),
+  }).toString();
+  return next.toString();
+}
+export function readSessionLink(
+  hash: string,
+): { state: PlannerV2; startup: StartupSession } | null {
+  const raw = new URLSearchParams(hash.replace(/^#/, "")).get("plan");
+  if (raw === null) return null;
+  try {
+    const data = JSON.parse(raw);
+    if (
+      !data ||
+      data.format !== 3 ||
+      !data.planner ||
+      typeof data.planner !== "object" ||
+      Array.isArray(data.planner) ||
+      data.planner.version !== 3 ||
+      !data.startup
+    )
+      throw new Error();
+    const result = loadPlanner({
+      getItem: (key) =>
+        key === PLANNER_KEY ? JSON.stringify(data.planner) : null,
+      setItem: () => {},
+    });
+    if (result.message.startsWith("Saved inputs could not")) throw new Error();
+    return { state: result.state, startup: parseStartupSession(data.startup) };
+  } catch {
+    throw new Error("This plan link is invalid. Your saved plan was kept.");
+  }
+}
+export function clearFinancialUrl(url: string): string {
+  const next = new URL(url);
+  for (const key of [
+    "plan",
+    "share",
+    "mode",
+    "salary",
+    "base",
+    "bonus",
+    "stock",
+    "equity",
+    "expenses",
+    "living_costs",
+    "growth",
+    "raise",
+    "location",
+    "city",
+    "filing",
+    "spouse_salary",
+    "spouse_wages",
+    "savings",
+    "invested",
+    "years",
+    "returns",
+    "inflation",
+    "match_rate",
+    "match_percent",
+  ])
+    next.searchParams.delete(key);
+  if (new URLSearchParams(next.hash.slice(1)).has("plan")) next.hash = "";
   return next.toString();
 }

@@ -808,3 +808,40 @@
     gap: 6px;
   }
 }
+
+/* Setup and comparison controls use the same compact form treatment as editors. */
+.quick-setup, .share-panel { margin: 0 0 1rem; }
+.quick-setup form, .decision-tools { overflow-wrap: anywhere; }
+.quick-setup form label, .decision-tools label:not(:has(input[type="checkbox"])) {
+  display: inline-flex;
+  flex-direction: column;
+  gap: .3rem;
+  margin: .5rem .75rem .5rem 0;
+  max-width: 100%;
+  font-weight: 600;
+}
+.quick-setup input, .quick-setup select, .decision-tools input:not([type="checkbox"]), .decision-tools select {
+  min-width: 0;
+  width: min(15rem, 100%);
+  padding: .5rem .65rem;
+  border: 1px solid var(--input);
+  border-radius: .4rem;
+  background: var(--background);
+  color: var(--foreground);
+  font-weight: 400;
+}
+.quick-setup button, .share-panel button, .decision-tools button {
+  padding: .5rem .75rem;
+  margin: .25rem .3rem .25rem 0;
+  border: 1px solid var(--border);
+  border-radius: .4rem;
+  background: var(--secondary);
+  color: var(--foreground);
+  cursor: pointer;
+}
+.quick-setup button:focus-visible, .share-panel button:focus-visible, .decision-tools button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+.quick-setup button:disabled, .share-panel button:disabled { opacity: .5; cursor: not-allowed; }
+.decision-tools summary, .quick-setup summary { cursor: pointer; }

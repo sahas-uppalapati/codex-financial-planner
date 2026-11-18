@@ -35,6 +35,7 @@ import { CashFlowPanel } from "./CashFlowPanel";
 import { TaxBreakdownTable } from "./TaxBreakdownTable";
 import { AnnualScheduleTable } from "./AnnualScheduleTable";
 import { MonthlyCashFlowsTable } from "./MonthlyCashFlowsTable";
+import { DecisionTools } from "./DecisionTools";
 import { StartupComparison } from "./StartupComparison";
 import type { StartupInputs } from "../lib/startupComparison";
 interface ResultSeries {
@@ -209,6 +210,13 @@ export function Results({
       </div>
       {destination === "overview" && (
         <>
+          <DecisionTools
+            state={state}
+            year={activeYear}
+            projections={series.map((s) => s.projection)}
+            startup={startupScenario}
+            startupInput={startupInput}
+          />
           <StartupComparison
             series={series}
             startup={startupScenario}
@@ -219,6 +227,15 @@ export function Results({
             className="quick-read"
             aria-labelledby="monthly-picture-heading"
           >
+            <details>
+              <summary>About these monthly averages</summary>
+              <p>
+                Annual amounts are divided by twelve. Bonuses and stock may
+                arrive unevenly. Remaining cash includes sold-stock proceeds;
+                cash after costs in the decision summary excludes them and
+                reflects other savings.
+              </p>
+            </details>
             <div className="quick-read-heading">
               <h3 id="monthly-picture-heading">Your monthly picture</h3>
             </div>
@@ -344,6 +361,15 @@ export function Results({
                 </div>
                 <span className="period-tag">{years}-year projection</span>
               </div>
+              <details>
+                <summary>About the portfolio projection</summary>
+                <p>
+                  Balances include investments and vested stock before future
+                  sale or withdrawal taxes. Negative taxable balances are
+                  unfunded shortfalls; held shares and retirement accounts are
+                  not automatically sold to cover spending.
+                </p>
+              </details>
               <div className="balance-heading">
                 <div className="ending-balances">
                   {series.map((s, i) => (
@@ -409,16 +435,6 @@ export function Results({
                   {chartViews[activeProjectionChart].content}
                 </div>
               </div>
-              {series.some((s) =>
-                s.projection.months.some((m) => m.balances.taxable < 0),
-              ) && (
-                <p className="shortfall-note">
-                  A negative taxable-investment balance is an unfunded cash
-                  shortfall, not a loan. It earns no investment return. Held
-                  shares and retirement assets are not automatically sold to
-                  fund spending.
-                </p>
-              )}
             </Card>
             <Card
               className="portfolio-breakdown rounded-lg shadow-none"
@@ -562,13 +578,14 @@ export function Results({
         </section>
       )}
       {warnings.length > 0 && (
-        <div className="model-notes">
+        <details className="model-notes">
+          <summary>Projection notes</summary>
           {warnings.map((w) => (
             <p className="hint" key={w}>
               {w}
             </p>
           ))}
-        </div>
+        </details>
       )}
     </div>
   );

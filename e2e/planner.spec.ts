@@ -105,6 +105,7 @@ test("unified view defaults, inputs, progressive accordions and calculations", a
   await expect(
     page.getByRole("heading", { name: "Your financial future" }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Explore an example" }).click();
   await expect(page.getByLabel("Annual base salary")).toHaveValue("241000");
   await expect(page.getByLabel("Monthly living expenses")).toHaveValue("4500");
   await expect(page.getByLabel("Current invested savings")).toHaveValue(
@@ -143,6 +144,7 @@ test("quick presets preserve edits and full replacement requires confirmation", 
     window.sessionStorage.clear();
   });
   await page.goto("/?mode=quick");
+  await page.getByRole("button", { name: "Explore an example" }).click();
   const salary = page.getByLabel("Annual base salary");
   await expect(salary).toHaveValue("241000");
   await salary.fill("300001");
@@ -173,6 +175,7 @@ test("switching company and level updates pay and stock when not manually custom
     window.sessionStorage.clear();
   });
   await page.goto("/?mode=quick");
+  await page.getByRole("button", { name: "Explore an example" }).click();
   const salary = page.getByLabel("Annual base salary");
   const stock = page.getByLabel("Annual stock / RSUs");
   await expect(salary).toHaveValue("241000");

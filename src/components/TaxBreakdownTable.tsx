@@ -27,13 +27,16 @@ export function TaxBreakdownTable({
         </span>
       </h3>
       <div className="details-body">
-        <div className="table-header-controls">
+        <details className="table-header-controls">
+          <summary>Tax coverage and reserves</summary>
           <p className="hint">
+            Calculated estimates cover the selected full-year W-2 location and
+            standard deductions; many tax situations are excluded.
             Equity-attributed tax is total liability with vesting minus
             liability on cash compensation alone. Monthly reserves allocate
             these annual estimates, not actual paycheck withholding.
           </p>
-        </div>
+        </details>
         <div
           className="tax-table-container table-scroll"
           tabIndex={0}

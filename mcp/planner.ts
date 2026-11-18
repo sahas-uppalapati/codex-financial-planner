@@ -1,5 +1,6 @@
 import { defaultPlanner } from "../src/lib/planner";
 import { exportPlannerBackup, importPlannerBackup } from "../src/lib/plannerBackup";
+import { startupScenarioView } from "../src/lib/startupComparison";
 import { projectScenario } from "../src/lib/projection";
 import { TAX_VERSION, taxSources } from "../src/data/taxRules";
 import { retirementRuleSources } from "../src/data/retirementRules";
@@ -15,8 +16,8 @@ export function optimizeRetirement(
   targetSavings?: number,
   taxPreference: TaxStrategyPreference = "auto",
 ) {
-  const plan = importPlannerBackup(backup);
-  const scenario = plan.scenarios[0];
+  const { planner: plan, startup } = importPlannerBackup(backup);
+  const scenario = startup.scenario === 0 ? startupScenarioView(plan.scenarios[0]) : plan.scenarios[0];
   const strategy = calculateRetirementStrategy(scenario, plan.shared, {
     targetSavings: targetSavings ?? 30000,
     taxPreference,
@@ -40,9 +41,9 @@ export function optimizeRetirement(
 }
 
 export function projectPlan(backup: string) {
-  const plan = importPlannerBackup(backup);
-  const scenarios = plan.scenarios.slice(0, plan.comparison ? 2 : 1).map((scenario) => {
-    const projection = projectScenario(scenario, plan.shared);
+  const { planner: plan, startup } = importPlannerBackup(backup);
+  const scenarios = plan.scenarios.slice(0, plan.comparison ? 2 : 1).map((scenario, index) => {
+    const projection = projectScenario(index === startup.scenario ? startupScenarioView(scenario) : scenario, plan.shared);
     return { name: scenario.name, ...projection, months: undefined };
   });
   return {
@@ -55,6 +56,7 @@ export function projectPlan(backup: string) {
       retirementRuleSources,
     },
     limitations: [
+      "Startup option illustrations are not included in projections.",
       "Estimates use 2026 tax law with projected indexed thresholds, not future enacted law.",
       "Calculated tax coverage is limited to supported full-year W-2 locations and household situations; see docs/TAX_SOURCES.md.",
       "Investment income, later sales, withdrawals, many deductions and other assets or liabilities are excluded; projected balances are before future sale and withdrawal taxes.",
