@@ -1,5 +1,9 @@
 # Preset provenance
 
+## Investment calculator assumptions
+
+The standalone investment calculators use user-entered amounts and returns with deterministic monthly compounding; they do not use market data or recommended return forecasts. Career mode reuses the planner’s sourced tax and compensation assumptions and actual monthly projection. Additional monthly money and starting investments are hypothetical after-tax funding, not compensation benchmarks. Targets, supported limits, timing, and the 40-year extrapolation are documented in the README’s Investment calculators section.
+
 ## Startup option illustration
 
 Fictional Series A, B, and C examples use base salary medians reported by [Cadre](https://www.yourcadre.com/comp) for its 2020–2026 engineering placements (updated September 2026, accessed November 16, 2026; CC BY 4.0). The source combines seed–Series A and Series B–C respectively; it does not establish separate B and C medians. Option counts, strike price and vesting are invented for illustration, not sourced company offers or equity benchmarks.
@@ -53,10 +57,6 @@ Each derived monthly field is rounded to cents when the preset is created. There
 The quick company estimator uses two household variants from these same county pages: one adult with no children, and two adults with one worker and no children. It uses the published annual rows for housing, food, medical, transportation, civic, internet/mobile, and other expenses for each profile; its five displayed monthly categories are derived the same way as the main location presets. Both annual component sets are stored in [`../src/data/locationBudgets.json`](../src/data/locationBudgets.json); monthly values are derived in [`../src/data/presets.ts`](../src/data/presets.ts). Published annual category totals for the two-adult variant are: Columbus $54,972; Seattle $71,166; Los Angeles $67,850; San Francisco $77,710; Manhattan $82,577; Austin $57,881; Boston $72,301. These are minimum-needs examples, not typical household budgets. No LA-specific tech compensation snapshot is supplied; the estimator uses the national compensation snapshot there.
 
 Tax calculation and vesting provenance for the v2 monthly model is documented in [TAX_SOURCES.md](TAX_SOURCES.md).
-
-## Investment calculator assumptions
-
-The standalone investment calculators use user-entered amounts and returns with deterministic monthly compounding; they do not use market data or recommended return forecasts. Career mode reuses the planner’s sourced tax and compensation assumptions and actual monthly projection. Additional monthly money and starting investments are hypothetical after-tax funding, not compensation benchmarks. Targets, supported limits, timing, and the 40-year extrapolation are documented in the README’s Investment calculators section.
 
 ## Editing preset data
 
