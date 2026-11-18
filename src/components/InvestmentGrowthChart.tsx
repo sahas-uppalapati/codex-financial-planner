@@ -164,6 +164,7 @@ export function InvestmentGrowthChart({
                 <tbody>{points.map((point) => <tr key={point.year}><th scope="row">{point.year}</th><td>{money(point.added)}</td><td>{money(point.growth)}</td></tr>)}</tbody>
               </table>
             </details>
+            <p className="hint">Money added includes changes in vested employer match, including gains accrued before vesting.</p>
             <div className="growth-chart-legend">
               <span>
                 <i className="growth-legend-swatch added" aria-hidden="true" />
