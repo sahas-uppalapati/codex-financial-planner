@@ -19,13 +19,18 @@ export function CashFlowPanel({
           <h2 id="cash-heading">The cash & compensation picture</h2>
         </div>
       </div>
-      <p className="hint">
-        {state.scenarios.some((s) => s.taxProfile.filing === "joint")
-          ? "Joint-filing scenarios show household wages, taxes, benefits and savings. "
-          : ""}
-        Monthly equivalents smooth annual bonuses; actual cash bonuses are paid
-        in December.
-      </p>
+      <details>
+        <summary>About timing and cash</summary>
+        <p className="hint">
+          {state.scenarios.some((s) => s.taxProfile.filing === "joint")
+            ? "Joint-filing scenarios show household wages, taxes, benefits and savings. "
+            : ""}
+          Projection years run January through December; career changes take
+          effect at the start of their selected month. Monthly equivalents
+          smooth annual bonuses; actual cash bonuses are paid in December. Cash after costs excludes sold-stock proceeds and
+          includes modeled savings contributions.
+        </p>
+      </details>
       <div
         className="metrics-table"
         style={{ "--scenario-count": series.length } as React.CSSProperties}

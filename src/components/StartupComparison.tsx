@@ -7,19 +7,6 @@ import {
   type StartupInputs,
 } from "../lib/startupComparison";
 
-export const emptyStartup: StartupInputs = {
-  ownership: "",
-  grant: "",
-  strike: "",
-  currentPrice: "",
-  currentPriceType: "unknown",
-  dilution: "",
-  vesting: "",
-  vestMonths: "",
-  cliffMonths: "",
-  exitMode: "share",
-  exit: "",
-};
 const currency = (amount: number) =>
   amount.toLocaleString("en-US", {
     style: "currency",
@@ -314,9 +301,9 @@ export function StartupFields({
             )}
           </details>
           <p className="hint">
-            Startup details are saved in this browser, but not included in
-            backups, exports, or balances. Share links are unavailable in
-            startup mode.
+            Startup details are saved in this browser and included in backups
+            and share links. They are separate from CSV exports and portfolio
+            balances.
           </p>
         </>
       )}
@@ -357,7 +344,7 @@ export function StartupComparison({
       aria-labelledby="startup-comparison-heading"
     >
       <p className="eyebrow">STARTUP EQUITY</p>
-      <h2 id="startup-comparison-heading">Hypothetical startup outcome</h2>
+      <h2 id="startup-comparison-heading">Hypothetical startup proceeds</h2>
       {paperSpread !== null && (
         <p>
           At the entered 409A value, the full grant has an illustrative paper
@@ -365,16 +352,40 @@ export function StartupComparison({
           options vest. It is not cash or a sale price.
         </p>
       )}
-      {input.currentPrice.trim() && input.currentPriceType !== "common" && (
-        <p className="hint">
-          The quoted price is{" "}
-          {input.currentPriceType === "preferred"
-            ? "for preferred shares"
-            : "not identified as a common-share value"}
-          , so it is not used to value your options. Confirm the price type with
-          the company.
+      <details>
+        <summary>Startup assumptions and limitations</summary>
+        {input.currentPrice.trim() && input.currentPriceType !== "common" && (
+          <p className="hint">
+            The quoted price is{" "}
+            {input.currentPriceType === "preferred"
+              ? "for preferred shares"
+              : "not identified as a common-share value"}
+            , so it is not used to value your options. Confirm the price type
+            with the company.
+          </p>
+        )}
+        <p>
+          Illustration only, before taxes and fees. Exit value means value
+          distributed to common shareholders, not headline acquisition price.
+          Preferences, debt, transaction terms, taxes, expiry, exercise timing
+          and future grants can change results. This excludes employer match and
+          benefits, probability, investment returns on compensation and time
+          value of money.
         </p>
-      )}
+        {!input.ownership.trim() && (
+          <p>
+            Ownership is unknown. The percentage of fully diluted shares is
+            needed to connect a company exit value to your payout.
+          </p>
+        )}
+        {hasStock && (
+          <p>
+            The startup scenario includes stock in the projection. Set RSUs and
+            grants to zero if they represent these private options, to avoid
+            counting equity twice.
+          </p>
+        )}
+      </details>
       {series.length < 2 ? (
         <p>
           Add a comparison scenario to compare startup options against another
@@ -387,14 +398,6 @@ export function StartupComparison({
             over {years} {years === 1 ? "year" : "years"}. Change the projection
             length to change the exit year.
           </p>
-          {hasStock && (
-            <p role="status" className="startup-warning">
-              The startup scenario includes stock in the existing projection.
-              Set its annual stock / RSUs and grants to zero if those represent
-              these private options; otherwise the comparison counts equity
-              twice.
-            </p>
-          )}
           {result ? (
             <div className="startup-outcome" aria-live="polite">
               <h3>Hypothetical outcome at year {years}</h3>
@@ -481,22 +484,6 @@ export function StartupComparison({
               be 1–120 whole months, with a cliff no longer than the duration.
             </p>
           )}
-          {!input.ownership.trim() && (
-            <p className="hint">
-              Ownership is unknown. Ask what percentage of fully diluted shares
-              the grant represents; it is needed to connect a company exit value
-              to your payout.
-            </p>
-          )}
-          <p className="hint">
-            Illustration only, before taxes and fees. Exit value means value
-            distributed to common shareholders, not the headline acquisition
-            price. Preferences, debt, transaction terms, taxes, option expiry,
-            exercise timing, and future grants can change results. The gross
-            compensation comparison excludes employer match and benefits,
-            probability, investment returns on compensation, and time value of
-            money. This is not financial, tax, or legal advice.
-          </p>
         </>
       )}
     </section>

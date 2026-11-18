@@ -57,3 +57,5 @@ Tax calculation and vesting provenance for the v2 monthly model is documented in
 ## Editing preset data
 
 The curated compensation snapshots live in [`../src/data/compensation.json`](../src/data/compensation.json), county budget inputs in [`../src/data/locationBudgets.json`](../src/data/locationBudgets.json), and quick-estimator company, level, and growth presets in [`../src/data/techPresets.json`](../src/data/techPresets.json). Keep source dates and notes current when changing sourced figures. Derived compensation treatment and monthly budget calculations remain in TypeScript.
+
+The decision summary, what-if preview, and salary-gap estimate reuse the existing projections and sourced assumptions. Preview inputs do not alter the saved plan.

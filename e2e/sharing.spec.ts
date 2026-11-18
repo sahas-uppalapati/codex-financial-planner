@@ -1,33 +1,130 @@
 import { expect, test } from "@playwright/test";
+import { emptyStartupSession } from "../src/lib/startupComparison";
 
-test("the address bar shares the current plan with a fresh browser", async ({ page, browser }) => {
+test("explicit links preview and require confirmation", async ({
+  page,
+  browser,
+}) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Explore an example" }).click();
   await page.getByLabel("Annual base salary").fill("185000");
-  await page.getByLabel("Monthly living expenses").fill("5000");
-  await expect.poll(() => new URL(page.url()).searchParams.get("plan")).toContain("185000");
+  await page.getByLabel("This is a startup offer").check();
+  await page.getByLabel("Number of options").fill("1234");
+  await page.getByRole("button", { name: "Share", exact: true }).click();
+  await expect(
+    page.getByText("Anyone with the link can read them.", { exact: false }),
+  ).toBeVisible();
+  await page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
+  const before = page.url();
+  await page.getByRole("button", { name: "Copy share link" }).click();
+  const link = await page.evaluate(() => navigator.clipboard.readText());
+  expect(page.url()).toBe(before);
+  expect(new URL(link).hash).toContain("plan=");
   const context = await browser.newContext();
   const recipient = await context.newPage();
-  await recipient.goto(page.url());
-  await expect(recipient.getByLabel("Annual base salary")).toHaveValue("185000");
-  await expect(recipient.getByLabel("Monthly living expenses")).toHaveValue("5000");
-  await page.getByLabel("Annual base salary").fill("");
-  await expect.poll(() => new URL(page.url()).searchParams.has("plan")).toBe(false);
+  await recipient.goto(link);
+  await expect(
+    recipient.getByRole("button", { name: "Load shared estimate" }),
+  ).toBeVisible();
+  await recipient.getByRole("button", { name: "Keep current plan" }).click();
+  await expect(
+    recipient.getByRole("button", { name: "Enter my offer" }),
+  ).toBeVisible();
+  await recipient.goto(link);
+  await recipient.getByRole("button", { name: "Load shared estimate" }).click();
+  await expect(recipient.getByLabel("Annual base salary")).toHaveValue(
+    "185000",
+  );
+  await expect(recipient.getByLabel("Number of options")).toHaveValue("1234");
   await context.close();
 });
 
-test("an invalid full link keeps the saved plan", async ({ page }) => {
+test("invalid and partial links preserve the saved plan until confirmed", async ({
+  page,
+}) => {
   await page.goto("/");
+  await page.getByRole("button", { name: "Explore an example" }).click();
   await page.getByLabel("Annual base salary").fill("185000");
   await page.goto("/?plan=invalid");
   await expect(page.getByLabel("Annual base salary")).toHaveValue("185000");
-  await expect(page.getByText("This plan link is invalid.", { exact: false })).toBeVisible();
-});
-
-test("legacy partial links still ask before replacing a saved plan", async ({ page }) => {
-  await page.goto("/");
-  await page.getByLabel("Annual base salary").fill("185000");
+  await expect(
+    page.getByText("This plan link is invalid.", { exact: false }),
+  ).toBeVisible();
   await page.goto("/?share=1&salary=200000");
   await expect(page.getByLabel("Annual base salary")).toHaveValue("185000");
   await page.getByRole("button", { name: "Load shared estimate" }).click();
   await expect(page.getByLabel("Annual base salary")).toHaveValue("200000");
+});
+
+test("personal setup starts neutral and restores both startup input sets from backup", async ({
+  page,
+}) => {
+  const orphaned = emptyStartupSession();
+  orphaned.inputs[0].grant = "9999";
+  await page.addInitScript((saved) => localStorage.setItem("careerworth:startup-v1", JSON.stringify(saved)), orphaned);
+  await page.goto("/");
+  await page.getByRole("button", { name: "Enter my offer" }).click();
+  await page.getByLabel("Annual base salary").fill("165000");
+  await page.getByLabel("Annual bonus").fill("");
+  await page.getByLabel("Starting investments").fill("");
+  await page.getByLabel("Monthly expenses", { exact: true }).fill("4000");
+  await page.getByLabel("Equity type").selectOption("startup");
+  await page.getByRole("button", { name: "Continue to planner" }).click();
+  await expect(page.getByLabel("This is a startup offer")).toBeChecked();
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("165000");
+  await expect(page.getByLabel("Number of options")).toHaveValue("");
+  await page.getByLabel("Number of options").fill("1234");
+  await page.getByRole("button", { name: "Add comparison" }).click();
+  await page.getByLabel("This is a startup offer").check();
+  await page.getByLabel("Number of options").fill("5678");
+  const backup = page.locator(".planner-backup");
+  const downloading = page.waitForEvent("download");
+  await backup.getByRole("button", { name: "Download backup" }).click();
+  const download = await downloading;
+  await page.getByLabel("Number of options").fill("9999");
+  await backup
+    .locator('input[type="file"]')
+    .setInputFiles((await download.path())!);
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Restore plan" })
+    .click();
+  await page.getByRole("button", { name: /Offer B/ }).click();
+  await expect(page.getByLabel("Number of options")).toHaveValue("5678");
+  await page.getByRole("button", { name: /My offer/ }).click();
+  await page.getByLabel("This is a startup offer").check();
+  await expect(page.getByLabel("Number of options")).toHaveValue("1234");
+});
+
+test("example indicator and isolated what-if respond to the selected year", async ({
+  page,
+}) => {
+  await page.goto("/");
+  await page.getByRole("button", { name: "Explore an example" }).click();
+  await expect(page.getByText("Example plan", { exact: true })).toBeVisible();
+  await page.reload();
+  await expect(page.getByText("Example plan", { exact: true })).toBeVisible();
+  await page.getByLabel("Annual base salary").fill("185000");
+  await expect(page.getByText("Example plan", { exact: true })).toHaveCount(0);
+  await page.getByRole("button", { name: "Add comparison" }).click();
+  const details = page
+    .locator("details")
+    .filter({ has: page.locator("summary", { hasText: "Explore what-ifs" }) });
+  await expect(details).not.toHaveAttribute("open", "");
+  await details.locator("summary").focus();
+  await page.keyboard.press("Enter");
+  await page.getByLabel("Results for calendar year").selectOption("1");
+  await page.setViewportSize({ width: 320, height: 800 });
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  await details.getByLabel("Monthly housing cost").fill("2000");
+  const before = await page.evaluate(() =>
+    localStorage.getItem("careerworth:v3"),
+  );
+  await details.getByRole("button", { name: "Run preview" }).click();
+  await expect(details.getByText(/monthly cash .* →/).first()).toBeVisible();
+  expect(
+    await page.evaluate(() => localStorage.getItem("careerworth:v3")),
+  ).toBe(before);
+  await page.getByLabel("Results for calendar year").selectOption("0");
+  await expect(details.getByText(/monthly cash .* →/)).toHaveCount(0);
 });
