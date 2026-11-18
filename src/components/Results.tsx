@@ -1,4 +1,6 @@
 import {
+  ChevronLeft,
+  ChevronRight,
   Wallet,
   ArrowDownLeft,
   ArrowUpRight,
@@ -6,8 +8,16 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
 } from "lucide-react";
+import { useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
 import type { Destination } from "./ResultsNavigation";
 import type { PlannerV2 } from "../lib/planner";
 import { monthIndex } from "../lib/planner";
@@ -15,6 +25,7 @@ import type { Projection } from "../lib/projection";
 import { money } from "../lib/format";
 import { exportProjection } from "../lib/plannerCsv";
 import { ProjectionChart } from "./ProjectionChart";
+import { InvestmentGrowthChart } from "./InvestmentGrowthChart";
 import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
 import { TechRealityCard } from "./TechRealityCard";
@@ -49,12 +60,12 @@ export function Results({
   selectedYear: number;
   onYearChange: (year: number) => void;
 }) {
+  const [activeProjectionChart, setActiveProjectionChart] = useState(0);
   const activeYear = Math.min(selectedYear, Number(state.shared.years) - 1);
   const setSelected = onYearChange;
   const years = Number(state.shared.years),
     startYear = Number(state.shared.startYear);
-  const first = series[0].projection.rows[activeYear],
-    final = series.map((s) => s.projection.rows.at(-1)!);
+  const final = series.map((s) => s.projection.rows.at(-1)!);
   const warnings = [...new Set(series.flatMap((s) => s.projection.warnings))];
   const chartSeries = series.map((s) => ({
     name: s.name,
@@ -66,6 +77,51 @@ export function Results({
       label: `${e.month}: ${e.kind === "job" ? "Change employer" : "Promotion"} · ${e.role}`,
     })),
   }));
+  const chartViews = [
+    {
+      label: "Balance over time",
+      content: (
+        <>
+          <ProjectionChart
+            series={chartSeries}
+            starting={series[0].projection.startingTotal}
+          />
+          {series.length === 1 && (
+            <div className="forecast-endpoints">
+              <span>
+                Starting balance{" "}
+                <strong>{money(series[0].projection.startingTotal)}</strong>
+              </span>
+              <span>
+                End of {startYear + years - 1}{" "}
+                <strong>{money(final[0].endingBalance)}</strong>
+              </span>
+            </div>
+          )}
+          <div className="chart-legend">
+            {series.map((s) => (
+              <span key={s.index}>
+                <i className={`legend-line series-${s.index}`} />
+                <span className="truncate">{s.name}</span>
+              </span>
+            ))}
+          </div>
+        </>
+      ),
+    },
+    {
+      label: "Money added & growth",
+      content: (
+        <InvestmentGrowthChart
+          series={series.map((s) => ({
+            name: s.name,
+            index: s.index,
+            projection: s.projection,
+          }))}
+        />
+      ),
+    },
+  ];
 
   const accountDefs = [
     ["Taxable investments", "taxable", "aggregate"] as const,
@@ -101,28 +157,34 @@ export function Results({
   return (
     <div className="results-content">
       <div className="results-toolbar">
-        <label className="year-picker">
+        <div className="year-picker">
           <CalendarDays size={15} aria-hidden="true" />
-          <span className="sr-only">Results for calendar year</span>
-          <select
-            aria-label="Results for calendar year"
-            value={activeYear}
-            onChange={(event) => setSelected(Number(event.target.value))}
+          <Select
+            value={String(activeYear)}
+            onValueChange={(value) => setSelected(Number(value))}
           >
-            {series[0].projection.rows.map((row, index) => (
-              <option key={row.calendarYear} value={index}>
-                {row.calendarYear} · Year {row.year}
-              </option>
-            ))}
-          </select>
-        </label>
-        <span className="toolbar-period">
-          {destination === "overview"
-            ? "Monthly averages · annual projection"
-            : destination === "cash"
+            <SelectTrigger
+              aria-label="Results for calendar year"
+              className="year-picker-trigger"
+            >
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent align="start">
+              {series[0].projection.rows.map((row, index) => (
+                <SelectItem key={row.calendarYear} value={String(index)}>
+                  {row.calendarYear}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+        {destination !== "overview" && (
+          <span className="toolbar-period">
+            {destination === "cash"
               ? "Monthly & annual amounts"
               : "Annual amounts · nominal USD"}
-        </span>
+          </span>
+        )}
         <div className="export-actions">
           <Button
             size="sm"
@@ -175,42 +237,7 @@ export function Results({
               </p>
             </details>
             <div className="quick-read-heading">
-              <div>
-                <h3 id="monthly-picture-heading">Your monthly picture</h3>
-              </div>
-              <div className="quick-read-actions">
-                <span className="period-tag">{first.calendarYear} average</span>
-                <div
-                  className="milestone-year-chips"
-                  role="group"
-                  aria-label="Jump to projection year"
-                >
-                  {[
-                    { label: "Yr 1", index: 0 },
-                    ...(years > 5 ? [{ label: "Yr 5", index: 4 }] : []),
-                    ...(years > 10 ? [{ label: "Yr 10", index: 9 }] : []),
-                    ...(years > 20 ? [{ label: "Yr 20", index: 19 }] : []),
-                    ...(years > 1
-                      ? [{ label: `Yr ${years}`, index: years - 1 }]
-                      : []),
-                  ]
-                    .filter(
-                      (m, idx, arr) =>
-                        arr.findIndex((x) => x.index === m.index) === idx,
-                    )
-                    .map(({ label, index }) => (
-                      <button
-                        key={label}
-                        type="button"
-                        className={`chip-btn ${activeYear === index ? "active" : ""}`}
-                        onClick={() => setSelected(index)}
-                        title={`Inspect Year ${index + 1} (${startYear + index})`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                </div>
-              </div>
+              <h3 id="monthly-picture-heading">Your monthly picture</h3>
             </div>
             <div
               className="quick-read-grid"
@@ -220,23 +247,47 @@ export function Results({
             >
               {series.map((s) => {
                 const row = s.projection.rows[activeYear];
+                const additionalSavings =
+                  row.traditionalIraContribution +
+                  row.rothIraContribution +
+                  row.megaBackdoorContribution;
                 const items = [
                   [
                     "Take-home pay",
                     row.takeHome,
-                    "After estimated taxes and payroll benefits",
+                    "After taxes and paycheck deductions",
                     Wallet,
                   ],
+                  ...(row.stockContribution > 0
+                    ? [
+                        [
+                          "Cash from shares sold",
+                          row.stockContribution,
+                          "After estimated taxes",
+                          Wallet,
+                        ] as const,
+                      ]
+                    : []),
                   [
                     "Living costs",
                     row.expenses,
-                    "After healthcare already paid through payroll",
+                    "After payroll health premiums",
                     ArrowDownLeft,
                   ],
+                  ...(additionalSavings > 0
+                    ? [
+                        [
+                          "Other savings",
+                          additionalSavings,
+                          "Extra contributions from take-home pay",
+                          ArrowDownLeft,
+                        ] as const,
+                      ]
+                    : []),
                   [
-                    "Remaining cash",
+                    "Money left over",
                     row.surplus + row.stockContribution,
-                    "Includes net proceeds from stock sold",
+                    "After living costs and other savings",
                     ArrowUpRight,
                   ],
                 ] as const;
@@ -249,31 +300,45 @@ export function Results({
                       </h3>
                     )}
                     <div className="quick-metrics-row monthly-metrics">
-                      {items.map(([label, value, description, Icon], i) => (
-                        <Card
-                          className={`quick-metric-box rounded-lg shadow-none ${i === 2 ? "highlight" : ""}`}
-                          key={label}
-                        >
-                          <div className="metric-card-heading">
-                            <span className="quick-metric-label">{label}</span>
-                            <span className="metric-icon">
-                              <Icon size={17} aria-hidden="true" />
-                            </span>
-                          </div>
-                          <strong
-                            className={`quick-metric-val ${value < 0 ? "negative" : ""}`}
-                            data-testid={
-                              i === 2 ? `quick-cash-${s.index}` : undefined
-                            }
+                      {items.map(([label, value, description, Icon]) => {
+                        const flowClass =
+                          label === "Take-home pay" ||
+                          label === "Cash from shares sold"
+                            ? "flow-in"
+                            : label === "Living costs" ||
+                                label === "Other savings"
+                              ? "flow-out"
+                              : value < 0
+                                ? "flow-out"
+                                : "flow-in";
+                        return (
+                          <Card
+                            className={`quick-metric-box rounded-lg shadow-none ${flowClass} ${label === "Money left over" ? "highlight" : ""}`}
+                            key={label}
                           >
-                            {money(value / 12)}
-                            <span className="unit">/ mo</span>
-                          </strong>
-                          <span className="monthly-metric-note">
-                            {description}
-                          </span>
-                        </Card>
-                      ))}
+                            <div className="metric-card-heading">
+                              <span className="quick-metric-label">{label}</span>
+                              <span className="metric-icon">
+                                <Icon size={17} aria-hidden="true" />
+                              </span>
+                            </div>
+                            <strong
+                              className={`quick-metric-val ${value < 0 ? "negative" : ""}`}
+                              data-testid={
+                                label === "Money left over"
+                                  ? `quick-cash-${s.index}`
+                                  : undefined
+                              }
+                            >
+                              {money(value / 12)}
+                              <span className="unit">/ mo</span>
+                            </strong>
+                            <span className="monthly-metric-note">
+                              {description}
+                            </span>
+                          </Card>
+                        );
+                      })}
                     </div>
                   </article>
                 );
@@ -325,37 +390,50 @@ export function Results({
                   ))}
                 </div>
                 <p className="hint">
-                  End of {startYear + years - 1} · estimated investments and
-                  vested stock, before future sale or withdrawal taxes · future
+                  End of {startYear + years - 1} · before future taxes · future
                   dollars
                 </p>
               </div>
-              <ProjectionChart
-                series={chartSeries}
-                starting={series[0].projection.startingTotal}
-              />
-              {series.length === 1 && (
-                <div className="forecast-endpoints">
-                  <span>
-                    Starting balance{" "}
-                    <strong>{money(series[0].projection.startingTotal)}</strong>
-                  </span>
-                  <span>
-                    End of {startYear + years - 1}{" "}
-                    <strong>{money(final[0].endingBalance)}</strong>
-                  </span>
+              <div className="projection-chart-carousel">
+                <div
+                  className="chart-carousel-controls"
+                  role="group"
+                  aria-label="Projection charts"
+                >
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Previous chart"
+                    disabled={activeProjectionChart === 0}
+                    onClick={() =>
+                      setActiveProjectionChart((index) => Math.max(0, index - 1))
+                    }
+                  >
+                    <ChevronLeft aria-hidden="true" />
+                  </Button>
+                  <div aria-live="polite">
+                    <strong>{chartViews[activeProjectionChart].label}</strong>
+                    <span>
+                      {activeProjectionChart + 1} of {chartViews.length}
+                    </span>
+                  </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    aria-label="Next chart"
+                    disabled={activeProjectionChart === chartViews.length - 1}
+                    onClick={() =>
+                      setActiveProjectionChart((index) =>
+                        Math.min(chartViews.length - 1, index + 1),
+                      )
+                    }
+                  >
+                    <ChevronRight aria-hidden="true" />
+                  </Button>
                 </div>
-              )}
-              <div className="chart-legend">
-                {series.map((s) => (
-                  <span key={s.index}>
-                    <i className={`legend-line series-${s.index}`} />
-                    <span className="truncate">{s.name}</span>
-                  </span>
-                ))}
-                <span className="legend-note">
-                  Monthly cash flows · vested assets only
-                </span>
+                <div className="chart-carousel-panel">
+                  {chartViews[activeProjectionChart].content}
+                </div>
               </div>
             </Card>
             <Card
@@ -443,11 +521,6 @@ export function Results({
                   </details>
                 )}
               </div>
-              <p className="hint monthly-note">
-                These accounts have different access and tax rules. Totals do
-                not deduct future liquidation or retirement withdrawal taxes.
-                Unvested awards are excluded.
-              </p>
             </Card>
           </div>
 

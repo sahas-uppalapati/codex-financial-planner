@@ -1,5 +1,6 @@
 import { QuickRetirementPresets } from "./QuickRetirementPresets";
 import { Input } from "./ui/input";
+import { Button } from "./ui/button";
 import { useState, useEffect, useRef } from "react";
 import type { Category } from "../lib/model";
 import type { ScenarioV2 as Scenario, AssumptionsV2 } from "../lib/planner";
@@ -200,7 +201,7 @@ export function ScenarioForm({
       <div className="essential-fields">
         <Field
           label="Annual base salary"
-          unit="USD / year"
+          unit="$ / year"
           value={s.base}
           onChange={(base) => set("base", base)}
           error={errors.base}
@@ -208,7 +209,7 @@ export function ScenarioForm({
         {!startup && (
           <Field
             label="Annual stock / RSUs"
-            unit="USD / year"
+            unit="$ / year"
             value={s.stock}
             onChange={(stock) => {
               const annualVal = Number(stock) || 0;
@@ -235,12 +236,14 @@ export function ScenarioForm({
         <div className="two-cols">
           <Field
             label="Year 1 sign-on bonus"
+            unit="$"
             value={s.signOnY1 ?? "0"}
             onChange={(signOnY1) => set("signOnY1", signOnY1)}
             error={errors.signOnY1}
           />
           <Field
             label="Year 2 sign-on bonus"
+            unit="$"
             value={s.signOnY2 ?? "0"}
             onChange={(signOnY2) => set("signOnY2", signOnY2)}
             error={errors.signOnY2}
@@ -248,20 +251,20 @@ export function ScenarioForm({
         </div>
       ) : (
         <div className="sign-on-toggle-row">
-          <button
+          <Button variant="text" size={null}
             type="button"
             className="link-btn sign-on-btn"
             onClick={() => setShowSignOn(true)}
           >
             + Add sign-on bonus
-          </button>
+          </Button>
         </div>
       )}
 
       <div className="two-cols">
         <Field
-          label="Recurring cash bonus"
-          unit="USD / year"
+          label="Yearly bonus"
+          unit="$ / year"
           value={s.bonus}
           onChange={(bonus) => set("bonus", bonus)}
           error={errors.bonus}
@@ -274,30 +277,13 @@ export function ScenarioForm({
             onChange={(growth) => set("growth", growth)}
             error={errors.growth}
           />
-          <div
-            className="quick-chip-row"
-            role="group"
-            aria-label="Salary growth presets"
-          >
-            {["0", "3", "5", "7", "10"].map((pct) => (
-              <button
-                key={pct}
-                type="button"
-                className={`chip-btn ${s.growth === pct ? "active" : ""}`}
-                onClick={() => set("growth", pct)}
-                title={`${pct}% annual salary growth`}
-              >
-                {pct}%
-              </button>
-            ))}
-          </div>
         </div>
       </div>
       <h2 className="input-section-title">Living costs</h2>
       <div className="essential-fields">
         <Field
           label="Monthly living expenses"
-          unit="USD / month"
+          unit="$ / month"
           value={expenseDraft}
           onChange={setTotalExpenses}
           error={
@@ -310,7 +296,7 @@ export function ScenarioForm({
         />
         <Field
           label="Current invested savings"
-          unit="USD"
+          unit="$"
           value={a.starting}
           onChange={(starting) => shared("starting", starting)}
           error={errors.starting}
@@ -348,13 +334,13 @@ export function ScenarioForm({
       )}
       {/* 1-Click Expand/Collapse All Accordions */}
       <div className="accordion-toggle-bar">
-        <button
+        <Button variant="text" size={null}
           type="button"
           className="text-button small-text accordion-toggle-btn"
           onClick={toggleAllSections}
         >
           {allExpanded ? "Collapse all sections" : "Expand all sections"}
-        </button>
+        </Button>
       </div>
 
       {/* Progressive Accordion 1: Living costs */}
@@ -383,7 +369,7 @@ export function ScenarioForm({
                 ))}
               </select>
             </div>
-            <button
+            <Button variant="secondary" size={null}
               type="button"
               className="secondary small"
               disabled={!location}
@@ -399,7 +385,7 @@ export function ScenarioForm({
               }}
             >
               Apply budget
-            </button>
+            </Button>
           </div>
           <AutoDetails hasErrors={categoryKeys.some((k) => !!errors[k])}>
             <summary>Expense category breakdown</summary>
@@ -637,7 +623,7 @@ export function ScenarioForm({
                 }
                 error={errors[`startingAccounts.${index}.balance`]}
               />
-              <button
+              <Button variant="text" size={null}
                 type="button"
                 className="text-button small-text"
                 aria-label={`Remove ${retirementAccountLabels[account.type]} starting balance`}
@@ -651,10 +637,10 @@ export function ScenarioForm({
                 }
               >
                 Remove
-              </button>
+              </Button>
             </div>
           ))}
-          <button
+          <Button variant="secondary" size={null}
             type="button"
             className="secondary small"
             disabled={a.startingAccounts.length >= 40}
@@ -674,7 +660,7 @@ export function ScenarioForm({
             }
           >
             + Add retirement account balance
-          </button>
+          </Button>
           {errors.startingAccounts && (
             <p className="error">{errors.startingAccounts}</p>
           )}
