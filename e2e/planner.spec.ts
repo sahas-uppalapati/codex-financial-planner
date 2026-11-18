@@ -40,6 +40,7 @@ test.beforeEach(async ({ page }) => {
 test("fresh plans start with the Amazon L4 Seattle preset", async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
   await page.goto("/");
+  await page.getByRole("button", { name: "Explore an example" }).click();
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await expect(page.getByRole("button", { name: "Amazon", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("group", { name: "Job Level" }).getByRole("button", { name: "L4", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -116,8 +117,8 @@ test("unified view defaults, inputs, progressive accordions and calculations", a
     page.getByRole("heading", { name: "Your financial future" }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Explore an example" }).click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("241000");
-  await expect(page.getByLabel("Monthly living expenses")).toHaveValue("4500");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("134000");
+  await expect(page.getByLabel("Monthly living expenses")).toHaveValue("4463.43");
   await expect(page.getByLabel("Current invested savings")).toHaveValue(
     "20000",
   );
@@ -156,7 +157,7 @@ test("quick presets preserve edits and full replacement requires confirmation", 
   await page.goto("/?mode=quick");
   await page.getByRole("button", { name: "Explore an example" }).click();
   const salary = page.getByLabel("Annual base salary");
-  await expect(salary).toHaveValue("241000");
+  await expect(salary).toHaveValue("134000");
   await salary.fill("300001");
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await page
@@ -188,8 +189,8 @@ test("switching company and level updates pay and stock when not manually custom
   await page.getByRole("button", { name: "Explore an example" }).click();
   const salary = page.getByLabel("Annual base salary");
   const stock = page.getByLabel("Annual stock / RSUs");
-  await expect(salary).toHaveValue("241000");
-  await expect(stock).toHaveValue("176000");
+  await expect(salary).toHaveValue("134000");
+  await expect(stock).toHaveValue("31700");
 
   // Switch to Meta: compensation should change to Meta E5
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
@@ -197,35 +198,35 @@ test("switching company and level updates pay and stock when not manually custom
     .getByRole("group", { name: "Big Tech Company" })
     .getByRole("button", { name: "Meta" })
     .click();
-  await expect(salary).toHaveValue("231000");
-  await expect(stock).toHaveValue("225000");
+  await expect(salary).toHaveValue("223000");
+  await expect(stock).toHaveValue("203000");
 
-  // Switch to Level E6: compensation should change to Meta E6
+  // Switch to Level E4: compensation should change to Meta E4
   await page
     .getByRole("group", { name: "Job Level" })
-    .getByRole("button", { name: "E6" })
+    .getByRole("button", { name: "E4" })
     .click();
-  await expect(salary).toHaveValue("275000");
-  await expect(stock).toHaveValue("380000");
+  await expect(salary).toHaveValue("180000");
+  await expect(stock).toHaveValue("91500");
 
   // Switch to Amazon: compensation should change to Amazon L6 (default senior level)
   await page
     .getByRole("group", { name: "Big Tech Company" })
     .getByRole("button", { name: "Amazon" })
     .click();
-  await expect(salary).toHaveValue("218000");
-  await expect(stock).toHaveValue("166000");
+  await expect(salary).toHaveValue("207000");
+  await expect(stock).toHaveValue("143000");
 
   // Reload page: switching company should still update pay
   await page.reload();
-  await expect(salary).toHaveValue("218000");
+  await expect(salary).toHaveValue("207000");
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await page
     .getByRole("group", { name: "Big Tech Company" })
     .getByRole("button", { name: "Google" })
     .click();
-  await expect(salary).toHaveValue("241000");
-  await expect(stock).toHaveValue("176000");
+  await expect(salary).toHaveValue("218000");
+  await expect(stock).toHaveValue("0");
 });
 test("quick forecast separates cash from sold stock and explains negative balances", async ({
   page,
@@ -355,7 +356,7 @@ test("cash presets, independent tax location, budget edits and reload", async ({
     .getByRole("group", { name: "Big Tech Company" })
     .getByRole("button", { name: "Apple" })
     .click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("194480");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("217000");
   await page.getByLabel("Annual base salary").fill("150001");
   await page
     .locator(".inputs-panel summary")

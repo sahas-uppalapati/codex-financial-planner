@@ -252,6 +252,9 @@
   .hint {
     margin-top: 6px;
   }
+  .hint a {
+    text-decoration: underline;
+  }
   .eyebrow {
     font-size: 10px;
     letter-spacing: 1px;
