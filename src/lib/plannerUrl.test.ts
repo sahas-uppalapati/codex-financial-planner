@@ -4,7 +4,8 @@ import { parsePlannerUrlParams, buildPlannerSearchString } from "./plannerUrl";
 
 describe("plannerUrl", () => {
   it("parses query parameters and applies them to planner state", () => {
-    const search = "?salary=150000&bonus=20000&equity=40000&location=san-francisco&filing=joint&spouse_salary=60000&savings=80000&years=15&returns=8";
+    const search =
+      "?salary=150000&bonus=20000&equity=40000&location=san-francisco&filing=joint&spouse_salary=60000&savings=80000&years=15&returns=8";
     const { mode, hasCustomParams, applyTo } = parsePlannerUrlParams(search);
 
     expect(hasCustomParams).toBe(true);
@@ -45,7 +46,9 @@ describe("plannerUrl", () => {
   });
 
   it("marks even a default estimate as a share that can be loaded independently", () => {
-    const parsed = parsePlannerUrlParams(buildPlannerSearchString(defaultPlanner(), true));
+    const parsed = parsePlannerUrlParams(
+      buildPlannerSearchString(defaultPlanner(), true),
+    );
     expect(parsed.hasCustomParams).toBe(true);
     expect(parsed.mode).toBe("quick");
     const loaded = parsed.applyTo(defaultPlanner());
@@ -59,51 +62,69 @@ describe("plannerUrl", () => {
     const base = defaultPlanner();
     const updated = applyTo(base);
     expect(updated.scenarios[0].base).toBe(base.scenarios[0].base);
-    expect(updated.scenarios[0].taxProfile.location).toBe(base.scenarios[0].taxProfile.location);
+    expect(updated.scenarios[0].taxProfile.location).toBe(
+      base.scenarios[0].taxProfile.location,
+    );
   });
 });
 
 describe("full plan links", () => {
   it("round trips both scenarios, detailed inputs and view with a compact delta", async () => {
-    const { fullPlannerUrl, readFullPlannerLink } = await import("./plannerUrl");
+    const { fullPlannerUrl, readFullPlannerLink } = await import(
+      "./plannerUrl"
+    );
     const plan = defaultPlanner();
     plan.comparison = true;
     plan.scenarios[0].name = "Offer & equity 🏡";
     plan.shared.starting = "12345";
     const url = fullPlannerUrl("https://example.com/", plan, false);
     expect(url.length).toBeLessThan(500);
-    expect(readFullPlannerLink(new URL(url).search)).toEqual({ state: plan, quickMode: false });
-    expect(new URL(fullPlannerUrl(url, null, false)).searchParams.has("plan")).toBe(false);
+    expect(readFullPlannerLink(new URL(url).search)).toEqual({
+      state: plan,
+      quickMode: false,
+    });
+    expect(
+      new URL(fullPlannerUrl(url, null, false)).searchParams.has("plan"),
+    ).toBe(false);
   });
   it("preserves extensive plan edits including custom grants, accounts, tiers, and comparison", async () => {
-    const { fullPlannerUrl, readFullPlannerLink } = await import("./plannerUrl");
+    const { fullPlannerUrl, readFullPlannerLink } = await import(
+      "./plannerUrl"
+    );
     const { templateSchedule } = await import("../data/vesting");
     const plan = defaultPlanner();
     plan.comparison = true;
     plan.shared.starting = "75000";
     plan.shared.years = "18";
     plan.shared.startingAccounts = [
-      { id: "a1", owner: "primary", type: "traditional-401k", balance: "50000" },
+      {
+        id: "a1",
+        owner: "primary",
+        type: "traditional-401k",
+        balance: "50000",
+      },
       { id: "a2", owner: "spouse", type: "roth-ira", balance: "20000" },
     ];
     plan.scenarios[0].base = "215000";
     plan.scenarios[0].bonus = "35000";
     plan.scenarios[0].stockMode = "grants";
-    plan.scenarios[0].grants = [{
-      id: "grant-test-1",
-      name: "Initial grant",
-      issuerId: plan.scenarios[0].employerId,
-      employmentId: "initial",
-      month: "2026-01",
-      units: "dollars",
-      value: "200000",
-      priceMode: "modeled",
-      grantPrice: "100",
-      schedule: templateSchedule("quarterly"),
-      template: "quarterly",
-      treatment: "sell",
-      keepOnDeparture: false,
-    }];
+    plan.scenarios[0].grants = [
+      {
+        id: "grant-test-1",
+        name: "Initial grant",
+        issuerId: plan.scenarios[0].employerId,
+        employmentId: "initial",
+        month: "2026-01",
+        units: "dollars",
+        value: "200000",
+        priceMode: "modeled",
+        grantPrice: "100",
+        schedule: templateSchedule("quarterly"),
+        template: "quarterly",
+        treatment: "sell",
+        keepOnDeparture: false,
+      },
+    ];
     plan.scenarios[0].employerMatch = {
       type: "tiered",
       rate: "0",
@@ -141,5 +162,31 @@ describe("full plan links", () => {
   it("rejects malformed full links", async () => {
     const { readFullPlannerLink } = await import("./plannerUrl");
     expect(() => readFullPlannerLink("?plan=invalid")).toThrow();
+    const unsupported = new URLSearchParams({ plan: JSON.stringify({ format: 1, planner: { ...defaultPlanner(), version: 99 } }) });
+    const malformed = new URLSearchParams({ plan: JSON.stringify({ format: 2, delta: { comparison: "yes" } }) });
+    expect(() => readFullPlannerLink(`?${unsupported}`)).toThrow();
+    expect(() => readFullPlannerLink(`?${malformed}`)).toThrow();
   });
+});
+
+it("round trips complete startup fragment links and rejects malformed fragments", async () => {
+  const { sessionShareUrl, readSessionLink } = await import("./plannerUrl");
+  const { emptyStartupSession } = await import("./startupComparison");
+  const state = defaultPlanner();
+  const startup = emptyStartupSession();
+  startup.scenario = 1;
+  startup.inputs[1].grant = "12000";
+  const url = new URL(
+    sessionShareUrl("https://example.com/?other=1", state, startup),
+  );
+  expect(readSessionLink(url.hash)).toEqual({ state, startup });
+  expect(() => readSessionLink("#plan=broken")).toThrow();
+  const invalid = new URLSearchParams({
+    plan: JSON.stringify({
+      format: 3,
+      planner: { ...state, version: 99 },
+      startup,
+    }),
+  });
+  expect(() => readSessionLink(`#${invalid}`)).toThrow();
 });

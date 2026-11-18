@@ -57,3 +57,5 @@ Tax calculation and vesting provenance for the v2 monthly model is documented in
 ## Investment calculator assumptions
 
 The standalone investment calculators use user-entered amounts and returns with deterministic monthly compounding; they do not use market data or recommended return forecasts. Career mode reuses the planner’s sourced tax and compensation assumptions and actual monthly projection. Additional monthly money and starting investments are hypothetical after-tax funding, not compensation benchmarks. Targets, supported limits, timing, and the 40-year extrapolation are documented in the README’s Investment calculators section.
+
+The decision summary, what-if preview, and salary-gap estimate reuse the existing projections and sourced assumptions. Preview inputs do not alter the saved plan.
