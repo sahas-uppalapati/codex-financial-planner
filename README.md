@@ -55,7 +55,7 @@ While startup mode is selected, Big Tech preset grants and preset-generated prom
 
 The startup inputs include fictional Series A, B, and C examples. Salary inputs use [Cadre's 2020–2026 placement medians](https://www.yourcadre.com/comp); all option counts and prices are invented and are not stage benchmarks. Applying an example assumes no bonus, raises, relocation, or employer match, and four-year monthly vesting with a one-year cliff. It leaves location, living expenses, and existing grants and career events intact. These are illustrations, not actual offers.
 
-New visitors can enter an offer or explore an example. Existing saved plans open directly. Replace salary, annual stock, monthly living expenses, current invested savings, and projection length with your own values. Optional **Company presets** stay collapsed; changing a preset preserves customized values, and a full replacement requires a preview and confirmation. The balance includes investment accounts and vested stock before future sale or withdrawal taxes. Monthly figures are annual averages; bonuses and stock may arrive unevenly.
+New visitors can enter an offer or explore an example. Existing saved plans open directly. Optional **Company presets** use static public software-engineer averages for Google, Meta, Amazon, Apple, and Microsoft; the preset links to its source and the snapshot date is documented under **About these estimates**. Google first-year stock and combined bonus/sign-on figures are excluded from recurring projections. The quick estimator uses 2026 county-specific MIT minimum-needs cost data. Changing a preset preserves customized values, and a full replacement requires a preview and confirmation. Balances are before future sale or withdrawal taxes. Monthly figures are annual averages; bonuses and stock may arrive unevenly.
 
 At widths of 1200px and above, a compact navigation rail sits beside a 340px input panel and flexible results workspace. Smaller screens use labeled navigation above stacked inputs and results. **View results** and **Edit inputs** links help move between them; selecting a destination also brings its results into view on smaller screens. Page scrolling stays ordinary; wide tables scroll within their containers.
 
@@ -142,3 +142,5 @@ Numerical guardrails: 1–40 years starting 2026–2036; $0–$10 million salary
 - `src/components/ui/`: the used shadcn primitives and their MIT notice.
 - `src/styles.css` and `src/styles/`: Tailwind theme tokens, app shell, shared editors, results, startup, and print styles.
 - `docs/DATA_SOURCES.md`: existing compensation and six-county budget provenance.
+
+Preset inputs are editable in `src/data/compensation.json`, `src/data/locationBudgets.json`, and `src/data/techPresets.json`. See [data sources](docs/DATA_SOURCES.md) for provenance and update the source notes when changing sourced values.
