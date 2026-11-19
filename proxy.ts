@@ -1,5 +1,5 @@
 import { next } from '@vercel/functions';
-import { prefersMarkdown } from './src/lib/acceptMarkdown';
+import { prefersMarkdown } from './src/lib/acceptMarkdown.js';
 
 export default function proxy(request: Request) {
   const headers = new Headers(request.headers);
