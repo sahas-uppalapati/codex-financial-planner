@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import { prefersMarkdown } from '../lib/acceptMarkdown';
 
 const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta.url), 'utf8');
 
@@ -11,6 +12,17 @@ describe('public agent resources', () => {
     expect(root).toContain('<h1>');
     const json = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? '';
     expect(JSON.parse(json)).toMatchObject({ '@type': 'WebApplication', name: 'CareerWorth' });
+  });
+
+  it('honors explicit media preferences and quality weights', () => {
+    expect(prefersMarkdown('text/markdown')).toBe(true);
+    expect(prefersMarkdown('text/html')).toBe(false);
+    expect(prefersMarkdown('*/*')).toBe(false);
+    expect(prefersMarkdown('text/markdown;q=0, text/html')).toBe(false);
+    expect(prefersMarkdown('text/markdown;q=0.4, text/html;q=0.9')).toBe(false);
+    expect(prefersMarkdown('text/markdown;q=0.9, text/html;q=0.4')).toBe(true);
+    expect(prefersMarkdown('text/markdown;q=1, text/*;q=0.5')).toBe(true);
+    expect(prefersMarkdown('text/markdown;q=0, text/*;q=1')).toBe(false);
   });
 
   it('configures distinct markdown responses for the homepage and missing paths', () => {
