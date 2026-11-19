@@ -1,0 +1,81 @@
+@media print {
+  html:root,
+  html:root.dark {
+    color-scheme: light !important;
+    --background: white;
+    --foreground: #18181b;
+    --card: white;
+    --secondary: #f5f5f5;
+    --muted: #fafafa;
+    --muted-foreground: #555;
+    --border: #ddd;
+    --input: #ddd;
+    --primary-text: #0066cc;
+    --primary-soft: #edf6ff;
+    --series-0: #008061;
+    --series-1: #0066cc;
+    --positive-text: #007a59;
+    --danger: #b42332;
+    --danger-soft: #fff2f3;
+    --warning: #714a14;
+    --warning-soft: white;
+    --chart-grid: #ccc;
+  }
+  .site-header,
+  .intro,
+  .inputs-panel,
+  footer,
+  .disclosures,
+  .chart-range,
+  .results-toolbar,
+  .planner-resources,
+  .results-nav,
+  .back-to-inputs,
+  .skip-link,
+  .table-density-switch {
+    display: none !important;
+  }
+  .workspace-layout,
+  .calculator-layout,
+  .portfolio-grid {
+    display: block;
+  }
+  main {
+    padding: 0;
+    max-width: none;
+  }
+  .results-column {
+    width: 100%;
+  }
+  .projection-panel,
+  .cash-panel,
+  .quick-read,
+  .portfolio-breakdown {
+    break-inside: avoid;
+    margin-bottom: 16px;
+  }
+  .quick-metrics-row {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+  .quick-metric-val {
+    font-size: 20px;
+  }
+  .table-scroll {
+    overflow: visible;
+  }
+  .table-scroll table {
+    font-size: 8px;
+    white-space: normal;
+  }
+  .table-scroll th,
+  .table-scroll td {
+    padding: 3px;
+    position: static;
+  }
+  .table-scroll th small {
+    max-width: none;
+  }
+  .annual-schedule :is(th, td):nth-child(n + 12):not(:last-child) {
+    display: none;
+  }
+}
