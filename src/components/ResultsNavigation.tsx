@@ -3,7 +3,7 @@ import {
   ArrowLeftRight,
   ReceiptText,
   CalendarDays,
-  LockKeyhole,
+  SlidersHorizontal,
   Calculator,
 } from "lucide-react";
 import { Button } from "./ui/button";
@@ -20,13 +20,14 @@ export const destinations = [
 export function ResultsNavigation({
   destination,
   onNavigate,
+  onEditInputs,
 }: {
   destination: Destination;
   onNavigate: (value: Destination) => void;
+  onEditInputs: () => void;
 }) {
   return (
     <nav className="results-nav" aria-label="Results navigation">
-      <span className="nav-label">Workspace</span>
       <div className="nav-items">
         {destinations.map(({ id, label, icon: Icon }) => (
           <Button
@@ -40,14 +41,10 @@ export function ResultsNavigation({
             <span>{label}</span>
           </Button>
         ))}
-      </div>
-      <div className="rail-note">
-        <LockKeyhole size={16} aria-hidden="true" />
-        <span>
-          Local to this browser
-          <br />
-          <small>No account needed</small>
-        </span>
+        <Button variant="ghost" className="nav-button nav-inputs" onClick={onEditInputs}>
+          <SlidersHorizontal aria-hidden="true" />
+          <span>Inputs</span>
+        </Button>
       </div>
     </nav>
   );

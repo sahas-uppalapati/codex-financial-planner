@@ -13,11 +13,9 @@ export function CashFlowPanel({
 }) {
   return (
     <section className="cash-panel" aria-labelledby="cash-heading">
-      <div className="panel-heading">
-        <div>
-          <p className="eyebrow">MONTHLY & ANNUAL CASH FLOW</p>
-          <h2 id="cash-heading">The cash & compensation picture</h2>
-        </div>
+      <div className="metric-section-heading">
+        <h3 id="cash-heading">Monthly cash</h3>
+        <span>USD per month</span>
       </div>
       <details>
         <summary>About timing and cash</summary>
@@ -37,7 +35,7 @@ export function CashFlowPanel({
       >
         {series.length === 2 && (
           <div className="metric-row metric-head">
-            <span>Monthly equivalent</span>
+            <span>Metric</span>
             {series.map((s) => (
               <strong key={s.index}>
                 <span>{s.name}</span>
@@ -48,7 +46,6 @@ export function CashFlowPanel({
         <div className="metric-row">
           <span>
             Cash take-home
-            <span className="freq-badge monthly">/ mo</span>
             <small>After taxes and payroll benefits</small>
           </span>
           {series.map((s) => (
@@ -64,7 +61,6 @@ export function CashFlowPanel({
             <div className="metric-row">
               <span>
                 Budgeted living expenses
-                <span className="freq-badge monthly">/ mo</span>
               </span>
               {series.map((s) => (
                 <strong key={s.index}>
@@ -75,7 +71,6 @@ export function CashFlowPanel({
             <div className="metric-row">
               <span>
                 Healthcare already paid in payroll
-                <span className="freq-badge monthly">/ mo</span>
                 <small>Removed once from living expenses</small>
               </span>
               {series.map((s) => (
@@ -87,7 +82,6 @@ export function CashFlowPanel({
             <div className="metric-row">
               <span>
                 Post-payroll living expenses
-                <span className="freq-badge monthly">/ mo</span>
               </span>
               {series.map((s) => (
                 <strong key={s.index}>
@@ -100,7 +94,6 @@ export function CashFlowPanel({
           <div className="metric-row">
             <span>
               Living expenses
-              <span className="freq-badge monthly">/ mo</span>
             </span>
             {series.map((s) => (
               <strong key={s.index}>
@@ -112,7 +105,6 @@ export function CashFlowPanel({
         <div className="metric-row savings-row">
           <span>
             Cash savings
-            <span className="freq-badge monthly">/ mo</span>
           </span>
           {series.map((s) => {
             const r = s.projection.rows[activeYear];
@@ -142,13 +134,16 @@ export function CashFlowPanel({
             );
           })}
         </div>
+        <div className="metric-section-heading annual-cash-heading">
+          <h3>Annual equity and benefits</h3>
+          <span>USD per year</span>
+        </div>
         <div className="metric-row stock-row">
           <span>
             Gross vested equity
-            <span className="freq-badge annual">/ yr</span>
             {series.some(
               (s) => s.projection.rows[activeYear].stockGross > 0,
-            ) && <small>Annual · includes retained shares</small>}
+            ) && <small>includes retained shares</small>}
           </span>
           {series.map((s) => (
             <strong key={s.index} data-testid={`stock-${s.index}`}>
@@ -161,8 +156,7 @@ export function CashFlowPanel({
             <div className="metric-row">
               <span>
                 Stock proceeds invested
-                <span className="freq-badge annual">/ yr</span>
-                <small>Annual · after attributed equity taxes</small>
+                <small>after attributed equity taxes</small>
               </span>
               {series.map((s) => (
                 <strong key={s.index}>
@@ -173,8 +167,7 @@ export function CashFlowPanel({
             <div className="metric-row">
               <span>
                 Equity retained at vest
-                <span className="freq-badge annual">/ yr</span>
-                <small>Annual · after sell-to-cover</small>
+                <small>after sell-to-cover</small>
               </span>
               {series.map((s) => (
                 <strong key={s.index}>
@@ -190,8 +183,7 @@ export function CashFlowPanel({
           <div className="metric-row">
             <span>
               Employer match
-              <span className="freq-badge annual">/ yr</span>
-              <small>Annual · deposited in the traditional 401(k)</small>
+              <small>deposited in the traditional 401(k)</small>
             </span>
             {series.map((s) => (
               <strong key={s.index}>
@@ -206,7 +198,6 @@ export function CashFlowPanel({
           <div className="metric-row">
             <span>
               Unvested employer match
-              <span className="freq-badge annual">/ yr</span>
               <small>
                 Vesting in progress · unvested balance forfeits on departure
               </small>
@@ -224,7 +215,6 @@ export function CashFlowPanel({
           <div className="metric-row">
             <span>
               Forfeited unvested match
-              <span className="freq-badge annual">/ yr</span>
               <small>Deducted on job departure before vesting</small>
             </span>
             {series.map((s) => (
@@ -243,8 +233,7 @@ export function CashFlowPanel({
           <div className="metric-row">
             <span>
               401(k) + HSA contributions
-              <span className="freq-badge annual">/ yr</span>
-              <small>Annual · transferred into their accounts</small>
+              <small>transferred into their accounts</small>
             </span>
             {series.map((s) => {
               const r = s.projection.rows[activeYear];

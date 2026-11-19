@@ -27,6 +27,14 @@ export function TaxBreakdownTable({
         </span>
       </h3>
       <div className="details-body">
+        <dl className="tax-summary">
+          {series.map(({ name, index, projection }) => (
+            <div key={index}>
+              <dt>{series.length > 1 ? name : "Estimated total tax"}</dt>
+              <dd>{money(projection.rows[activeYear].taxes)}</dd>
+            </div>
+          ))}
+        </dl>
         <details className="table-header-controls">
           <summary>Tax coverage and reserves</summary>
           <p className="hint">

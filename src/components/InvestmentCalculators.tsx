@@ -81,6 +81,7 @@ export function InvestmentCalculators({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const workerRef = useRef<Worker | null>(null);
+  const resultPanel = useRef<HTMLDivElement>(null);
   const tabsId = useId();
   const draft = drafts[source];
   const errors = calculatorErrors(draft);
@@ -103,6 +104,15 @@ export function InvestmentCalculators({
     }
   }, [entry]);
   useEffect(() => () => workerRef.current?.terminate(), []);
+
+  useEffect(() => {
+    const panel = resultPanel.current;
+    if (visible && results && panel && window.matchMedia("(max-width: 959px)").matches
+      && document.activeElement?.closest(".investment-calculator-form")) {
+      panel.focus({ preventScroll: true });
+      panel.scrollIntoView({ behavior: "instant", block: "start" });
+    }
+  }, [results, visible]);
 
   function change(patch: Partial<CalculatorDraft>) {
     invalidate();
@@ -165,6 +175,9 @@ export function InvestmentCalculators({
       className="investment-calculators"
       style={{ display: visible ? undefined : "none" }}
     >
+      <h2 id="investment-calculator-heading" className="calculator-heading" tabIndex={-1}>
+        Investment calculators
+      </h2>
       <div
         className="calculator-mode-tabs"
         role="tablist"
@@ -223,9 +236,10 @@ export function InvestmentCalculators({
           className="inputs-panel"
           aria-label="Investment calculator inputs"
           id="investment-calculator-inputs"
+          tabIndex={-1}
         >
           <div className="input-panel-title">
-            <h2>Investment calculators</h2>
+            <h3>Inputs</h3>
             <span className="period-tag">USD</span>
           </div>
           <form className="investment-calculator-form" onSubmit={calculate}>
@@ -341,20 +355,18 @@ export function InvestmentCalculators({
         <div
           className="results-column"
           id="investment-calculator-results"
+          ref={resultPanel}
           tabIndex={-1}
         >
           <div className="workspace-heading">
             <div>
-              <h2>Calculators</h2>
-              <p className="hint">
-                Explore a target, contribution, timeline, or return
-              </p>
+              <h3>Calculation results</h3>
             </div>
             <a className="back-to-inputs" href="#investment-calculator-inputs">
               Edit calculator inputs
             </a>
           </div>
-          <div role="status" aria-live="polite">
+          <div className="sr-only" role="status">
             {busy
               ? "Calculating your career scenarios…"
               : results
@@ -376,11 +388,7 @@ export function InvestmentCalculators({
             !busy &&
             !error && (
               <section className="calculator-empty">
-                <h3>What would you like to find?</h3>
-                <p>
-                  Choose a mode, enter a few values, and calculate. Use your
-                  career plan to include changing income, vesting, and expenses.
-                </p>
+                <p>Choose a calculator and enter your inputs to see an estimate.</p>
               </section>
             )
           )}

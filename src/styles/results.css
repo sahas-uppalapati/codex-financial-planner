@@ -11,29 +11,19 @@
   }
   .year-picker {
     display: flex;
+    flex: none;
+    white-space: nowrap;
     align-items: center;
-    justify-content: flex-start;
     gap: 8px;
-    margin: 0;
-    border: 1px solid var(--input);
-    border-radius: 6px;
-    padding-left: 10px;
-    background: var(--card);
     color: var(--muted-foreground);
+    font-size: 12px;
   }
   .year-picker-trigger {
     width: auto;
-    min-height: 32px;
-    height: 32px;
-    padding: 4px 8px;
-    border: none;
-    box-shadow: none;
-    background: transparent;
-    color: var(--foreground);
-    font-size: 11px;
+    min-height: 40px;
   }
   .toolbar-period {
-    font-size: 10px;
+    font-size: 12px;
     color: var(--muted-foreground);
   }
   .export-actions {
@@ -43,8 +33,9 @@
     gap: 6px;
   }
   .export-actions button {
-    font-size: 11px;
-    padding-inline: 9px;
+    min-height: 40px;
+    font-size: 12px;
+    padding-inline: 10px;
   }
   .quick-read {
     margin-bottom: 18px;
@@ -53,72 +44,62 @@
     margin-bottom: 12px;
   }
   .quick-read-heading h3 {
+    font-size: 15px;
+    font-weight: 600;
+  }
+  .monthly-comparison {
+    width: 100%;
+    white-space: normal;
+    table-layout: fixed;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+  .monthly-comparison :is(th, td) {
+    padding: 10px 8px;
+    border-bottom: 1px solid var(--border);
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+  .monthly-comparison th:first-child {
+    width: 38%;
+    text-align: left;
+  }
+  .monthly-comparison thead th {
     font-size: 12px;
     color: var(--muted-foreground);
-    font-weight: 400;
   }
-  .quick-read-grid {
-    display: grid;
-    gap: 14px;
+  .monthly-comparison .highlight {
+    background: var(--primary-soft);
   }
-  .quick-read-card > h3 {
-    display: flex;
-    align-items: center;
-    margin-bottom: 10px;
-    font-size: 12px;
-    overflow-wrap: anywhere;
+  .monthly-comparison td {
+    font-weight: 600;
   }
   .quick-metrics-row {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 146px), 1fr));
     gap: 12px;
   }
   .quick-metric-box {
     border: 1px solid var(--border);
     border-radius: 7px;
     background: var(--card);
-    padding: 15px;
+    padding: 12px;
     box-shadow: none;
     min-width: 0;
     display: flex;
     flex-direction: column;
-    gap: 20px;
-  }
-  .monthly-metrics .flow-in .quick-metric-label,
-  .monthly-metrics .flow-in .quick-metric-val {
-    color: var(--positive-text);
-  }
-  .monthly-metrics .flow-out .quick-metric-label,
-  .monthly-metrics .flow-out .quick-metric-val {
-    color: var(--danger);
-  }
-  .metric-card-heading {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
     gap: 6px;
   }
-  .quick-metric-label {
-    font-size: 14px;
+  .quick-metric-box.highlight {
+    border-color: var(--primary);
+    background: var(--primary-soft);
   }
-  .metric-icon {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    width: 27px;
-    height: 27px;
-    border-radius: 7px;
-    background: conic-gradient(
-      from 90deg,
-      #5e5959,
-      #242424 25%,
-      #5e5959 45%,
-      #242424 75%,
-      #5e5959
-    );
-    box-shadow: 1px 1px 0 #0003;
-    color: white;
+  .quick-metric-label {
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .quick-read > details {
+    margin-top: 8px;
   }
   .quick-metric-val {
     font-weight: 600;
@@ -703,15 +684,6 @@
     gap: 4px;
     font-size: 10px;
   }
-  .freq-badge {
-    display: inline-block;
-    margin-left: 6px;
-    font-size: 9px;
-    color: var(--muted-foreground);
-  }
-  .freq-badge.annual {
-    color: var(--primary-text);
-  }
   .flow-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
@@ -825,18 +797,7 @@
     text-align: center;
     background: var(--muted);
   }
-  .empty-icon {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 40px;
-    height: 40px;
-    border-radius: 10px;
-    background: var(--danger-soft);
-    color: var(--danger);
-    margin-bottom: 18px;
-  }
-  .invalid-results h2 {
+  .invalid-results h3 {
     font-size: 18px;
     margin-bottom: 10px;
   }
@@ -844,6 +805,13 @@
     max-width: 380px;
     margin-inline: auto;
     font-size: 12px;
+  }
+  .invalid-result-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 16px;
   }
   .invalid-results .hint {
     margin-top: 10px;
@@ -883,11 +851,8 @@
     display: block;
   }
   .quick-metrics-row {
-    grid-template-columns: minmax(0, 1fr);
-  }
-  .quick-metric-box {
-    gap: 16px;
-    padding: 16px;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
   }
   .quick-metric-val {
     font-size: clamp(18px, 5vw, 26px);
@@ -897,10 +862,6 @@
   }
   .export-actions {
     margin-left: 0;
-  }
-  .toolbar-period {
-    order: 3;
-    width: 100%;
   }
   .results-toolbar {
     gap: 8px;
@@ -947,7 +908,7 @@
   color: var(--foreground);
   font-weight: 400;
 }
-.quick-setup button, .share-panel button, .decision-tools button {
+.share-panel button, .decision-tools button {
   padding: .5rem .75rem;
   margin: .25rem .3rem .25rem 0;
   border: 1px solid var(--border);
@@ -962,3 +923,65 @@
 }
 .quick-setup button:disabled, .share-panel button:disabled { opacity: .5; cursor: not-allowed; }
 .decision-tools summary, .quick-setup summary { cursor: pointer; }
+
+@layer components {
+  .metric-section-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 4px 12px;
+  }
+  .metric-section-heading > span {
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .tax-summary {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 12px;
+  }
+  .tax-summary > div {
+    flex: 1 1 120px;
+    min-width: 0;
+    padding: 12px;
+    border-radius: 6px;
+    background: var(--secondary);
+    overflow-wrap: anywhere;
+  }
+  .tax-summary dt {
+    font-size: 12px;
+  }
+  .tax-summary dd {
+    margin: 4px 0 0;
+    font-size: 20px;
+    font-weight: 600;
+  }
+  .annual-cash-heading {
+    margin-top: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--border);
+  }
+  .setup-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 12px;
+  }
+  .setup-actions button {
+    min-height: 44px;
+  }
+}
+@media (max-width: 600px) {
+  .year-picker-trigger,
+  .export-actions button {
+    min-height: 44px;
+  }
+  .annual-schedule .table-scroll th:first-child {
+    min-width: 88px;
+    max-width: 112px;
+  }
+  .annual-schedule .table-scroll th:first-child small {
+    white-space: normal;
+  }
+}

@@ -47,6 +47,7 @@ test("standalone calculators support all five modes, keyboard use, and navigatio
   page,
 }, testInfo) => {
   await navigate(page, "Calculators");
+  await expect(page.getByRole("heading", { name: "Investment calculators" })).toBeFocused();
   const form = page.getByRole("complementary", {
     name: "Investment calculator inputs",
   });

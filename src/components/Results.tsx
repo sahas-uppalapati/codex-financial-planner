@@ -1,9 +1,5 @@
 import {
-  Wallet,
-  ArrowDownLeft,
-  ArrowUpRight,
   Download,
-  CalendarDays,
   ChartNoAxesCombined,
 } from "lucide-react";
 import { Card } from "./ui/card";
@@ -114,47 +110,76 @@ export function Results({
       !series.some((_, i) => Math.abs(getAccountVal(key, kind, i)) > 0.005),
   );
 
+  const monthlyRows = series.map((scenario) => scenario.projection.rows[activeYear]);
+  const monthlyMetrics = [
+    {
+      label: "Cash left over",
+      note: "Includes cash from stock sold",
+      values: monthlyRows.map((row) => row.surplus + row.stockContribution),
+    },
+    {
+      label: "Take-home pay",
+      note: "After taxes and paycheck deductions",
+      values: monthlyRows.map((row) => row.takeHome),
+    },
+    {
+      label: "Living costs",
+      note: "After payroll health premiums",
+      values: monthlyRows.map((row) => row.expenses),
+    },
+    {
+      label: "Cash from shares sold",
+      note: "After estimated taxes",
+      values: monthlyRows.map((row) => row.stockContribution),
+      optional: true,
+    },
+    {
+      label: "Other savings",
+      note: "Extra contributions from take-home pay",
+      values: monthlyRows.map((row) => row.traditionalIraContribution + row.rothIraContribution + row.megaBackdoorContribution),
+      optional: true,
+    },
+  ].filter((metric) => !metric.optional || metric.values.some((value) => value > 0));
+
   return (
     <div className="results-content">
       <div className="results-toolbar">
-        <div className="year-picker">
-          <CalendarDays size={15} aria-hidden="true" />
-          <Select
-            value={String(activeYear)}
-            onValueChange={(value) => setSelected(Number(value))}
-          >
-            <SelectTrigger
-              aria-label="Results for calendar year"
-              className="year-picker-trigger"
+        {destination !== "yearly" ? (
+          <div className="year-picker">
+            <span>Results year</span>
+            <Select
+              value={String(activeYear)}
+              onValueChange={(value) => setSelected(Number(value))}
             >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent align="start">
-              {series[0].projection.rows.map((row, index) => (
-                <SelectItem key={row.calendarYear} value={String(index)}>
-                  {row.calendarYear}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </div>
-        {destination !== "overview" && (
-          <span className="toolbar-period">
-            {destination === "cash"
-              ? "Monthly & annual amounts"
-              : "Annual amounts · nominal USD"}
-          </span>
+              <SelectTrigger
+                aria-label="Results for calendar year"
+                className="year-picker-trigger"
+              >
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent align="start">
+                {series[0].projection.rows.map((row, index) => (
+                  <SelectItem key={row.calendarYear} value={String(index)}>
+                    {row.calendarYear}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        ) : (
+          <span className="toolbar-period">All projection years · USD</span>
         )}
         <div className="export-actions">
           <Button
             size="sm"
+            variant="outline"
             onClick={() => {
               exportProjection(series);
               track("csv_exported", { period: "annual" });
             }}
           >
             <Download aria-hidden="true" />
-            Export CSV
+            Export annual CSV
           </Button>
           <Button
             variant="outline"
@@ -170,143 +195,71 @@ export function Results({
       </div>
       {destination === "overview" && (
         <>
-          <DecisionTools
-            state={state}
-            year={activeYear}
-            projections={series.map((s) => s.projection)}
-            startup={startupScenario}
-            startupInput={startupInput}
-          />
-          <StartupComparison
-            series={series}
-            startup={startupScenario}
-            input={startupInput}
-          />
-          {/* 1. Top Section: Your Monthly Picture */}
           <section
             className="quick-read"
             aria-labelledby="monthly-picture-heading"
           >
+            <div className="quick-read-heading">
+              <h3 id="monthly-picture-heading">Your monthly picture</h3>
+            </div>
+            {series.length > 1 ? (
+              <table className="monthly-comparison">
+                <thead>
+                  <tr>
+                    <th scope="col">USD per month</th>
+                    {series.map((scenario) => (
+                      <th scope="col" key={scenario.index}>{scenario.name}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {monthlyMetrics.map(({ label, values }, index) => (
+                    <tr key={label} className={index === 0 ? "highlight" : undefined}>
+                      <th scope="row">{label}</th>
+                      {series.map((scenario, column) => (
+                        <td
+                          key={scenario.index}
+                          className={values[column] < 0 ? "negative" : undefined}
+                          data-testid={index === 0 ? `quick-cash-${scenario.index}` : undefined}
+                        >
+                          {money(values[column] / 12)}
+                        </td>
+                      ))}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <div className="quick-metrics-row">
+                {monthlyMetrics.map(({ label, note, values }, index) => (
+                  <Card
+                    className={`quick-metric-box rounded-lg shadow-none ${index === 0 ? "highlight" : ""}`}
+                    key={label}
+                  >
+                    <span className="quick-metric-label">{label}</span>
+                    <strong
+                      className={`quick-metric-val ${values[0] < 0 ? "negative" : ""}`}
+                      data-testid={index === 0 ? "quick-cash-0" : undefined}
+                    >
+                      {money(values[0] / 12)}
+                      <span className="unit">/ mo</span>
+                    </strong>
+                    <span className="monthly-metric-note">{note}</span>
+                  </Card>
+                ))}
+              </div>
+            )}
             <details>
               <summary>About these monthly averages</summary>
               <p>
                 Annual amounts are divided by twelve. Bonuses and stock may
-                arrive unevenly. Remaining cash includes sold-stock proceeds;
-                cash after costs in the decision summary excludes them and
-                reflects other savings.
+                arrive unevenly. Remaining cash includes sold-stock proceeds.
+                The decision summary also shows cash after costs excluding
+                stock sold when you compare two offers.
               </p>
             </details>
-            <div className="quick-read-heading">
-              <h3 id="monthly-picture-heading">Your monthly picture</h3>
-            </div>
-            <div
-              className="quick-read-grid"
-              style={
-                { "--scenario-count": series.length } as React.CSSProperties
-              }
-            >
-              {series.map((s) => {
-                const row = s.projection.rows[activeYear];
-                const additionalSavings =
-                  row.traditionalIraContribution +
-                  row.rothIraContribution +
-                  row.megaBackdoorContribution;
-                const items = [
-                  [
-                    "Take-home pay",
-                    row.takeHome,
-                    "After taxes and paycheck deductions",
-                    Wallet,
-                  ],
-                  ...(row.stockContribution > 0
-                    ? [
-                        [
-                          "Cash from shares sold",
-                          row.stockContribution,
-                          "After estimated taxes",
-                          Wallet,
-                        ] as const,
-                      ]
-                    : []),
-                  [
-                    "Living costs",
-                    row.expenses,
-                    "After payroll health premiums",
-                    ArrowDownLeft,
-                  ],
-                  ...(additionalSavings > 0
-                    ? [
-                        [
-                          "Other savings",
-                          additionalSavings,
-                          "Extra contributions from take-home pay",
-                          ArrowDownLeft,
-                        ] as const,
-                      ]
-                    : []),
-                  [
-                    "Money left over",
-                    row.surplus + row.stockContribution,
-                    "After living costs and other savings",
-                    ArrowUpRight,
-                  ],
-                ] as const;
-                return (
-                  <article className="quick-read-card" key={s.index}>
-                    {series.length > 1 && (
-                      <h3>
-                        <i className={`dot series-${s.index}`} />
-                        {s.name}
-                      </h3>
-                    )}
-                    <div className="quick-metrics-row monthly-metrics">
-                      {items.map(([label, value, description, Icon]) => {
-                        const flowClass =
-                          label === "Take-home pay" ||
-                          label === "Cash from shares sold"
-                            ? "flow-in"
-                            : label === "Living costs" ||
-                                label === "Other savings"
-                              ? "flow-out"
-                              : value < 0
-                                ? "flow-out"
-                                : "flow-in";
-                        return (
-                          <Card
-                            className={`quick-metric-box rounded-lg shadow-none ${flowClass} ${label === "Money left over" ? "highlight" : ""}`}
-                            key={label}
-                          >
-                            <div className="metric-card-heading">
-                              <span className="quick-metric-label">{label}</span>
-                              <span className="metric-icon">
-                                <Icon size={17} aria-hidden="true" />
-                              </span>
-                            </div>
-                            <strong
-                              className={`quick-metric-val ${value < 0 ? "negative" : ""}`}
-                              data-testid={
-                                label === "Money left over"
-                                  ? `quick-cash-${s.index}`
-                                  : undefined
-                              }
-                            >
-                              {money(value / 12)}
-                              <span className="unit">/ mo</span>
-                            </strong>
-                            <span className="monthly-metric-note">
-                              {description}
-                            </span>
-                          </Card>
-                        );
-                      })}
-                    </div>
-                  </article>
-                );
-              })}
-            </div>
           </section>
 
-          {/* 2. Portfolio & Wealth Over Time */}
           <div className="portfolio-grid">
             <Card
               className="projection-panel rounded-lg shadow-none"
@@ -321,15 +274,6 @@ export function Results({
                 </div>
                 <Button variant="outline" onClick={onOpenCalculators}>Explore calculators</Button>
               </div>
-              <details>
-                <summary>About the portfolio projection</summary>
-                <p>
-                  Balances include investments and vested stock before future
-                  sale or withdrawal taxes. Negative taxable balances are
-                  unfunded shortfalls; held shares and retirement accounts are
-                  not automatically sold to cover spending.
-                </p>
-              </details>
               <div className="balance-heading">
                 <div className="ending-balances">
                   {series.map((s, i) => (
@@ -396,6 +340,15 @@ export function Results({
                   ))}
                 </div>
               </div>
+              <details>
+                <summary>About the portfolio projection</summary>
+                <p>
+                  Balances include investments and vested stock before future
+                  sale or withdrawal taxes. Negative taxable balances are
+                  unfunded shortfalls; held shares and retirement accounts are
+                  not automatically sold to cover spending.
+                </p>
+              </details>
             </Card>
             <Card
               className="portfolio-breakdown rounded-lg shadow-none"
@@ -485,6 +438,18 @@ export function Results({
             </Card>
           </div>
 
+          <DecisionTools
+            state={state}
+            year={activeYear}
+            projections={series.map((s) => s.projection)}
+            startup={startupScenario}
+            startupInput={startupInput}
+          />
+          <StartupComparison
+            series={series}
+            startup={startupScenario}
+            input={startupInput}
+          />
           <ResultInsights series={series} year={activeYear} view="comparison" />
 
           {state.scenarios

@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
+import { Button } from "./ui/button";
 import {
   defaultPlanner,
   taxLocations,
@@ -24,17 +25,22 @@ export function QuickSetup({
     [years, setYears] = useState("4"),
     [startup, setStartup] = useState(false),
     [error, setError] = useState("");
+  const salaryInput = useRef<HTMLInputElement>(null);
+  const enterButton = useRef<HTMLButtonElement>(null);
   return (
     <section className="cash-panel prose quick-setup" aria-label="Get started">
-      <h2>Get started</h2>
+      <h2 id="setup-heading" tabIndex={-1}>Get started</h2>
       {!enter ? (
-        <div>
-          <button type="button" onClick={() => setEnter(true)}>
+        <div className="setup-actions">
+          <Button ref={enterButton} type="button" onClick={() => {
+            setEnter(true);
+            requestAnimationFrame(() => salaryInput.current?.focus());
+          }}>
             Enter my offer
-          </button>{" "}
-          <button type="button" onClick={onExample}>
+          </Button>
+          <Button variant="outline" type="button" onClick={onExample}>
             Explore an example
-          </button>
+          </Button>
         </div>
       ) : (
         <form
@@ -88,6 +94,7 @@ export function QuickSetup({
           <label>
             Annual base salary{" "}
             <input
+              ref={salaryInput}
               required
               type="number"
               step="any"
@@ -168,10 +175,15 @@ export function QuickSetup({
             </p>
           </details>
           {error && <p role="alert">{error}</p>}
-          <button type="submit">Continue to planner</button>{" "}
-          <button type="button" onClick={() => setEnter(false)}>
-            Back
-          </button>
+          <div className="setup-actions">
+            <Button type="submit">Continue to planner</Button>
+            <Button variant="outline" type="button" onClick={() => {
+              setEnter(false);
+              requestAnimationFrame(() => enterButton.current?.focus());
+            }}>
+              Back
+            </Button>
+          </div>
         </form>
       )}
     </section>
