@@ -398,6 +398,21 @@
   .tech-estimator-hero > .hint {
     margin: 12px 0;
   }
+  .preset-preview-action {
+    margin-bottom: 12px;
+  }
+  .preset-disclaimer {
+    margin-top: 12px;
+    border-top: 1px solid var(--border);
+    padding-top: 8px;
+  }
+  .preset-disclaimer > summary {
+    color: var(--muted-foreground);
+    font-size: 10px;
+  }
+  .preset-disclaimer > .hint {
+    margin: 8px 0 0;
+  }
   .preset-preview {
     font-size: 12px;
     overflow-wrap: anywhere;

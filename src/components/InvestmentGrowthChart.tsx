@@ -9,6 +9,7 @@ export function InvestmentGrowthChart({
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [containerWidth, setContainerWidth] = useState(720);
+  const [hoveredYear, setHoveredYear] = useState<number | null>(null);
 
   useEffect(() => {
     const element = scrollRef.current;
@@ -55,7 +56,12 @@ export function InvestmentGrowthChart({
         const right = chartWidth - 16;
         const top = 18;
         const bottom = 226;
-        const values = points.flatMap((point) => [point.added, point.growth]);
+        const startingBalance = scenario.projection.startingTotal;
+        const values = points.flatMap((point) => [
+          startingBalance,
+          startingBalance + point.added,
+          startingBalance + point.added + point.growth,
+        ]);
         const min = Math.min(0, ...values);
         const max = Math.max(0, ...values);
         const span = max - min || 1;
@@ -64,9 +70,13 @@ export function InvestmentGrowthChart({
         const y = (value: number) =>
           bottom - ((value - low) / (high - low)) * (bottom - top);
         const groupWidth = (right - left) / points.length;
-        const barWidth = Math.min(22, groupWidth * 0.28);
+        const barWidth = Math.min(34, groupWidth * 0.58);
         const zeroY = y(0);
         const title = `${scenario.name} money added and investment growth`;
+        const activePoint =
+          points.find((point) => point.year === hoveredYear) ?? points.at(-1);
+        const totalAt = (point: (typeof points)[number]) =>
+          startingBalance + point.added + point.growth;
 
         return (
           <div className="investment-growth-chart" key={scenario.index}>
@@ -77,7 +87,7 @@ export function InvestmentGrowthChart({
                 scenario.index === series[0].index ? scrollRef : undefined
               }
               role="region"
-              aria-label={`${scenario.name} cumulative additions and investment growth`}
+              aria-label={`${scenario.name} projected balances split into starting balance, additions, and investment growth`}
               tabIndex={0}
             >
               <svg
@@ -87,6 +97,7 @@ export function InvestmentGrowthChart({
                 viewBox={`0 0 ${chartWidth} 258`}
                 role="img"
                 aria-label={title}
+                onPointerLeave={() => setHoveredYear(null)}
               >
                 {[0, 1, 2, 3, 4].map((tick) => {
                   const value = low + ((high - low) * tick) / 4;
@@ -115,32 +126,57 @@ export function InvestmentGrowthChart({
                 />
                 {points.map((point, index) => {
                   const center = left + groupWidth * (index + 0.5);
-                  const bars = [
+                  const isActive = hoveredYear === point.year;
+                  const segments = [
+                    { key: "starting", value: startingBalance, color: "var(--series-0)" },
                     { key: "added", value: point.added, color: "var(--positive-text)" },
                     { key: "growth", value: point.growth, color: "var(--series-1)" },
                   ];
                   return (
-                    <g key={point.year}>
-                      {bars.map((bar, barIndex) => {
-                        const barY = y(bar.value);
-                        const x = center + (barIndex === 0 ? -barWidth - 2 : 2);
+                    <g
+                      key={point.year}
+                      className="growth-year-group"
+                      onPointerEnter={() => setHoveredYear(point.year)}
+                    >
+                      <rect
+                        className="growth-year-hit-area"
+                        x={left + groupWidth * index}
+                        y={top}
+                        width={groupWidth}
+                        height={bottom - top}
+                        aria-hidden="true"
+                      />
+                      {isActive && (
+                        <line
+                          className="growth-hover-guide"
+                          x1={center}
+                          x2={center}
+                          y1={top}
+                          y2={bottom}
+                        />
+                      )}
+                      {segments.map((segment, segmentIndex) => {
+                        const lower =
+                          segmentIndex === 0
+                            ? 0
+                            : segments
+                                .slice(0, segmentIndex)
+                                .reduce((sum, prior) => sum + prior.value, 0);
+                        const upper = lower + segment.value;
+                        const lowerY = y(lower);
+                        const upperY = y(upper);
                         return (
                           <rect
-                            key={bar.key}
-                            x={x}
-                            y={Math.min(zeroY, barY)}
+                            key={segment.key}
+                            x={center - barWidth / 2}
+                            y={Math.min(lowerY, upperY)}
                             width={barWidth}
-                            height={Math.max(1, Math.abs(zeroY - barY))}
-                            rx="2"
-                            fill={bar.color}
+                            height={Math.max(1, Math.abs(lowerY - upperY))}
+                            rx={segmentIndex === segments.length - 1 ? "2" : "0"}
+                            fill={segment.color}
+                            className="growth-bar"
                           >
-                          <title>
-                            {`${point.year} · ${
-                              bar.key === "added"
-                                ? "Money added so far"
-                                : "Investment growth so far"
-                            }: ${money(bar.value)}`}
-                          </title>
+                            <title>{`${point.year} · ${segment.key}: ${money(segment.value)}`}</title>
                           </rect>
                         );
                       })}
@@ -157,15 +193,28 @@ export function InvestmentGrowthChart({
                 })}
               </svg>
             </div>
+            {activePoint && (
+              <div className="growth-chart-inspector" aria-live="polite">
+                <strong>{activePoint.year}</strong>
+                <span>Total balance <b>{money(totalAt(activePoint))}</b></span>
+                <span>Starting balance <b>{money(startingBalance)}</b></span>
+                <span>Money added <b>{money(activePoint.added)}</b></span>
+                <span>Investment growth <b>{money(activePoint.growth)}</b></span>
+              </div>
+            )}
             <details>
               <summary>View chart values</summary>
               <table>
-                <thead><tr><th scope="col">Year</th><th scope="col">Money added so far</th><th scope="col">Investment growth so far</th></tr></thead>
-                <tbody>{points.map((point) => <tr key={point.year}><th scope="row">{point.year}</th><td>{money(point.added)}</td><td>{money(point.growth)}</td></tr>)}</tbody>
+                <thead><tr><th scope="col">Year</th><th scope="col">Starting balance</th><th scope="col">Money added so far</th><th scope="col">Investment growth so far</th><th scope="col">Total balance</th></tr></thead>
+                <tbody>{points.map((point) => <tr key={point.year}><th scope="row">{point.year}</th><td>{money(startingBalance)}</td><td>{money(point.added)}</td><td>{money(point.growth)}</td><td>{money(totalAt(point))}</td></tr>)}</tbody>
               </table>
             </details>
             <p className="hint">Money added includes changes in vested employer match, including gains accrued before vesting.</p>
             <div className="growth-chart-legend">
+              <span>
+                <i className="growth-legend-swatch starting" aria-hidden="true" />
+                Starting balance
+              </span>
               <span>
                 <i className="growth-legend-swatch added" aria-hidden="true" />
                 Money added so far
@@ -174,7 +223,6 @@ export function InvestmentGrowthChart({
                 <i className="growth-legend-swatch growth" aria-hidden="true" />
                 Investment growth so far
               </span>
-              <span>Starting balance: {money(scenario.projection.startingTotal)}</span>
             </div>
           </div>
         );

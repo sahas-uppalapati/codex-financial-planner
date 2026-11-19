@@ -2,8 +2,24 @@ import { useEffect, useId, useRef, useState } from "react";
 import { compactMoney, money } from "../lib/format";
 export interface Series {
   name: string;
-  rows: { endingBalance: number }[];
+  rows: {
+    endingBalance: number;
+    surplus?: number;
+    stockContribution?: number;
+    heldContribution?: number;
+    retirementContribution?: number;
+    roth401kContribution?: number;
+    hsaContribution?: number;
+    traditionalIraContribution?: number;
+    rothIraContribution?: number;
+    megaBackdoorContribution?: number;
+    employerMatch?: number;
+    forfeitedMatch?: number;
+    unvestedMatch?: number;
+    calendarYear?: number;
+  }[];
   starting?: number;
+  yearContext?: string[];
   markers?: { year: number; label: string }[];
   index: number;
 }
@@ -34,14 +50,50 @@ export function ProjectionChart({
     s.starting ?? starting,
     ...s.rows.map((r) => r.endingBalance),
   ]);
+  const contributions = series.map((s) => {
+    let total = s.starting ?? starting;
+    let previousUnvestedMatch = 0;
+    return [
+      s.starting ?? starting,
+      ...s.rows.map((row) => {
+        const added =
+          Math.max(0, row.surplus ?? 0) +
+          (row.stockContribution ?? 0) +
+          (row.heldContribution ?? 0) +
+          (row.retirementContribution ?? 0) +
+          (row.roth401kContribution ?? 0) +
+          (row.hsaContribution ?? 0) +
+          (row.traditionalIraContribution ?? 0) +
+          (row.rothIraContribution ?? 0) +
+          (row.megaBackdoorContribution ?? 0) +
+          (row.employerMatch ?? 0) -
+          (row.forfeitedMatch ?? 0) -
+          ((row.unvestedMatch ?? 0) - previousUnvestedMatch);
+        previousUnvestedMatch = row.unvestedMatch ?? 0;
+        total += added;
+        return total;
+      }),
+    ];
+  });
+  const shortfalls = series.map((s) => {
+    let total = 0;
+    return [0, ...s.rows.map((row) => {
+      total += Math.max(0, -(row.surplus ?? 0));
+      return total;
+    })];
+  });
+  const remainingPrincipal = contributions.map((line, i) =>
+    line.map((value, t) => value - shortfalls[i][t]),
+  );
   const min = Math.min(0, ...balances.flat()),
-    max = Math.max(0, ...balances.flat());
+    max = Math.max(0, ...balances.flat(), ...contributions.flat());
   const span = max - min || 100;
   const lo = min < 0 ? min - span * 0.1 : 0,
     hi = max + span * 0.12;
   const x = (year: number) => plot.left + (year / years) * plotSpan;
   const y = (balance: number) => 278 - ((balance - lo) / (hi - lo)) * 245;
   const year = selected === null ? years : Math.min(selected, years);
+  const growths = balances.map((line, i) => line.map((balance, t) => balance - remainingPrincipal[i][t]));
   const summary = series
     .map(
       (s, i) =>
@@ -83,10 +135,11 @@ export function ProjectionChart({
         }}
         onPointerLeave={() => setSelected(null)}
       >
-        <title id={`${id}-title`}>Projected investment balance by year</title>
+        <title id={`${id}-title`}>Projected balance, contributions, and investment growth by year</title>
         <desc id={`${id}-desc`}>
-          {summary} Nominal US dollars. Negative balances are unfunded
-          shortfalls.
+          {summary} The breakdown separates positive contributions, cash
+          shortfalls, and investment growth. Nominal US dollars.
+          Negative balances are unfunded shortfalls.
         </desc>
         <defs>
           <pattern
@@ -97,27 +150,6 @@ export function ProjectionChart({
           >
             <circle cx="1" cy="1" r="0.7" fill="var(--chart-grid)" />
           </pattern>
-          {series.map((s) => (
-            <linearGradient
-              key={s.index}
-              id={`${id}-fill-${s.index}`}
-              x1="0"
-              y1="0"
-              x2="0"
-              y2="1"
-            >
-              <stop
-                offset="0%"
-                stopColor={`var(--series-${s.index})`}
-                stopOpacity="0.23"
-              />
-              <stop
-                offset="100%"
-                stopColor={`var(--series-${s.index})`}
-                stopOpacity="0.01"
-              />
-            </linearGradient>
-          ))}
         </defs>
         <rect
           x={plot.left}
@@ -184,15 +216,34 @@ export function ProjectionChart({
         {series.map((s, i) => (
           <g key={s.index}>
             <path
-              d={`${balances[i].map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`).join(" ")} L ${x(years)} ${y(0)} L ${x(0)} ${y(0)} Z`}
-              fill={`url(#${id}-fill-${s.index})`}
+              d={`${remainingPrincipal[i].map((_, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(remainingPrincipal[i][t])}`).join(" ")} ${balances[i].slice().reverse().map((_, reverseIndex) => { const t = years - reverseIndex; return `L ${x(t)} ${y(balances[i][t])}`; }).join(" ")} Z`}
+              fill="var(--series-1)"
+              fillOpacity=".14"
+            />
+            <path
+              d={`${contributions[i].map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`).join(" ")} ${remainingPrincipal[i].slice().reverse().map((_, reverseIndex) => { const t = years - reverseIndex; return `L ${x(t)} ${y(remainingPrincipal[i][t])}`; }).join(" ")} Z`}
+              fill="var(--warning)"
+              fillOpacity=".2"
+            />
+            <path
+              d={`${contributions[i].map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`).join(" ")} L ${x(years)} ${y(0)} L ${x(0)} ${y(0)} Z`}
+              fill="var(--positive-text)"
+              fillOpacity=".13"
+            />
+            <path
+              d={contributions[i].map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`).join(" ")}
+              fill="none"
+              stroke="var(--positive-text)"
+              strokeWidth="2.5"
+              strokeLinejoin="round"
+              strokeLinecap="round"
             />
             <path
               d={balances[i]
                 .map((b, t) => `${t === 0 ? "M" : "L"} ${x(t)} ${y(b)}`)
                 .join(" ")}
               fill="none"
-              stroke={`var(--series-${s.index})`}
+              stroke={series.length > 1 ? `var(--series-${s.index})` : "var(--series-1)"}
               strokeWidth="3"
               strokeLinejoin="round"
               strokeLinecap="round"
@@ -202,7 +253,15 @@ export function ProjectionChart({
               cx={x(year)}
               cy={y(balances[i][year])}
               r="5"
-              fill={`var(--series-${s.index})`}
+              fill={series.length > 1 ? `var(--series-${s.index})` : "var(--series-1)"}
+              stroke="var(--card)"
+              strokeWidth="2"
+            />
+            <circle
+              cx={x(year)}
+              cy={y(contributions[i][year])}
+              r="4"
+              fill="var(--positive-text)"
               stroke="var(--card)"
               strokeWidth="2"
             />
@@ -220,14 +279,47 @@ export function ProjectionChart({
         )}
       </svg>
       <div className="chart-inspector">
-        <span>Year {year}</span>
-        {series.map((s, i) => (
-          <span key={s.index} className="inspector-value">
-            <i className={`dot series-${s.index}`} />
-            <span className="truncate">{s.name}</span>
-            <strong>{money(balances[i][year])}</strong>
-          </span>
-        ))}
+        <div className="chart-inspector-heading">
+          <strong className="chart-inspector-year">Year {year}</strong>
+          {series.length === 1 && series[0].yearContext?.[year - 1] && (
+            <span className="chart-inspector-context">
+              {series[0].yearContext[year - 1]}
+            </span>
+          )}
+        </div>
+        <div className="chart-inspector-equation">
+          {series.map((s, i) => (
+            <span key={`${s.index}-contributions`} className="inspector-value inspector-contribution">
+              <i className="dot contribution-dot" />
+              <span>{series.length > 1 ? `${s.name} contributions` : "Contributions"}</span>
+              <strong>{money(contributions[i][year])}</strong>
+            </span>
+          ))}
+          <span className="inspector-equation-symbol inspector-minus" aria-hidden="true">−</span>
+          {series.map((s, i) => (
+            <span key={`${s.index}-shortfall`} className="inspector-value inspector-shortfall">
+              <i className="dot shortfall-dot" />
+              <span>{series.length > 1 ? `${s.name} cash shortfall` : "Cash shortfall"}</span>
+              <strong>{money(shortfalls[i][year])}</strong>
+            </span>
+          ))}
+          <span className="inspector-equation-symbol inspector-plus" aria-hidden="true">+</span>
+          {series.map((s, i) => (
+            <span key={`${s.index}-growth`} className="inspector-value inspector-growth">
+              <i className="dot growth-dot" />
+              <span>{series.length > 1 ? `${s.name} growth` : "Growth"}</span>
+              <strong>{money(growths[i][year])}</strong>
+            </span>
+          ))}
+          <span className="inspector-equation-symbol inspector-equals" aria-hidden="true">=</span>
+          {series.map((s, i) => (
+            <span key={`${s.index}-balance`} className="inspector-value inspector-total">
+              <i className="dot total-dot" />
+              <span>{series.length > 1 ? `${s.name} total balance` : "Total balance"}</span>
+              <strong>{money(balances[i][year])}</strong>
+            </span>
+          ))}
+        </div>
       </div>
       <label className="sr-only" htmlFor={`${id}-year`}>
         Inspect projection year

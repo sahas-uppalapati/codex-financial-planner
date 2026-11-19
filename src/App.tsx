@@ -1,4 +1,4 @@
-import { RotateCcw, ShieldCheck, ArrowUpRight } from "lucide-react";
+import { RotateCcw, ShieldCheck, ArrowUpRight, Share2 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import { AppearanceControl } from "./components/ThemeProvider";
 import {
@@ -28,6 +28,7 @@ import { Results } from "./components/Results";
 import { InvestmentCalculators } from "./components/InvestmentCalculators";
 import { RetirementGuide } from "./components/RetirementGuide";
 import { PlannerBackup } from "./components/PlannerBackup";
+import { StartingAccounts } from "./components/StartingAccounts";
 import { AppFooter } from "./components/AppFooter";
 import { analyticsConsent, track } from "./lib/analytics";
 import { StartupFields } from "./components/StartupComparison";
@@ -291,6 +292,23 @@ export default function App() {
               move.
             </p>
           </div>
+          <div className="top-actions">
+          {!setup && <PlannerBackup
+            compact
+            state={state}
+            startup={{ scenario: startupScenario, inputs: startupInputs }}
+            onRestore={(restored) => {
+              setState(restored.planner);
+              setSetup(false);
+              setExample(false);
+              setSelectedYear(0);
+              setStartupScenario(restored.startup.scenario);
+              setStartupInputs(restored.startup.inputs);
+              setActive(0);
+              setResetVersion((version) => version + 1);
+            }}
+          />}
+          {!setup && <Button variant="outline" type="button" className="top-share-button" aria-expanded={shareOpen} aria-controls="share-details" onClick={() => { setShareOpen(!shareOpen); setShareMessage(""); }}><Share2 size={14} aria-hidden="true" /> Share</Button>}
           {destination !== "calculators" && <Button
             variant="outline"
             type="button"
@@ -311,9 +329,13 @@ export default function App() {
           >
             <RotateCcw size={14} aria-hidden="true" /> Reset inputs
           </Button>}
+          </div>
         </div>
         {storageMessage.startsWith("Saved inputs upgraded") && (
           <p className="migration-note">{storageMessage}</p>
+        )}
+        {!setup && (
+          <div className="planner-resources"><RetirementGuide /></div>
         )}
         {pendingLink && (
           <section
@@ -381,21 +403,8 @@ export default function App() {
             </button>
           </section>
         )}
-        {!setup && (
-          <section
-            className="cash-panel prose share-panel"
-            aria-label="Share plan"
-          >
-            <button
-              type="button"
-              onClick={() => {
-                setShareOpen(!shareOpen);
-                setShareMessage("");
-              }}
-            >
-              Share
-            </button>
-            {shareOpen && (
+        {!setup && shareOpen && (
+          <section id="share-details" className="cash-panel prose share-panel" aria-label="Share plan">
               <div>
                 <p>
                   The link includes both offers, assumptions, financial inputs,
@@ -424,7 +433,6 @@ export default function App() {
                 </button>
                 <p role="status">{shareMessage}</p>
               </div>
-            )}
           </section>
         )}
         {setup && !pendingLink && (
@@ -684,25 +692,7 @@ export default function App() {
             </div>
           </div>
         )}
-        {!setup && (
-          <div className="planner-resources">
-            <PlannerBackup
-              state={state}
-              startup={{ scenario: startupScenario, inputs: startupInputs }}
-              onRestore={(restored) => {
-                setState(restored.planner);
-                setSetup(false);
-                setExample(false);
-                setSelectedYear(0);
-                setStartupScenario(restored.startup.scenario);
-                setStartupInputs(restored.startup.inputs);
-                setActive(0);
-                setResetVersion((version) => version + 1);
-              }}
-            />
-            <RetirementGuide />
-          </div>
-        )}
+        {!setup && <StartingAccounts assumptions={state.shared} onChange={(shared) => { if (!allowInitialPreset) setExample(false); setState((current) => ({ ...current, shared })); }} />}
         <AppFooter
           ready={ready}
           storageMessage={storageMessage}

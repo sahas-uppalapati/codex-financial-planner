@@ -1,6 +1,4 @@
 import {
-  ChevronLeft,
-  ChevronRight,
   Wallet,
   ArrowDownLeft,
   ArrowUpRight,
@@ -8,7 +6,6 @@ import {
   CalendarDays,
   ChartNoAxesCombined,
 } from "lucide-react";
-import { useState } from "react";
 import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import {
@@ -25,7 +22,6 @@ import type { Projection } from "../lib/projection";
 import { money } from "../lib/format";
 import { exportProjection } from "../lib/plannerCsv";
 import { ProjectionChart } from "./ProjectionChart";
-import { InvestmentGrowthChart } from "./InvestmentGrowthChart";
 import { retirementAccountLabels } from "../lib/retirement";
 import type { RetirementAccountType } from "../lib/retirement";
 import { TechRealityCard } from "./TechRealityCard";
@@ -62,7 +58,6 @@ export function Results({
   onYearChange: (year: number) => void;
   onOpenCalculators: () => void;
 }) {
-  const [activeProjectionChart, setActiveProjectionChart] = useState(0);
   const activeYear = Math.min(selectedYear, Number(state.shared.years) - 1);
   const setSelected = onYearChange;
   const years = Number(state.shared.years),
@@ -74,57 +69,20 @@ export function Results({
     index: s.index,
     rows: s.projection.rows,
     starting: s.projection.startingTotal,
+    yearContext: s.projection.rows.map((row) => {
+      const employerChange = [...state.scenarios[s.index].events]
+        .filter((event) => event.kind === "job")
+        .filter((event) => monthIndex(event.month, startYear) < row.year * 12)
+        .at(-1);
+      const issuerId = employerChange?.issuerId ?? state.scenarios[s.index].employerId;
+      const employer = state.scenarios[s.index].issuers.find((issuer) => issuer.id === issuerId)?.name;
+      return [employer, row.role].filter(Boolean).join(" · ");
+    }),
     markers: state.scenarios[s.index].events.map((e) => ({
       year: monthIndex(e.month, startYear) / 12,
       label: `${e.month}: ${e.kind === "job" ? "Change employer" : "Promotion"} · ${e.role}`,
     })),
   }));
-  const chartViews = [
-    {
-      label: "Balance over time",
-      content: (
-        <>
-          <ProjectionChart
-            series={chartSeries}
-            starting={series[0].projection.startingTotal}
-          />
-          {series.length === 1 && (
-            <div className="forecast-endpoints">
-              <span>
-                Starting balance{" "}
-                <strong>{money(series[0].projection.startingTotal)}</strong>
-              </span>
-              <span>
-                End of {startYear + years - 1}{" "}
-                <strong>{money(final[0].endingBalance)}</strong>
-              </span>
-            </div>
-          )}
-          <div className="chart-legend">
-            {series.map((s) => (
-              <span key={s.index}>
-                <i className={`legend-line series-${s.index}`} />
-                <span className="truncate">{s.name}</span>
-              </span>
-            ))}
-          </div>
-        </>
-      ),
-    },
-    {
-      label: "Money added & growth",
-      content: (
-        <InvestmentGrowthChart
-          series={series.map((s) => ({
-            name: s.name,
-            index: s.index,
-            projection: s.projection,
-          }))}
-        />
-      ),
-    },
-  ];
-
   const accountDefs = [
     ["Taxable investments", "taxable", "aggregate"] as const,
     ["Vested employer shares", "employerStock", "aggregate"] as const,
@@ -397,44 +355,45 @@ export function Results({
                 </p>
               </div>
               <div className="projection-chart-carousel">
-                <div
-                  className="chart-carousel-controls"
-                  role="group"
-                  aria-label="Projection charts"
-                >
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label="Previous chart"
-                    disabled={activeProjectionChart === 0}
-                    onClick={() =>
-                      setActiveProjectionChart((index) => Math.max(0, index - 1))
-                    }
-                  >
-                    <ChevronLeft aria-hidden="true" />
-                  </Button>
-                  <div aria-live="polite">
-                    <strong>{chartViews[activeProjectionChart].label}</strong>
+                <ProjectionChart
+                  series={chartSeries}
+                  starting={series[0].projection.startingTotal}
+                />
+                {series.length === 1 && (
+                  <div className="forecast-endpoints">
                     <span>
-                      {activeProjectionChart + 1} of {chartViews.length}
+                      Starting balance{" "}
+                      <strong>{money(series[0].projection.startingTotal)}</strong>
+                    </span>
+                    <span>
+                      End of {startYear + years - 1}{" "}
+                      <strong>{money(final[0].endingBalance)}</strong>
                     </span>
                   </div>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    aria-label="Next chart"
-                    disabled={activeProjectionChart === chartViews.length - 1}
-                    onClick={() =>
-                      setActiveProjectionChart((index) =>
-                        Math.min(chartViews.length - 1, index + 1),
-                      )
-                    }
-                  >
-                    <ChevronRight aria-hidden="true" />
-                  </Button>
-                </div>
-                <div className="chart-carousel-panel">
-                  {chartViews[activeProjectionChart].content}
+                )}
+                <div className="chart-legend">
+                  <span>
+                    <i className="legend-line contribution-line" />
+                    Contributions
+                  </span>
+                  <span>
+                    <i className="legend-line shortfall-line" />
+                    Cash shortfall
+                  </span>
+                  <span>
+                    <i className="legend-line total-line" />
+                    Total balance
+                  </span>
+                  <span>
+                    <i className="legend-line growth-line" />
+                    Investment growth
+                  </span>
+                  {series.length > 1 && series.map((s) => (
+                    <span key={s.index}>
+                      <i className={`legend-line series-${s.index}`} />
+                      <span className="truncate">{s.name} total</span>
+                    </span>
+                  ))}
                 </div>
               </div>
             </Card>
