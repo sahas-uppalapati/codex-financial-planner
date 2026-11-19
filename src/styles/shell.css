@@ -91,6 +91,61 @@
     gap: 20px;
     margin-bottom: 24px;
   }
+  .top-actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+  .planner-backup-compact {
+    display: contents;
+    margin: 0;
+    padding: 0;
+    border: 0;
+    box-shadow: none;
+  }
+  .planner-backup-compact .button-row {
+    display: contents;
+  }
+  .planner-backup-compact > p:not(.backup-status),
+  .planner-backup-compact input[type="file"] {
+    display: none;
+  }
+  .planner-backup-compact .backup-status:empty {
+    display: none;
+  }
+  .planner-backup-compact .backup-status {
+    position: absolute;
+    top: 100%;
+    right: 0;
+    z-index: 2;
+    min-width: 240px;
+    margin: 6px 0 0;
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: var(--card);
+    box-shadow: var(--shadow);
+  }
+  .planner-backup-compact {
+    position: relative;
+  }
+  .planner-backup-compact button,
+  .top-share-button,
+  .top-actions .reset-button {
+    height: 34px;
+    padding: 0 10px;
+    font-size: 11px;
+    white-space: nowrap;
+  }
+  .starting-accounts-section {
+    margin: 32px 0 24px 178px;
+    padding: 20px;
+  }
+  .starting-accounts-section > h2 {
+    margin-bottom: 16px;
+  }
   .intro > div > p:last-child {
     font-size: 12px;
     color: var(--muted-foreground);
@@ -278,11 +333,25 @@
     white-space: nowrap;
   }
   .planner-resources {
-    margin: 28px 0 0 178px;
+    margin: 0 0 24px;
     display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 16px;
+    grid-template-columns: minmax(0, 1fr);
+    gap: 12px;
     align-items: start;
+  }
+  @media (max-width: 760px) {
+    .intro {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+    .top-actions {
+      width: 100%;
+      justify-content: flex-start;
+      flex-wrap: wrap;
+    }
+    .starting-accounts-section {
+      margin-left: 0;
+    }
   }
   .planner-resources .cash-panel {
     margin: 0;
@@ -320,6 +389,10 @@
     gap: 16px;
     margin: 20px 0 0 178px;
     border-top: 1px solid var(--border);
+  }
+  .feedback-contact {
+    margin: 24px 0 18px 178px;
+    line-height: 1.6;
   }
   .disclosures summary {
     color: var(--muted-foreground);
@@ -387,7 +460,8 @@
   }
   .planner-resources,
   .disclosures,
-  footer {
+  footer,
+  .feedback-contact {
     margin-left: 0;
   }
 }

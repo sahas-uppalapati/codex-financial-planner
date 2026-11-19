@@ -23,10 +23,12 @@ export function PlannerBackup({
   state,
   onRestore,
   startup,
+  compact = false,
 }: {
   state: PlannerV2;
   onRestore: (state: PlannerSession) => void;
   startup: StartupSession;
+  compact?: boolean;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const restoreButton = useRef<HTMLButtonElement>(null);
@@ -73,19 +75,12 @@ export function PlannerBackup({
   }
 
   return (
-    <section
-      className="cash-panel prose planner-backup"
-      aria-labelledby="backup-heading"
-    >
-      <h2 id="backup-heading">Back up your plan</h2>
-      <p>
-        Download a JSON backup to move your plan to another browser or restore
-        it later. The file contains your financial inputs; keep it private.
-      </p>
+    <section className={`cash-panel prose planner-backup${compact ? " planner-backup-compact" : ""}`} aria-label="Plan backup">
+      {!compact && <><h2>Back up your plan</h2><p>Download a JSON backup to move your plan to another browser or restore it later. The file contains your financial inputs; keep it private.</p></>}
       <div className="button-row">
-        <Button variant="outline" size="sm" onClick={download}>
+        <Button variant="outline" size="sm" aria-label={compact ? "Download backup" : undefined} onClick={download}>
           <Download aria-hidden="true" />
-          Download backup
+          {compact ? "Backup" : "Download backup"}
         </Button>
         <Button
           ref={restoreButton}
@@ -94,7 +89,7 @@ export function PlannerBackup({
           onClick={() => input.current?.click()}
         >
           <Upload aria-hidden="true" />
-          Restore backup
+          {compact ? "Restore" : "Restore backup"}
         </Button>
       </div>
       <input
@@ -106,7 +101,7 @@ export function PlannerBackup({
           void restore(event.target.files?.[0]);
         }}
       />
-      <p role="status">{message}</p>
+      <p className={compact ? "backup-status" : undefined} role="status">{message}</p>
       <Dialog
         open={!!pending}
         onOpenChange={(open) => {

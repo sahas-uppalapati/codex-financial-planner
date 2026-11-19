@@ -50,9 +50,7 @@ test("fresh plans start with the Amazon L4 Seattle preset", async ({ page }) => 
 
 test("backup download contains the current plan", async ({ page }) => {
   await page.getByLabel("Annual base salary").fill("123456");
-  const backup = page
-    .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
+  const backup = page.locator(".planner-backup");
   const downloading = page.waitForEvent("download");
   await backup.getByRole("button", { name: "Download backup" }).click();
   const downloaded = await downloading;
@@ -65,9 +63,7 @@ test("backup restores a plan only after validation and confirmation", async ({
   page,
 }) => {
   const salary = page.getByLabel("Annual base salary");
-  const backup = page
-    .locator("section")
-    .filter({ has: page.getByRole("heading", { name: "Back up your plan" }) });
+  const backup = page.locator(".planner-backup");
   const file = backup.locator('input[type="file"]');
   const plan = defaultPlanner();
   plan.scenarios[0].base = "123456";
@@ -569,13 +565,9 @@ test("invalid drafts pause results and exports; zero income and negative returns
   await page.getByLabel("Projection length").fill("40");
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(page.getByTestId("ending-0")).toBeVisible();
-  await page
-    .locator("summary")
-    .filter({ hasText: /^Starting balances & assumptions/ })
-    .click();
-  await page.getByRole("complementary", { name: "Calculator inputs" }).getByLabel("Annual investment return").fill("-100");
+  await page.locator(".starting-accounts-section").getByLabel("Annual investment return").fill("-100");
   await expect(page.getByTestId("ending-0")).toHaveCount(0);
-  await page.getByRole("complementary", { name: "Calculator inputs" }).getByLabel("Annual investment return").fill("-50");
+  await page.locator(".starting-accounts-section").getByLabel("Annual investment return").fill("-50");
   await expect(page.getByTestId("ending-0")).toBeVisible();
   expect(await page.locator("body").innerText()).not.toMatch(/NaN|Infinity/);
 });
@@ -730,7 +722,7 @@ test("results navigation keeps the inspected year and theme persists", async ({
     await expect(salary).toHaveValue("185000");
   }
   await salary.fill("");
-  await openAdvanced(page, "Starting balances & assumptions");
+  await expect(page.getByRole("heading", { name: "Starting balances & assumptions" })).toBeVisible();
   await navigate(page, "Taxes");
   await expect(salary).toHaveValue("");
   await salary.fill("185000");

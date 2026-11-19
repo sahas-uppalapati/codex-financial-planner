@@ -559,6 +559,25 @@ export function TechEstimatorHero({
 
   return (
     <div className="tech-estimator-hero" aria-label="Big Tech Preset Selector">
+      <button
+        ref={previewButton}
+        type="button"
+        className="secondary small preset-preview-action"
+        onClick={() =>
+          applyTechPreset(
+            selectedCompanyId,
+            selectedLevelId,
+            selectedLocationId,
+            selectedFiling,
+            activeGrowthId,
+            includeProgression,
+            false,
+            true,
+          )
+        }
+      >
+        Preview full preset
+      </button>
       <div className="hero-selector-grid">
         {/* Company Selector */}
         <div className="hero-control-group">
@@ -693,41 +712,25 @@ export function TechEstimatorHero({
 
         {/* Optimal Retirement Strategy 1-Click Action */}
       </div>
-      <p className="hint">
-        Preset changes keep values you have customized. Saved values are kept
-        unless you choose to replace them. Market outlook changes the investment
-        return only. Pay references are public Levels.fyi averages; city data is
-        used for San Francisco, Seattle, and New York, and the U.S. aggregate is
-        used for other locations. Google first-year stock and combined bonus / sign-on
-        figures are excluded from recurring projections. Cost presets use MIT's
-        2026 county budgets for one adult or two adults with one worker, with no
-        children; the two-adult household is the planner's joint option.
-        {sourcePreset && (
-          <> <a href={sourcePreset.source} target="_blank" rel="noreferrer">View source data</a>.</>
-        )}
-        {budgetSource && (
-          <> <a href={budgetSource.source} target="_blank" rel="noreferrer">View {budgetSource.scope} cost data</a>.</>
-        )}
-      </p>
-      <button
-        ref={previewButton}
-        type="button"
-        className="secondary small"
-        onClick={() =>
-          applyTechPreset(
-            selectedCompanyId,
-            selectedLevelId,
-            selectedLocationId,
-            selectedFiling,
-            activeGrowthId,
-            includeProgression,
-            false,
-            true,
-          )
-        }
-      >
-        Preview full preset
-      </button>
+      <details className="preset-disclaimer">
+        <summary>About these estimates</summary>
+        <p className="hint">
+          Preset changes keep values you have customized. Saved values are kept
+          unless you choose to replace them. Market outlook changes the investment
+          return only. Pay references are public Levels.fyi averages; city data is
+          used for San Francisco, Seattle, and New York, and the U.S. aggregate is
+          used for other locations. Google first-year stock and combined bonus / sign-on
+          figures are excluded from recurring projections. Cost presets use MIT's
+          2026 county budgets for one adult or two adults with one worker, with no
+          children; the two-adult household is the planner's joint option.
+          {sourcePreset && (
+            <> <a href={sourcePreset.source} target="_blank" rel="noreferrer">View source data</a>.</>
+          )}
+          {budgetSource && (
+            <> <a href={budgetSource.source} target="_blank" rel="noreferrer">View {budgetSource.scope} cost data</a>.</>
+          )}
+        </p>
+      </details>
       <Dialog
         open={!!preview}
         onOpenChange={(open) => {

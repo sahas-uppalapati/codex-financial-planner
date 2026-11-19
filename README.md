@@ -63,7 +63,7 @@ A decision summary compares selected-year cash after costs separately from sold-
 
 The four result destinations share the inspected calendar year:
 
-- **Overview:** a monthly money picture showing take-home pay, cash from shares sold, living costs, other savings, and money left over; a portfolio projection and scrollable chart of money added versus investment growth; ending accounts, comparison insights, and separate hypothetical startup outcomes.
+- **Overview:** a monthly money picture showing take-home pay, cash from shares sold, living costs, other savings, and money left over; a portfolio projection chart separating the starting balance and contributions, cash shortfalls, and investment growth; ending accounts, comparison insights, and separate hypothetical startup outcomes.
 - **Cash Flow:** monthly-equivalent compensation, annual income-to-cash breakdown, monthly cash flows and vesting, and the existing equity vesting summary.
 - **Taxes:** estimated annual liability and its components, including equity-attributed taxes.
 - **Annual Schedule:** the full year-by-year projection, with summary and detailed column choices.
@@ -133,7 +133,7 @@ Signed tax adjustments modify final liability, not taxable income. Component lia
 
 ## Saving, migration and input limits
 
-Use **Back up your plan** to download a private JSON backup, including both startup input sets, or validate and restore one after confirmation. Version 1 backups restore with startup mode disabled. CSV files contain results and cannot restore inputs. **Share** previews what is included before copying a link with both offers and startup details. Anyone with the link can read those inputs. Incoming full and partial links require confirmation before replacing the saved plan; recognized financial parameters are removed from the address after parsing. See [docs/MCP.md](docs/MCP.md) for the optional local agent interface.
+Use **Backup** to download a private JSON backup, including both startup input sets, or **Restore** to validate and restore one after confirmation. Version 1 backups restore with startup mode disabled. CSV files contain results and cannot restore inputs. **Share** previews what is included before copying a link with both offers and startup details. Anyone with the link can read those inputs. Incoming full and partial links require confirmation before replacing the saved plan; recognized financial parameters are removed from the address after parsing. See [docs/MCP.md](docs/MCP.md) for the optional local agent interface.
 
 Valid v3 inputs are saved locally under `careerworth:v3`; v2 saves are migrated. Existing v1 inputs migrate with their manual tax rates and repeating stock amounts intact. No grant is fabricated. A clearly labeled conversion previews a four-year award assumption before replacing legacy annual stock. The original `careerworth:v1` save is preserved. Monthly timing changes balances compared with the former annual model.
 
