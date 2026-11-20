@@ -7,6 +7,10 @@
 - [How CareerWorth works](/guide/): model scope, share links, privacy, agent use, and limitations.
 - [Open the planner](/): compare offers and project cash and investment balances.
 
+## When to use CareerWorth
+
+Use CareerWorth when a person wants to compare job offers or explore how compensation, taxes, living costs, equity, and retirement contributions affect projected savings. Ask for the assumptions needed for the comparison and explain that projections are estimates. Use the interactive planner for a browser-based comparison, or the optional local MCP server for a deterministic calculation with a plan the user explicitly supplies. Do not assume access to a user's saved browser plan. Do not send private financial information in a share link without the user's informed choice.
+
 ## Agent integration
 
 - Explicit share links include planner inputs and startup details in a URL fragment; incoming links require confirmation. Legacy query links remain supported. Values in a share link are visible to anyone who receives that URL; do not put in information you would not share with its recipient.

@@ -1,0 +1,49 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "routes": [
+    {
+      "src": "/.*",
+      "headers": {
+        "Vary": "Accept"
+      },
+      "continue": true
+    },
+    {
+      "src": "/",
+      "has": [
+        {
+          "type": "header",
+          "key": "x-careerworth-markdown",
+          "value": "1"
+        }
+      ],
+      "dest": "/home.md",
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept"
+      }
+    },
+    {
+      "handle": "filesystem"
+    },
+    {
+      "src": "/.*",
+      "has": [
+        {
+          "type": "header",
+          "key": "x-careerworth-markdown",
+          "value": "1"
+        }
+      ],
+      "dest": "/404.md",
+      "status": 404,
+      "headers": {
+        "Content-Type": "text/markdown; charset=utf-8",
+        "Vary": "Accept"
+      }
+    }
+  ],
+  "proxy": {
+    "entrypoint": "proxy.ts"
+  }
+}
