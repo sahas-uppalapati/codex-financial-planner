@@ -25,8 +25,8 @@ export function StartingAccounts({
     Number(a.startingSpouseHsa);
 
   return (
-    <section className="advanced-accordion starting-accounts-section">
-      <h2>Starting balances &amp; assumptions</h2>
+    <details className="advanced-accordion starting-accounts-section" id="shared-assumptions" tabIndex={-1}>
+      <summary><h2>Starting balances &amp; assumptions</h2></summary>
       <div className="details-body">
         <h3>Starting balances</h3>
         <p className="hint">Shared by both scenarios. Taxable investments are entered above.</p>
@@ -78,6 +78,6 @@ export function StartingAccounts({
           <NumberField label="Annual tax-threshold inflation" unit="%" max={10} value={a.taxInflation} onChange={(v) => shared("taxInflation", v)} />
         </div>
       </div>
-    </section>
+    </details>
   );
 }

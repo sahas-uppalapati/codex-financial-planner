@@ -1,16 +1,20 @@
 import { RotateCcw, ShieldCheck, ArrowUpRight, Share2 } from "lucide-react";
 import { Button } from "./components/ui/button";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
+} from "./components/ui/dialog";
 import { AppearanceControl } from "./components/ThemeProvider";
 import {
   ResultsNavigation,
   destinations,
 } from "./components/ResultsNavigation";
 import type { Destination } from "./components/ResultsNavigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { PlannerV2 } from "./lib/planner";
 import {
   defaultPlanner,
   plannerScenarioErrors,
+  plannerSharedErrors,
   validPlanner,
 } from "./lib/planner";
 import { loadPlanner, savePlanner } from "./lib/plannerStorage";
@@ -26,7 +30,6 @@ import { QuickSetup } from "./components/QuickSetup";
 import { ScenarioForm } from "./components/ScenarioForm";
 import { Results } from "./components/Results";
 import { InvestmentCalculators } from "./components/InvestmentCalculators";
-import { RetirementGuide } from "./components/RetirementGuide";
 import { PlannerBackup } from "./components/PlannerBackup";
 import { StartingAccounts } from "./components/StartingAccounts";
 import { AppFooter } from "./components/AppFooter";
@@ -121,6 +124,16 @@ function incomingLink() {
   return null;
 }
 
+function focusWorkspace(target: HTMLElement | null | undefined) {
+  if (!target) return;
+  target.focus({ preventScroll: true });
+  const { top, bottom } = target.getBoundingClientRect();
+  const topInset = parseFloat(getComputedStyle(target).scrollMarginTop) || 0;
+  if (top < topInset || bottom > window.innerHeight) {
+    target.scrollIntoView({ behavior: "instant", block: "start" });
+  }
+}
+
 export default function App() {
   const [destination, setDestination] = useState<Destination>("overview");
   const [selectedYear, setSelectedYear] = useState(0);
@@ -154,6 +167,113 @@ export default function App() {
     [shareOpen, setShareOpen] = useState(false),
     [shareMessage, setShareMessage] = useState("");
 
+  const [replacement, setReplacement] = useState<"reset" | "copy" | null>(null);
+  const replacementTrigger = useRef<HTMLButtonElement>(null);
+  const cancelReplacement = useRef<HTMLButtonElement>(null);
+
+  function askToReplace(action: "reset" | "copy", trigger: HTMLButtonElement) {
+    replacementTrigger.current = trigger;
+    setReplacement(action);
+  }
+
+  function confirmReplacement() {
+    if (replacement === "reset") {
+      setState(defaultPlanner());
+      setExample(true);
+      setSelectedYear(0);
+      setActive(0);
+      setStorageMessage("");
+      setAllowInitialPreset(false);
+      setStartupScenario(null);
+      setStartupInputs(emptyStartupSession().inputs);
+    } else {
+      setState((current) => ({
+        ...current,
+        scenarios: [current.scenarios[0], {
+          ...current.scenarios[0],
+          name: current.scenarios[1].name || "Scenario B",
+        }],
+      }));
+      setAllowInitialPreset(false);
+      setExample(false);
+    }
+    setResetVersion((version) => version + 1);
+    setReplacement(null);
+  }
+
+  function applyStartupExample(choice: "series-a" | "series-b" | "series-c") {
+    setExample(true);
+    const base = {
+      "series-a": "170000",
+      "series-b": "175000",
+      "series-c": "175000",
+    }[choice];
+    const input: StartupInputs = {
+      ...emptyStartup,
+      grant: {
+        "series-a": "16000",
+        "series-b": "12000",
+        "series-c": "8000",
+      }[choice],
+      strike: "1.25",
+      vesting: "cliff",
+    };
+    setStartupInputs((current) =>
+      active === 0 ? [input, current[1]] : [current[0], input],
+    );
+    setState((current) => ({
+      ...current,
+      scenarios: current.scenarios.map((scenario, index) =>
+        index !== active
+          ? scenario
+          : {
+              ...scenario,
+              name: `Example Series ${choice.slice(-1).toUpperCase()}`,
+              base,
+              bonus: "0",
+              growth: "0",
+              signOnY1: "0",
+              signOnY2: "0",
+              employerMatch: {
+                ...scenario.employerMatch,
+                type: "none" as const,
+              },
+            },
+      ) as PlannerV2["scenarios"],
+    }));
+  }
+
+  function focusSection(id: string) {
+    requestAnimationFrame(() => focusWorkspace(document.getElementById(id)));
+  }
+
+  function goTo(next: Destination) {
+    setDestination(next);
+    focusSection(next === "calculators" ? "investment-calculator-heading" : "results-heading");
+  }
+
+  function fixInputs(scenario?: number) {
+    if (scenario !== undefined) setActive(scenario);
+    requestAnimationFrame(() => {
+      const editor = document.getElementById("calculator-inputs");
+      const belongsToGroup = (control: HTMLElement) => {
+        const shared = control.closest("[data-shared-input], #shared-assumptions") !== null;
+        return shared === (scenario === undefined);
+      };
+      const invalid = Array.from(editor?.querySelectorAll<HTMLElement>(
+        '[aria-invalid="true"], .error',
+      ) ?? []).filter(belongsToGroup);
+      const field = invalid.find((control) => control.matches('[aria-invalid="true"]')) ?? invalid[0];
+      if (field) {
+        for (let details = field.closest("details"); details; details = details.parentElement?.closest("details") ?? null) {
+          details.open = true;
+        }
+        if (!field.matches("[aria-invalid=true]")) field.tabIndex = -1;
+      }
+      focusWorkspace(field ?? document.getElementById(scenario === undefined ? "shared-assumptions" : "planner-input-heading"));
+    });
+  }
+
   useEffect(() => setAllowInitialPreset(false), []);
 
   useEffect(() => {
@@ -170,7 +290,12 @@ export default function App() {
     }
   }, [startupScenario, startupInputs, setup, pendingLink]);
 
-  const valid = validPlanner(state);
+  const scenarioErrors = state.scenarios.map((scenario) =>
+    Object.keys(plannerScenarioErrors(scenario, state.shared)).length > 0,
+  );
+  const visibleScenarioErrors = scenarioErrors.slice(0, state.comparison ? 2 : 1);
+  const sharedErrors = Object.keys(plannerSharedErrors(state.shared)).length > 0;
+  const valid = !sharedErrors && !visibleScenarioErrors.some(Boolean);
 
   const projectedState = useMemo(
     () =>
@@ -228,12 +353,7 @@ export default function App() {
     }
   }, [state, ready, setup, pendingLink, example]);
 
-  const shareReady =
-    ready &&
-    state.scenarios.every(
-      (scenario) =>
-        !Object.keys(plannerScenarioErrors(scenario, state.shared)).length,
-    );
+  const shareReady = ready && !scenarioErrors.some(Boolean);
   useEffect(() => {
     function handleIncomingLink() {
       const next = incomingLink();
@@ -261,9 +381,16 @@ export default function App() {
 
   return (
     <>
-      <a className="skip-link" href={destination === "calculators" ? "#investment-calculator-results" : "#results"}>
-        Skip to results
+      <a className="skip-link" href={
+        setup ? "#setup-heading" : destination === "calculators" ? "#investment-calculator-heading" : "#planner-input-heading"
+      }>
+        {setup ? "Skip to setup" : "Skip to inputs"}
       </a>
+      {!setup && (
+        <a className="skip-link" href={destination === "calculators" ? "#investment-calculator-results" : "#results"}>
+          Skip to results
+        </a>
+      )}
       <header className="site-header">
         <div className="header-inner">
           <a href="#" className="brand" aria-label="CareerWorth home">
@@ -288,59 +415,64 @@ export default function App() {
           <div>
             <h1>Your financial future</h1>
             <p>
-              Replace the sample values. Explore your future. Compare your next
-              move.
+              {setup
+                ? "Enter an offer to estimate take-home pay, savings, and investment growth."
+                : "Estimate take-home pay, savings, and investment growth for up to two offers."}
             </p>
           </div>
-          <div className="top-actions">
-          {!setup && <PlannerBackup
-            compact
-            state={state}
-            startup={{ scenario: startupScenario, inputs: startupInputs }}
-            onRestore={(restored) => {
-              setState(restored.planner);
-              setSetup(false);
-              setExample(false);
-              setSelectedYear(0);
-              setStartupScenario(restored.startup.scenario);
-              setStartupInputs(restored.startup.inputs);
-              setActive(0);
-              setResetVersion((version) => version + 1);
-            }}
-          />}
-          {!setup && <Button variant="outline" type="button" className="top-share-button" aria-expanded={shareOpen} aria-controls="share-details" onClick={() => { setShareOpen(!shareOpen); setShareMessage(""); }}><Share2 size={14} aria-hidden="true" /> Share</Button>}
-          {destination !== "calculators" && <Button
-            variant="outline"
-            type="button"
-            className="reset-button"
-            aria-label="Reset inputs"
-            onClick={() => {
-              setState(defaultPlanner());
-              setSetup(false);
-              setExample(true);
-              setSelectedYear(0);
-              setActive(0);
-              setResetVersion((v) => v + 1);
-              setStorageMessage("");
-              setAllowInitialPreset(false);
-              setStartupScenario(null);
-              setStartupInputs([{ ...emptyStartup }, { ...emptyStartup }]);
-            }}
-          >
-            <RotateCcw size={14} aria-hidden="true" /> Reset inputs
-          </Button>}
-          </div>
+          {!setup && (
+            <div className="top-actions" role="group" aria-label="Plan actions">
+              <PlannerBackup
+                compact
+                state={state}
+                startup={{ scenario: startupScenario, inputs: startupInputs }}
+                onRestore={(restored) => {
+                  setState(restored.planner);
+                  setSetup(false);
+                  setExample(false);
+                  setSelectedYear(0);
+                  setStartupScenario(restored.startup.scenario);
+                  setStartupInputs(restored.startup.inputs);
+                  setActive(0);
+                  setResetVersion((version) => version + 1);
+                }}
+              />
+              <Button
+                variant="outline"
+                type="button"
+                className="top-share-button"
+                aria-expanded={shareOpen}
+                aria-controls={shareOpen ? "share-details" : undefined}
+                onClick={() => {
+                  setShareOpen(!shareOpen);
+                  setShareMessage("");
+                }}
+              >
+                <Share2 size={14} aria-hidden="true" /> Share
+              </Button>
+              {destination !== "calculators" && (
+                <Button
+                  variant="outline"
+                  type="button"
+                  className="reset-button"
+                  aria-haspopup="dialog"
+                  onClick={(event) => askToReplace("reset", event.currentTarget)}
+                >
+                  <RotateCcw size={14} aria-hidden="true" /> Reset inputs
+                </Button>
+              )}
+            </div>
+          )}
         </div>
         {storageMessage.startsWith("Saved inputs upgraded") && (
           <p className="migration-note">{storageMessage}</p>
-        )}
-        {!setup && (
-          <div className="planner-resources"><RetirementGuide /></div>
         )}
         {pendingLink && (
           <section
             className="cash-panel prose share-panel"
             aria-label="Shared estimate"
+            id={setup ? "setup-heading" : undefined}
+            tabIndex={-1}
           >
             {"error" in pendingLink ? (
               <p role="alert">
@@ -443,6 +575,7 @@ export default function App() {
               setAllowInitialPreset(true);
               setSetup(false);
               setExample(true);
+              focusSection("planner-input-heading");
             }}
             onComplete={(plan, startup) => {
               setState(plan);
@@ -451,25 +584,30 @@ export default function App() {
               setSetup(false);
               setExample(false);
               setAllowInitialPreset(false);
+              focusSection("planner-input-heading");
             }}
           />
         )}
-        {example && !setup && <p>Example plan</p>}
         {!setup && (
           <div className="workspace-layout">
             <ResultsNavigation
               destination={destination}
-              onNavigate={(next) => {
-                setDestination(next);
-                if (window.innerWidth < 1200)
-                  requestAnimationFrame(() =>
-                    document
-                      .getElementById(next === "calculators" ? "investment-calculator-results" : "results")
-                      ?.scrollIntoView({ behavior: "instant" }),
-                  );
+              onNavigate={goTo}
+              onEditInputs={() => focusSection(
+                destination === "calculators" ? "investment-calculator-inputs" : "planner-input-heading",
+              )}
+            />
+            <InvestmentCalculators
+              visible={destination === "calculators"}
+              entry={calculatorEntry}
+              plan={projectedState}
+              careerReady={ready}
+              startupActive={startupScenario !== null}
+              onEditPlan={() => {
+                setDestination("overview");
+                focusSection("planner-input-heading");
               }}
             />
-            <InvestmentCalculators visible={destination === "calculators"} entry={calculatorEntry} plan={projectedState} careerReady={ready} startupActive={startupScenario !== null} onEditPlan={() => { setDestination("overview"); requestAnimationFrame(() => document.getElementById("calculator-inputs")?.scrollIntoView({ behavior: "instant" })); }} />
             <div className="calculator-layout" style={{ display: destination === "calculators" ? "none" : undefined }}> 
               <aside
                 id="calculator-inputs"
@@ -477,8 +615,8 @@ export default function App() {
                 aria-label="Calculator inputs"
               >
                 <div className="input-panel-title">
-                  <h2>Your scenarios</h2>
-                  <span className="period-tag">USD</span>
+                  <h2 id="planner-input-heading" tabIndex={-1}>Your scenarios</h2>
+                  <span className="period-tag">{example ? "Example plan" : "USD"}</span>
                 </div>
                 <div className="inputs-heading">
                   {state.comparison ? (
@@ -491,6 +629,7 @@ export default function App() {
                         <button
                           type="button"
                           key={i}
+                          id={`scenario-tab-${i}`}
                           className={`scenario-tab ${active === i ? "active" : ""}`}
                           aria-pressed={active === i}
                           onClick={() => setActive(i)}
@@ -508,9 +647,11 @@ export default function App() {
                     <button
                       type="button"
                       className="add-comparison"
+                      id="add-comparison"
                       onClick={() => {
                         setState((s) => ({ ...s, comparison: true }));
                         setActive(1);
+                        focusSection("scenario-tab-1");
                         track("comparison_added");
                       }}
                     >
@@ -529,17 +670,8 @@ export default function App() {
                         <button
                           type="button"
                           className="text-button small-text clone-scenario-btn"
-                          onClick={() => {
-                            const cloned = {
-                              ...state.scenarios[0],
-                              name: state.scenarios[1].name || "Scenario B",
-                            };
-                            setState((s) => ({
-                              ...s,
-                              scenarios: [s.scenarios[0], cloned],
-                            }));
-                          }}
-                          title="Copy all compensation, benefits, and expenses from Scenario A"
+                          aria-haspopup="dialog"
+                          onClick={(event) => askToReplace("copy", event.currentTarget)}
                         >
                           Copy from Scenario A
                         </button>
@@ -550,6 +682,7 @@ export default function App() {
                         onClick={() => {
                           setState((s) => ({ ...s, comparison: false }));
                           setActive(0);
+                          focusSection("add-comparison");
                         }}
                       >
                         Remove comparison
@@ -561,61 +694,6 @@ export default function App() {
                 <a className="jump-to-results" href="#results">
                   View results <ArrowUpRight size={14} aria-hidden="true" />
                 </a>
-                <StartupFields
-                  enabled={startupScenario === active}
-                  onToggle={(enabled) => {
-                    setExample(false);
-                    setStartupScenario(enabled ? active : null);
-                  }}
-                  input={startupInputs[active]}
-                  onChange={(input) => {
-                    setExample(false);
-                    setStartupInputs((current) =>
-                      active === 0 ? [input, current[1]] : [current[0], input],
-                    );
-                  }}
-                  onApplyExample={(choice) => {
-                    setExample(true);
-                    const base = {
-                      "series-a": "170000",
-                      "series-b": "175000",
-                      "series-c": "175000",
-                    }[choice];
-                    const input: StartupInputs = {
-                      ...emptyStartup,
-                      grant: {
-                        "series-a": "16000",
-                        "series-b": "12000",
-                        "series-c": "8000",
-                      }[choice],
-                      strike: "1.25",
-                      vesting: "cliff",
-                    };
-                    setStartupInputs((current) =>
-                      active === 0 ? [input, current[1]] : [current[0], input],
-                    );
-                    setState((current) => ({
-                      ...current,
-                      scenarios: current.scenarios.map((scenario, index) =>
-                        index !== active
-                          ? scenario
-                          : {
-                              ...scenario,
-                              name: `Example Series ${choice.slice(-1).toUpperCase()}`,
-                              base,
-                              bonus: "0",
-                              growth: "0",
-                              signOnY1: "0",
-                              signOnY2: "0",
-                              employerMatch: {
-                                ...scenario.employerMatch,
-                                type: "none" as const,
-                              },
-                            },
-                      ) as PlannerV2["scenarios"],
-                    }));
-                  }}
-                />
                 <ScenarioForm
                   key={`${active}-${resetVersion}`}
                   scenario={state.scenarios[active]}
@@ -623,6 +701,23 @@ export default function App() {
                   showName={state.comparison}
                   allowInitialPreset={allowInitialPreset}
                   startup={startupScenario === active}
+                  startupFields={
+                    <StartupFields
+                      enabled={startupScenario === active}
+                      onToggle={(enabled) => {
+                        setExample(false);
+                        setStartupScenario(enabled ? active : null);
+                      }}
+                      input={startupInputs[active]}
+                      onChange={(input) => {
+                        setExample(false);
+                        setStartupInputs((current) =>
+                          active === 0 ? [input, current[1]] : [current[0], input],
+                        );
+                      }}
+                      onApplyExample={applyStartupExample}
+                    />
+                  }
                   onChange={(next) => {
                     if (allowInitialPreset) setAllowInitialPreset(false);
                     else setExample(false);
@@ -638,27 +733,22 @@ export default function App() {
                     setState((s) => ({ ...s, shared }));
                   }}
                 />
+                <StartingAccounts
+                  assumptions={state.shared}
+                  onChange={(shared) => {
+                    if (!allowInitialPreset) setExample(false);
+                    setState((current) => ({ ...current, shared }));
+                  }}
+                />
               </aside>
               <div id="results" className="results-column" tabIndex={-1}>
                 <div className="workspace-heading">
                   <div>
-                    <h2>
-                      {
-                        destinations.find((item) => item.id === destination)
-                          ?.label
-                      }
+                    <h2 id="results-heading" tabIndex={-1}>
+                      {destinations.find((item) => item.id === destination)?.label}
                     </h2>
-                    <p className="hint">
-                      {destination === "overview"
-                        ? "A clearer picture of your money"
-                        : destination === "cash"
-                          ? "Follow your income, spending, and savings"
-                          : destination === "taxes"
-                            ? "Understand your estimated annual liability"
-                            : "Every year of your projection, in detail"}
-                    </p>
                   </div>
-                  <a className="back-to-inputs" href="#calculator-inputs">
+                  <a className="back-to-inputs" href="#planner-input-heading">
                     Edit inputs <ArrowUpRight size={14} aria-hidden="true" />
                   </a>
                 </div>
@@ -666,7 +756,10 @@ export default function App() {
                   <Results
                     selectedYear={selectedYear}
                     onYearChange={setSelectedYear}
-                    onOpenCalculators={() => { setCalculatorEntry((value) => value + 1); setDestination("calculators"); requestAnimationFrame(() => document.getElementById("investment-calculator-inputs")?.scrollIntoView({ behavior: "instant" })); }}
+                    onOpenCalculators={() => {
+                      setCalculatorEntry((value) => value + 1);
+                      goTo("calculators");
+                    }}
                     destination={destination}
                     state={projectedState}
                     series={calculation.series}
@@ -674,31 +767,65 @@ export default function App() {
                     startupInput={startupInputs[startupScenario ?? 0]}
                   />
                 ) : (
-                  <section className="invalid-results" role="status">
-                    <span className="empty-icon" aria-hidden="true">
-                      —
-                    </span>
-                    <h2>A few details need a second look</h2>
-                    <p>
-                      {calculation.error ||
-                        "Correct the highlighted inputs to see your projection. Check both scenarios when comparing."}
+                  <section className="invalid-results" aria-labelledby="invalid-results-heading">
+                    <h3 id="invalid-results-heading">Check your plan inputs</h3>
+                    <p role="status">
+                      {calculation.error || "Resolve the issues below to see results and export your projection."}
                     </p>
-                    <p className="hint">
-                      Results and export are paused until the inputs are valid.
-                    </p>
+                    <div className="invalid-result-actions">
+                      {visibleScenarioErrors.map((hasErrors, index) => hasErrors && (
+                        <Button key={index} variant="outline" onClick={() => fixInputs(index)}>
+                          {state.comparison ? (index === 0 ? "Review Scenario A" : "Review Scenario B") : "Review offer inputs"}
+                        </Button>
+                      ))}
+                      {sharedErrors && (
+                        <Button variant="outline" onClick={() => fixInputs()}>
+                          Review shared assumptions
+                        </Button>
+                      )}
+                    </div>
                   </section>
                 )}
               </div>
             </div>
           </div>
         )}
-        {!setup && <StartingAccounts assumptions={state.shared} onChange={(shared) => { if (!allowInitialPreset) setExample(false); setState((current) => ({ ...current, shared })); }} />}
+
         <AppFooter
           ready={ready}
           storageMessage={storageMessage}
           analyticsEnabled={analyticsEnabled}
           onAnalyticsToggle={setAnalyticsEnabled}
         />
+        <Dialog open={replacement !== null} onOpenChange={(open) => {
+          if (!open) setReplacement(null);
+        }}>
+          <DialogContent
+            onOpenAutoFocus={(event) => {
+              event.preventDefault();
+              cancelReplacement.current?.focus();
+            }}
+            onCloseAutoFocus={(event) => {
+              event.preventDefault();
+              replacementTrigger.current?.focus();
+            }}
+          >
+            <DialogHeader>
+              <DialogTitle>{replacement === "copy" ? "Replace Scenario B inputs?" : "Reset this plan?"}</DialogTitle>
+              <DialogDescription>
+                {replacement === "copy"
+                  ? "Copy Scenario A’s compensation, expenses, tax, career, and benefit settings to Scenario B. Scenario B keeps its name and startup option details."
+                  : "Replace both offers, shared assumptions, and startup details with the default plan in this browser."}
+              </DialogDescription>
+            </DialogHeader>
+            <DialogFooter>
+              <Button ref={cancelReplacement} variant="outline" onClick={() => setReplacement(null)}>Cancel</Button>
+              <Button onClick={confirmReplacement}>
+                {replacement === "copy" ? "Replace Scenario B" : "Reset plan"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </main>
     </>
   );

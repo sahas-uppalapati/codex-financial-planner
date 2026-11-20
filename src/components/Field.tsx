@@ -31,28 +31,18 @@ export function Field({
         <span className="field-label-text">{label}</span>
         {unit && <span className="unit-label">{unit}</span>}
       </label>
-      <div className={`input-wrap ${error ? "invalid" : ""}`}>
-        <Input
-          id={id}
-          type="text"
-          inputMode={integer ? "numeric" : "decimal"}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          aria-invalid={!!error}
-          aria-describedby={describedBy}
-          autoComplete="off"
-          spellCheck={false}
-        />
-        {hasHint && (
-          <span
-            id={`${id}-help`}
-            className="input-tooltip-bubble"
-            role="tooltip"
-          >
-            {hint}
-          </span>
-        )}
-      </div>
+      <Input
+        id={id}
+        type="text"
+        inputMode={integer ? "numeric" : "decimal"}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        aria-invalid={!!error}
+        aria-describedby={describedBy}
+        autoComplete="off"
+        spellCheck={false}
+      />
+      {hasHint && <p id={`${id}-help`} className="hint field-help">{hint}</p>}
       {error && (
         <p id={`${id}-error`} className="error" role="alert">
           {error}

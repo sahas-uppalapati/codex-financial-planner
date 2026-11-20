@@ -12,7 +12,7 @@ export function AnnualScheduleTable({
   years: number;
 }) {
   const [tableColumnsMode, setTableColumnsMode] = useState<"full" | "summary">(
-    "full",
+    "summary",
   );
 
   return (
@@ -23,9 +23,8 @@ export function AnnualScheduleTable({
       <div className="details-body">
         <div className="table-header-controls">
           <p className="hint">
-            All values are nominal USD. Gross includes vested equity whether
-            sold or held. Portfolio balance excludes unvested awards. CSV
-            contains full precision and detailed tax components.
+            Scroll horizontally for more columns. Gross income includes vested
+            equity. Total balance includes owned assets. CSV includes full tax detail.
           </p>
           <div
             className="table-density-switch"
@@ -38,7 +37,7 @@ export function AnnualScheduleTable({
               aria-pressed={tableColumnsMode === "summary"}
               onClick={() => setTableColumnsMode("summary")}
             >
-              Key summary (11 cols)
+              Summary
             </button>
             <button
               type="button"
@@ -71,16 +70,16 @@ export function AnnualScheduleTable({
                     {(tableColumnsMode === "summary"
                       ? [
                           "Year / role",
+                          "Cash savings",
+                          "Total balance",
+                          "Cash take-home",
+                          "Expenses",
+                          "Est. taxes",
+                          "Gross income",
                           "Base",
                           "Bonus",
                           "Vested equity",
-                          "Gross income",
-                          "Est. taxes",
-                          "Cash take-home",
-                          "Expenses",
-                          "Cash surplus",
                           "401(k) + Match",
-                          "Total balance",
                         ]
                       : [
                           "Year / role",
@@ -124,8 +123,9 @@ export function AnnualScheduleTable({
                     <th scope="row">Start</th>
                     {tableColumnsMode === "summary" ? (
                       <>
-                        <td colSpan={9}>Starting owned assets</td>
+                        <td />
                         <td>{money(s.projection.startingTotal)}</td>
+                        <td colSpan={8} />
                       </>
                     ) : (
                       <>
@@ -149,16 +149,16 @@ export function AnnualScheduleTable({
                     const rowVals =
                       tableColumnsMode === "summary"
                         ? [
+                            r.surplus,
+                            r.endingBalance,
+                            r.takeHome,
+                            r.expenses,
+                            r.taxes,
+                            r.grossIncome,
                             r.base,
                             r.bonus,
                             r.stockGross,
-                            r.grossIncome,
-                            r.taxes,
-                            r.takeHome,
-                            r.expenses,
-                            r.surplus,
                             r.retirementContribution + r.employerMatch,
-                            r.endingBalance,
                           ]
                         : [
                             r.base,

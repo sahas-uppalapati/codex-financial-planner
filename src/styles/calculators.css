@@ -2,6 +2,9 @@
   .investment-calculators {
     min-width: 0;
   }
+  .calculator-heading {
+    margin-bottom: 12px;
+  }
   .calculator-mode-tabs {
     display: flex;
     flex-wrap: wrap;
@@ -11,7 +14,7 @@
   }
   .calculator-mode-tabs [role="tab"] {
     height: auto;
-    min-height: 42px;
+    min-height: 44px;
     padding: 10px 12px;
     border-radius: 6px 6px 0 0;
     border-bottom: 2px solid transparent;
@@ -54,7 +57,6 @@
     padding: 32px 24px;
   }
   .calculator-empty p {
-    margin-top: 12px;
     color: var(--muted-foreground);
   }
   .calculator-result-list {

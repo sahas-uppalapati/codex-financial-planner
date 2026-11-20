@@ -40,6 +40,10 @@ test.beforeEach(async ({ page }) => {
 test("fresh plans start with the Amazon L4 Seattle preset", async ({ page }) => {
   await page.evaluate(() => localStorage.clear());
   await page.goto("/");
+  await page.keyboard.press("Tab");
+  await expect(page.getByRole("link", { name: "Skip to setup" })).toBeFocused();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("heading", { name: "Get started" })).toBeFocused();
   await page.getByRole("button", { name: "Explore an example" }).click();
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await expect(page.getByRole("button", { name: "Amazon", exact: true })).toHaveAttribute("aria-pressed", "true");
@@ -311,7 +315,7 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   await expect(page.getByTestId("take-home-1")).toHaveText("$8,751");
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(
-    page.getByRole("img", { name: "Projected investment balance by year" }),
+    page.getByRole("img", { name: "Projected balance, contributions, and investment growth by year" }),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Annual Schedule", exact: true })
@@ -322,7 +326,7 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
     }),
   ).toHaveCount(2);
   const download = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Export CSV", exact: true }).click();
+  await page.getByRole("button", { name: "Export annual CSV", exact: true }).click();
   const file = await download;
   expect(file.suggestedFilename()).toBe("careerworth-projection.csv");
   const csv = await readFile((await file.path())!, "utf8");
@@ -338,7 +342,16 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
   expect(
     (await readFile((await monthlyFile.path())!, "utf8")).split("\r\n"),
   ).toHaveLength(243);
-  await page.getByRole("button", { name: "Reset inputs" }).click();
+  const salary = page.getByLabel("Annual base salary");
+  const beforeReset = await salary.inputValue();
+  const reset = page.getByRole("button", { name: "Reset inputs" });
+  await reset.click();
+  const confirmation = page.getByRole("dialog", { name: "Reset this plan?" });
+  await confirmation.getByRole("button", { name: "Cancel" }).click();
+  await expect(reset).toBeFocused();
+  await expect(salary).toHaveValue(beforeReset);
+  await reset.click();
+  await confirmation.getByRole("button", { name: "Reset plan" }).click();
   await navigate(page, "Cash Flow");
   await expect(page.getByTestId("savings-0")).toHaveText("$3,197");
   await expect(page.getByTestId("ending-1")).toHaveCount(0);
@@ -470,9 +483,9 @@ test("midyear promotions, new employers and role equity update annual and monthl
   await expect(
     annual.getByRole("cell", { name: "$12,000", exact: true }).first(),
   ).toBeVisible();
+  await navigate(page, "Cash Flow");
   await page.getByLabel("Results for calendar year").click();
   await page.getByRole("option", { name: "2027" }).click();
-  await navigate(page, "Cash Flow");
   await expect(page.getByTestId("stock-0")).toHaveText("$10,000");
   await page
     .getByRole("button", { name: "Change employer", exact: false })
@@ -551,10 +564,10 @@ test("invalid drafts pause results and exports; zero income and negative returns
   await page.reload();
   await page.getByLabel("Annual base salary").fill("");
   await expect(
-    page.getByText("A few details need a second look"),
+    page.getByRole("heading", { name: "Check your plan inputs" }),
   ).toBeVisible();
   await expect(page.getByTestId("ending-0")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: "Export CSV" })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Export annual CSV" })).toHaveCount(0);
   await page.getByLabel("Annual base salary").fill("0");
   await page.getByRole("button", { name: "Cash Flow", exact: true }).click();
   await expect(page.getByTestId("take-home-0")).toHaveText("$0");
@@ -565,6 +578,7 @@ test("invalid drafts pause results and exports; zero income and negative returns
   await page.getByLabel("Projection length").fill("40");
   await page.getByRole("button", { name: "Overview", exact: true }).click();
   await expect(page.getByTestId("ending-0")).toBeVisible();
+  await page.locator(".starting-accounts-section > summary").click();
   await page.locator(".starting-accounts-section").getByLabel("Annual investment return").fill("-100");
   await expect(page.getByTestId("ending-0")).toHaveCount(0);
   await page.locator(".starting-accounts-section").getByLabel("Annual investment return").fill("-50");
@@ -669,6 +683,7 @@ test("long names and expanded editors/tables fit phone, tablet and desktop width
   }
 
   await page.getByRole("button", { name: "Reset inputs" }).click();
+  await page.getByRole("dialog").getByRole("button", { name: "Reset plan" }).click();
   await page.setViewportSize({
     width: testInfo.project.name === "mobile" ? 390 : 1440,
     height: 1000,
@@ -718,7 +733,12 @@ test("results navigation keeps the inspected year and theme persists", async ({
     "Overview",
   ] as const) {
     await navigate(page, destination);
-    await expect(page.getByLabel("Results for calendar year")).toHaveText("2030");
+    const year = page.getByLabel("Results for calendar year");
+    if (destination === "Annual Schedule") {
+      await expect(year).toHaveCount(0);
+    } else {
+      await expect(year).toHaveText("2030");
+    }
     await expect(salary).toHaveValue("185000");
   }
   await salary.fill("");
@@ -741,4 +761,19 @@ test("results navigation keeps the inspected year and theme persists", async ({
   await expect(page.locator("html")).toHaveClass(/dark/);
   await page.emulateMedia({ colorScheme: "light" });
   await expect(page.locator("html")).not.toHaveClass(/dark/);
+});
+
+test("validation takes the user to the other scenario’s invalid input", async ({ page }) => {
+  await page.getByRole("button", { name: "Add comparison" }).click();
+  const scenarios = page.getByRole("group", { name: "Select scenario to edit" });
+  await expect(scenarios.getByRole("button").nth(1)).toBeFocused();
+  await page.getByLabel("Annual base salary").fill("");
+  await scenarios.getByRole("button").first().click();
+  await navigate(page, "Taxes");
+  await page.getByRole("button", { name: "Review Scenario B" }).click();
+  const salary = page.getByLabel("Annual base salary");
+  await expect(salary).toBeFocused();
+  await expect(salary).toHaveAttribute("aria-invalid", "true");
+  await salary.fill("120000");
+  await expect(page.getByRole("button", { name: "Review Scenario B" })).toHaveCount(0);
 });

@@ -1,7 +1,8 @@
 import { QuickRetirementPresets } from "./QuickRetirementPresets";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, type ReactNode } from "react";
+import { RetirementGuide } from "./RetirementGuide";
 import type { Category } from "../lib/model";
 import type { ScenarioV2 as Scenario, AssumptionsV2 } from "../lib/planner";
 import {
@@ -33,6 +34,7 @@ export function ScenarioForm({
   allowInitialPreset = false,
   showName = false,
   startup = false,
+  startupFields,
 }: {
   scenario: Scenario;
   assumptions: AssumptionsV2;
@@ -41,6 +43,7 @@ export function ScenarioForm({
   allowInitialPreset?: boolean;
   showName?: boolean;
   startup?: boolean;
+  startupFields?: ReactNode;
 }) {
   const [expenseDraft, setExpenseDraft] = useState(() =>
     categoryKeys.every((k) => !fieldError(s.expenses[k], "monthlyExpenses")) &&
@@ -165,22 +168,6 @@ export function ScenarioForm({
         </div>
       )}
 
-      {/* 1-Click Company & Role Preset Hero */}
-      {!startup && (
-        <details className="preset-section">
-          <summary>
-            Company presets <span className="optional">Optional</span>
-          </summary>
-          <TechEstimatorHero
-            allowInitialPreset={allowInitialPreset}
-            scenario={s}
-            assumptions={a}
-            onScenarioChange={onChange}
-            onAssumptionsChange={onAssumptionsChange}
-          />
-        </details>
-      )}
-
       <h2 className="input-section-title">Offer</h2>
       {/* Core 4 Inputs */}
       <div className="essential-fields">
@@ -264,6 +251,22 @@ export function ScenarioForm({
           />
         </div>
       </div>
+      {startupFields}
+      {!startup && (
+        <details className="preset-section">
+          <summary>
+            Company presets <span className="optional">Optional</span>
+          </summary>
+          <TechEstimatorHero
+            allowInitialPreset={allowInitialPreset}
+            scenario={s}
+            assumptions={a}
+            onScenarioChange={onChange}
+            onAssumptionsChange={onAssumptionsChange}
+          />
+        </details>
+      )}
+
       <h2 className="input-section-title">Living costs</h2>
       <div className="essential-fields">
         <Field
@@ -279,24 +282,28 @@ export function ScenarioForm({
               : undefined)
           }
         />
-        <Field
-          label="Current invested savings"
-          unit="$"
-          value={a.starting}
-          onChange={(starting) => shared("starting", starting)}
-          error={errors.starting}
-        />
+        <div data-shared-input>
+          <Field
+            label="Current invested savings"
+            unit="$"
+            value={a.starting}
+            onChange={(starting) => shared("starting", starting)}
+            error={errors.starting}
+          />
+        </div>
       </div>
 
       <div className="projection-length-row">
-        <Field
-          label="Projection length"
-          unit="years"
-          value={a.years}
-          onChange={(years) => shared("years", years)}
-          error={errors.years}
-          integer
-        />
+        <div data-shared-input>
+          <Field
+            label="Projection length"
+            unit="years"
+            value={a.years}
+            onChange={(years) => shared("years", years)}
+            error={errors.years}
+            integer
+          />
+        </div>
         <div className="quick-chip-row" role="group" aria-label="Quick horizon">
           {["5", "10", "15", "20", "30"].map((y) => (
             <button
@@ -482,6 +489,7 @@ export function ScenarioForm({
             onScenarioChange={onChange}
           />
           <BenefitsEditor s={s} a={a} onChange={onChange} />
+          <RetirementGuide />
         </div>
       </details>
 

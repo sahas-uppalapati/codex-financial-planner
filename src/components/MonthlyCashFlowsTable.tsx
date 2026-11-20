@@ -19,7 +19,7 @@ export function MonthlyCashFlowsTable({
       <div className="details-body">
         <div className="table-toolbar">
           <p className="hint">
-            Change the results year above to inspect another calendar year.
+            Use Results year to inspect a different year. Scroll horizontally for more columns.
           </p>
         </div>
         {series.map((s) => (
