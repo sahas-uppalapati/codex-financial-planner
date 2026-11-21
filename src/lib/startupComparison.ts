@@ -174,6 +174,7 @@ export function startupComparison(
       : fraction !== null && fraction > 0
         ? (gap + exercise) / fraction
         : null;
+  const difference = proceeds === null ? null : proceeds - gap;
   if (
     ![
       vestedOptions,
@@ -183,6 +184,7 @@ export function startupComparison(
       fraction ?? 0,
       proceeds ?? 0,
       breakEvenCompany ?? 0,
+      difference ?? 0,
     ].every(Number.isFinite)
   )
     return null;
@@ -194,7 +196,6 @@ export function startupComparison(
     fraction,
     proceeds,
     breakEvenCompany,
-    difference:
-      proceeds === null ? null : startupComp + proceeds - alternativeComp,
+    difference,
   };
 }

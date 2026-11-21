@@ -3,12 +3,14 @@ import type { CaptureResult, PostHog } from "posthog-js";
 const CONSENT_KEY = "careerworth:analytics-consent";
 let posthogClient: PostHog | null = null;
 let posthogPromise: Promise<PostHog | null> | null = null;
+let optedOut = false;
 
 export function analyticsConfigured() {
   return Boolean(import.meta.env.VITE_POSTHOG_KEY);
 }
 
 export function analyticsConsent() {
+  if (optedOut) return false;
   try {
     return window.localStorage.getItem(CONSENT_KEY) === "yes";
   } catch {
@@ -38,6 +40,7 @@ async function getPostHog(): Promise<PostHog | null> {
   if (!key) return null;
   if (!posthogPromise) {
     posthogPromise = import("posthog-js").then(({ default: posthog }) => {
+      if (!analyticsConsent()) return null;
       posthog.init(key, {
         api_host: import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com",
         autocapture: false,
@@ -54,6 +57,8 @@ async function getPostHog(): Promise<PostHog | null> {
       });
       posthogClient = posthog;
       return posthog;
+    }).catch(() => null).finally(() => {
+      posthogPromise = null;
     });
   }
   return posthogPromise;
@@ -66,14 +71,17 @@ export function enableAnalytics() {
   } catch {
     return false;
   }
+  optedOut = false;
   void getPostHog().then((client) => {
-    client?.opt_in_capturing();
-    client?.capture("analytics_consent_granted");
+    if (!client || !analyticsConsent()) return;
+    client.opt_in_capturing();
+    client.capture("analytics_consent_granted");
   });
   return true;
 }
 
 export function disableAnalytics() {
+  optedOut = true;
   try {
     window.localStorage.removeItem(CONSENT_KEY);
   } catch {
@@ -96,6 +104,6 @@ export function track(
 ) {
   if (!analyticsConsent() || !analyticsConfigured()) return;
   void getPostHog().then((client) => {
-    client?.capture(event, properties);
+    if (analyticsConsent()) client?.capture(event, properties);
   });
 }

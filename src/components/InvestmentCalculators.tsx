@@ -81,6 +81,7 @@ export function InvestmentCalculators({
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const workerRef = useRef<Worker | null>(null);
+  const calculateButton = useRef<HTMLButtonElement>(null);
   const resultPanel = useRef<HTMLDivElement>(null);
   const tabsId = useId();
   const draft = drafts[source];
@@ -95,8 +96,8 @@ export function InvestmentCalculators({
     setError("");
   }
   useEffect(() => {
-    invalidate();
-  }, [plan]);
+    if (source === "career") invalidate();
+  }, [plan, source, blocked]);
   useEffect(() => {
     if (entry > 0) {
       invalidate();
@@ -123,8 +124,8 @@ export function InvestmentCalculators({
   }
   function calculate(event: FormEvent) {
     event.preventDefault();
+    if (blocked || Object.keys(errors).length || busy) return;
     invalidate();
-    if (blocked || Object.keys(errors).length) return;
     if (source === "standalone") {
       try {
         setResults(calculateInvestments({ draft }));
@@ -331,12 +332,17 @@ export function InvestmentCalculators({
             )}
             <Button
               type="submit"
-              disabled={blocked || Object.keys(errors).length > 0 || busy}
+              ref={calculateButton}
+              disabled={blocked || Object.keys(errors).length > 0}
+              aria-disabled={busy || undefined}
             >
               {busy ? "Calculating…" : "Calculate"}
             </Button>
             {busy && (
-              <Button type="button" variant="outline" onClick={invalidate}>
+              <Button type="button" variant="outline" onClick={() => {
+                invalidate();
+                calculateButton.current?.focus();
+              }}>
                 Cancel calculation
               </Button>
             )}

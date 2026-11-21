@@ -21,11 +21,13 @@ import {
 
 export function PlannerBackup({
   state,
+  canExport,
   onRestore,
   startup,
   compact = false,
 }: {
   state: PlannerV2;
+  canExport: boolean;
   onRestore: (state: PlannerSession) => void;
   startup: StartupSession;
   compact?: boolean;
@@ -36,6 +38,10 @@ export function PlannerBackup({
   const [pending, setPending] = useState<PlannerSession | null>(null);
 
   function download() {
+    if (!canExport) {
+      setMessage("Fix invalid inputs before exporting a backup.");
+      return;
+    }
     try {
       downloadText(
         exportPlannerBackup(state, startup),

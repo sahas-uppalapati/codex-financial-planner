@@ -45,7 +45,7 @@ export function TechEstimatorHero({
   onAssumptionsChange,
 }: TechEstimatorHeroProps) {
   const initialized = useRef(false);
-  const previewButton = useRef<HTMLButtonElement>(null);
+  const previewTrigger = useRef<HTMLButtonElement>(null);
   // Ownership is deliberately session-only. On reload, saved values have no
   // trustworthy provenance and are therefore preserved until explicitly applied.
   const baseline = useRef<{
@@ -142,7 +142,36 @@ export function TechEstimatorHero({
 
     if (scenario.base === String(comp.base)) owned.add("base");
     if (scenario.bonus === String(comp.bonus)) owned.add("bonus");
-    if (scenario.stock === String(comp.annualRsu)) {
+    const issuer = scenario.issuers[0];
+    const grant = scenario.grants[0];
+    const vestingTemplate = company.defaultVestingTemplate;
+    const unchangedGrant = comp.annualRsu > 0
+      ? scenario.grants.length === 1 &&
+        grant.presetCompensation === "tech-quick" &&
+        grant.name === "Initial 4-Year New Hire Grant" &&
+        grant.issuerId === scenario.employerId &&
+        grant.employmentId === "initial" &&
+        grant.month === `${assumptions.startYear}-01` &&
+        grant.units === "dollars" &&
+        grant.value === String(comp.grantTotal ?? comp.annualRsu * 4) &&
+        grant.priceMode === "modeled" &&
+        grant.treatment === "sell" &&
+        !grant.keepOnDeparture &&
+        grant.template === vestingTemplate &&
+        JSON.stringify(grant.schedule) === JSON.stringify(templateSchedule(vestingTemplate))
+      : scenario.grants.length === 0;
+    if (unchangedGrant &&
+        scenario.stock === String(comp.annualRsu) &&
+        scenario.stockMode === "grants" &&
+        scenario.includeStock === (comp.annualRsu > 0) &&
+        scenario.issuers.length === 1 &&
+        issuer.id === scenario.employerId &&
+        issuer.name === `${company.name} (${company.ticker})` &&
+        issuer.price === "150" &&
+        growthPresets.some((preset) => issuer.appreciation === String(preset.stockAppreciation)) &&
+        issuer.startingShares === "0" &&
+        issuer.startingBasis === "0" &&
+        scenario.refreshers.length === 0) {
       owned.add("stock");
       owned.add("stockMode");
       owned.add("includeStock");
@@ -154,18 +183,8 @@ export function TechEstimatorHero({
     if (scenario.signOnY2 === String(comp.signOnY2 ?? 0)) owned.add("signOnY2");
     if (scenario.company?.toLowerCase() === company.name.toLowerCase())
       owned.add("company");
-    if (
-      scenario.name?.toLowerCase().includes(company.name.toLowerCase()) ||
-      scenario.name?.toLowerCase().includes(level.level.toLowerCase())
-    ) {
-      owned.add("name");
-    }
-    if (
-      scenario.role?.toLowerCase().includes(company.name.toLowerCase()) ||
-      scenario.role?.toLowerCase().includes(level.title.toLowerCase())
-    ) {
-      owned.add("role");
-    }
+    if (scenario.name === `${company.name} ${level.level}`) owned.add("name");
+    if (scenario.role === `${level.title} at ${company.name}`) owned.add("role");
 
     if (
       Object.keys(living).every(
@@ -230,12 +249,12 @@ export function TechEstimatorHero({
         ? "moderate"
         : "conservative";
 
-  function handleCompanyChange(companyId: string) {
+  function handleCompanyChange(companyId: string, trigger: HTMLButtonElement) {
     setSelectedCompanyId(companyId);
     const levels = availableLevels(companyId, selectedLocationId);
     const defaultLevel = levels[2]?.id || levels[0]?.id || "l5";
     setSelectedLevelId(defaultLevel);
-    const full = !isPresetApplied;
+    if (!isPresetApplied) previewTrigger.current = trigger;
     applyTechPreset(
       companyId,
       defaultLevel,
@@ -243,17 +262,17 @@ export function TechEstimatorHero({
       selectedFiling,
       activeGrowthId,
       includeProgression,
-      full,
       false,
-      ["company", "role", "name"],
+      !isPresetApplied,
+      ["company"],
     );
   }
 
-  function handleLevelChange(levelId: string) {
+  function handleLevelChange(levelId: string, trigger: HTMLButtonElement) {
     const companyId = selectedCompanyId || "google";
     setSelectedCompanyId(companyId);
     setSelectedLevelId(levelId);
-    const full = !isPresetApplied;
+    if (!isPresetApplied) previewTrigger.current = trigger;
     applyTechPreset(
       companyId,
       levelId,
@@ -261,9 +280,8 @@ export function TechEstimatorHero({
       selectedFiling,
       activeGrowthId,
       includeProgression,
-      full,
       false,
-      ["role", "name"],
+      !isPresetApplied,
     );
   }
 
@@ -395,6 +413,9 @@ export function TechEstimatorHero({
           scenario.growth || "0",
         )
       : scenario.events.filter((e) => !e.presetProgression);
+    const retainedIssuerIds = new Set(
+      [...events, ...scenario.refreshers].map((item) => item.issuerId),
+    );
 
     const updatedScenario: ScenarioV2 = {
       ...scenario,
@@ -409,7 +430,12 @@ export function TechEstimatorHero({
       signOnY2: String(comp.signOnY2 ?? 0),
       stockMode: "grants",
       includeStock: comp.annualRsu > 0,
-      issuers: [newIssuer],
+      issuers: [
+        newIssuer,
+        ...scenario.issuers.filter((issuer) =>
+          issuer.id !== issuerId && retainedIssuerIds.has(issuer.id),
+        ),
+      ],
       grants: comp.annualRsu > 0 ? [newGrant] : [],
       events,
       taxProfile: {
@@ -560,10 +586,10 @@ export function TechEstimatorHero({
   return (
     <div className="tech-estimator-hero" aria-label="Big Tech Preset Selector">
       <button
-        ref={previewButton}
         type="button"
         className="secondary small preset-preview-action"
-        onClick={() =>
+        onClick={(event) => {
+          previewTrigger.current = event.currentTarget;
           applyTechPreset(
             selectedCompanyId,
             selectedLevelId,
@@ -573,8 +599,8 @@ export function TechEstimatorHero({
             includeProgression,
             false,
             true,
-          )
-        }
+          );
+        }}
       >
         Preview full preset
       </button>
@@ -593,7 +619,7 @@ export function TechEstimatorHero({
                 type="button"
                 className={`pill-btn ${selectedCompanyId === c.id ? "active" : ""}`}
                 aria-pressed={selectedCompanyId === c.id}
-                onClick={() => handleCompanyChange(c.id)}
+                onClick={(event) => handleCompanyChange(c.id, event.currentTarget)}
               >
                 {c.name}
               </button>
@@ -611,7 +637,7 @@ export function TechEstimatorHero({
                 type="button"
                 className={`pill-btn ${selectedLevelId === lvl.id ? "active" : ""}`}
                 aria-pressed={selectedLevelId === lvl.id}
-                onClick={() => handleLevelChange(lvl.id)}
+                onClick={(event) => handleLevelChange(lvl.id, event.currentTarget)}
                 title={lvl.title}
               >
                 {lvl.level}
@@ -740,7 +766,11 @@ export function TechEstimatorHero({
         <DialogContent
           onCloseAutoFocus={(event) => {
             event.preventDefault();
-            previewButton.current?.focus();
+            const trigger = previewTrigger.current;
+            if (!trigger) return;
+            const details = trigger.closest("details");
+            if (details) details.open = true;
+            trigger.focus();
           }}
         >
           {preview && (
@@ -753,9 +783,10 @@ export function TechEstimatorHero({
                 <DialogTitle>Replace values with this preset?</DialogTitle>
                 <DialogDescription>
                   This replaces the scenario name, pay, bonuses, stock grants
-                  and employers (including any starting shares and cost basis),
-                  living costs, match, generated promotions, and market
-                  assumptions. Review these estimates before applying.
+                  and the initial employer (including any starting shares and
+                  cost basis), living costs, match, generated promotions, and
+                  market assumptions. Employers used by retained career changes
+                  or refreshers are kept.
                 </DialogDescription>
               </DialogHeader>
               <ul>

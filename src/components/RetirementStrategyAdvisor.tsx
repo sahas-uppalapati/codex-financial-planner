@@ -1,10 +1,11 @@
-import { useId, useState } from "react";
-import type { AssumptionsV2, ScenarioV2 } from "../lib/planner";
+import { useEffect, useId, useState } from "react";
+import { numberError, type AssumptionsV2, type ScenarioV2 } from "../lib/planner";
 import { money } from "../lib/format";
 import {
   applyRetirementStrategy,
   calculateRetirementStrategy,
   getStrategyPresets,
+  retirementConversionAvailability,
 } from "../lib/retirementStrategy";
 import type { TaxStrategyPreference } from "../lib/retirementStrategy";
 import {
@@ -55,37 +56,33 @@ export function RetirementStrategyAdvisor({
   const [enableMegaBackdoor, setEnableMegaBackdoor] = useState(true);
   const [appliedNotice, setAppliedNotice] = useState<string | null>(null);
 
-  const targetAmount = Math.max(0, Number(targetSavingsDraft) || 0);
+  const targetError = numberError(targetSavingsDraft, 0, 10_000_000);
+  const targetAmount = targetError ? 0 : Number(targetSavingsDraft);
 
-  const strategy = calculateRetirementStrategy(s, a, {
-    targetSavings: targetAmount,
-    taxPreference,
-    enableBackdoor,
-    enableMegaBackdoor,
-  });
+  useEffect(() => {
+    if (!appliedNotice) return;
+    const timer = setTimeout(() => setAppliedNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [appliedNotice]);
 
-  const handleApply = () => {
-    const updated = applyRetirementStrategy(s, strategy);
-    onChange(updated);
-    setAppliedNotice(`Applied savings strategy (${money(targetAmount)}/yr)!`);
-    setTimeout(() => setAppliedNotice(null), 4000);
-  };
-
-  const handleSelectMilestone = (amount: number, label: string) => {
-    setTargetSavingsDraft(String(amount));
-    const optStrategy = calculateRetirementStrategy(s, a, {
+  const apply = (amount: number, label: string) => {
+    const strategy = calculateRetirementStrategy(s, a, {
       targetSavings: amount,
       taxPreference,
       enableBackdoor,
       enableMegaBackdoor,
     });
-    const updated = applyRetirementStrategy(s, optStrategy);
-    onChange(updated);
+    onChange(applyRetirementStrategy(s, strategy));
     setAppliedNotice(`Applied ${label} (${money(amount)}/yr)!`);
-    setTimeout(() => setAppliedNotice(null), 4000);
+  };
+
+  const handleSelectMilestone = (amount: number, label: string) => {
+    setTargetSavingsDraft(String(amount));
+    apply(amount, label);
   };
 
   const advisorId = useId();
+  const conversions = retirementConversionAvailability(s, a);
 
   return (
     <div className="strategy-advisor-card" aria-labelledby={`${advisorId}-heading`}>
@@ -119,7 +116,7 @@ export function RetirementStrategyAdvisor({
               setTargetSavingsDraft(v);
               setAppliedNotice(null);
             }}
-            hint={`${money(Math.round(targetAmount / 12))}/mo`}
+            hint={targetError ? undefined : `${money(Math.round(targetAmount / 12))}/mo`}
           />
 
           <div>
@@ -129,6 +126,7 @@ export function RetirementStrategyAdvisor({
                 type="button"
                 className={`pill-btn ${taxPreference === "traditional" ? "active" : ""}`}
                 onClick={() => setTaxPreference("traditional")}
+                aria-pressed={taxPreference === "traditional"}
                 title="Traditional: Maximize immediate income tax deduction"
               >
                 Traditional
@@ -137,6 +135,7 @@ export function RetirementStrategyAdvisor({
                 type="button"
                 className={`pill-btn ${taxPreference === "roth" ? "active" : ""}`}
                 onClick={() => setTaxPreference("roth")}
+                aria-pressed={taxPreference === "roth"}
                 title="Roth: Tax-free retirement growth and withdrawals"
               >
                 Roth
@@ -151,7 +150,8 @@ export function RetirementStrategyAdvisor({
             <label className="toggle-label">
               <input
                 type="checkbox"
-                checked={enableBackdoor}
+                checked={enableBackdoor && conversions.backdoor}
+                disabled={!conversions.backdoor}
                 onChange={(e) => setEnableBackdoor(e.target.checked)}
               />
               <span>Enable Backdoor Roth IRA</span>
@@ -159,11 +159,15 @@ export function RetirementStrategyAdvisor({
             <label className="toggle-label">
               <input
                 type="checkbox"
-                checked={enableMegaBackdoor}
+                checked={enableMegaBackdoor && conversions.megaBackdoor}
+                disabled={!conversions.megaBackdoor}
                 onChange={(e) => setEnableMegaBackdoor(e.target.checked)}
               />
               <span>Enable Mega Backdoor Roth</span>
             </label>
+            {(!conversions.backdoor || !conversions.megaBackdoor) && (
+              <p className="hint">Confirm eligibility in Age, eligibility &amp; additional accounts to include these routes.</p>
+            )}
           </div>
         </details>
 
@@ -171,7 +175,8 @@ export function RetirementStrategyAdvisor({
           <button
             type="button"
             className="primary-button apply-strategy-btn"
-            onClick={handleApply}
+            onClick={() => apply(targetAmount, "savings strategy")}
+            disabled={!!targetError}
           >
             Apply Strategy to Scenario
           </button>

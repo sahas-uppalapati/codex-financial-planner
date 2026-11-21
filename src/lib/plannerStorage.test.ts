@@ -87,6 +87,13 @@ describe("v3 persistence and migration", () => {
       expect(loadPlanner(storage).message).toBeTruthy();
     },
   );
+  it("rejects an unsupported save version before attempting migration", () => {
+    const storage = memory();
+    const raw = JSON.stringify({ ...defaultPlanner(), version: 99 });
+    storage.setItem(PLANNER_KEY, raw);
+    expect(loadPlanner(storage).restoreFailed).toBe(true);
+    expect(storage.getItem(PLANNER_KEY)).toBe(raw);
+  });
   it("rejects a valid-looking save with a malformed nested issuer or unsupported enum", () => {
     const storage = memory(),
       p = defaultPlanner();

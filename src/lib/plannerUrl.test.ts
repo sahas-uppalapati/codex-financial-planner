@@ -1,5 +1,7 @@
 import { describe, it, expect } from "vitest";
 import { defaultPlanner } from "./planner";
+import { projectScenario } from "./projection";
+import { monthlyExpenses } from "./model";
 import { parsePlannerUrlParams, buildPlannerSearchString } from "./plannerUrl";
 
 describe("plannerUrl", () => {
@@ -18,12 +20,20 @@ describe("plannerUrl", () => {
     expect(updated.scenarios[0].bonus).toBe("20000");
     expect(updated.scenarios[0].stock).toBe("40000");
     expect(updated.scenarios[0].includeStock).toBe(true);
+    expect(projectScenario(updated.scenarios[0], updated.shared).rows[0].stockGross).toBe(40000);
     expect(updated.scenarios[0].taxProfile.location).toBe("san-francisco");
     expect(updated.scenarios[0].taxProfile.filing).toBe("joint");
     expect(updated.scenarios[0].taxProfile.spouseWages).toBe("60000");
     expect(updated.shared.starting).toBe("80000");
     expect(updated.shared.years).toBe("15");
     expect(updated.shared.returns).toBe("8");
+  });
+
+  it("preserves the monthly expense total when splitting it into categories", () => {
+    const parsed = parsePlannerUrlParams("?expenses=3999.99");
+    expect(parsed.valid).toBe(true);
+    expect(monthlyExpenses(parsed.applyTo(defaultPlanner()).scenarios[0])).toBeCloseTo(3999.99, 8);
+    expect(parsePlannerUrlParams("?expenses=-0.001").valid).toBe(false);
   });
 
   it("handles mode parameter", () => {

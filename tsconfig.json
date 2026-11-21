@@ -18,5 +18,5 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true
   },
-  "include": ["src", "mcp", "vite.config.ts"]
+  "include": ["src", "mcp", "proxy.ts", "vite.config.ts"]
 }

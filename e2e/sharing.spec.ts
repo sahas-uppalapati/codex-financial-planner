@@ -56,6 +56,19 @@ test("invalid and partial links preserve the saved plan until confirmed", async 
   await expect(page.getByLabel("Annual base salary")).toHaveValue("200000");
 });
 
+test("an unreadable plan is kept until the user chooses a replacement", async ({ page }) => {
+  await page.goto("/");
+  await page.evaluate(() => localStorage.setItem("careerworth:v3", "{broken"));
+  await page.reload();
+  await expect(page.getByText("Saved inputs could not be restored.", { exact: false })).toBeVisible();
+  await page.getByLabel("Annual base salary").fill("185000");
+  expect(await page.evaluate(() => localStorage.getItem("careerworth:v3"))).toBe("{broken");
+
+  await page.getByRole("button", { name: "Reset inputs" }).click();
+  await page.getByRole("button", { name: "Reset plan" }).click();
+  await expect.poll(() => page.evaluate(() => localStorage.getItem("careerworth:v3"))).not.toBe("{broken");
+});
+
 test("personal setup starts neutral and restores both startup input sets from backup", async ({
   page,
 }) => {

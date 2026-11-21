@@ -182,13 +182,14 @@ function calculateOne(
       ...plan.shared,
       // Later events stay in the model when inspecting an earlier deadline.
       years: String(Math.max(Number(plan.shared.years), months / 12)),
+      // Search steps may be small enough to stringify in exponential notation.
       starting:
         d.mode === "starting"
-          ? String(Number(plan.shared.starting) + (value ?? 0))
+          ? (Number(plan.shared.starting) + (value ?? 0)).toFixed(16)
           : plan.shared.starting,
       returns:
-        d.mode === "return"
-          ? String(value ?? Number(plan.shared.returns))
+        d.mode === "return" && value !== undefined
+          ? value.toFixed(16)
           : plan.shared.returns,
     };
     const result = projectScenario(scenario, shared, {

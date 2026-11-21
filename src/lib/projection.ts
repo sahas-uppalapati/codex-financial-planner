@@ -109,6 +109,7 @@ interface CashMonth {
   cashGross: number;
   role: string;
   employer: string;
+  issuerId: string;
   event: string;
   primary: WorkerTaxInput;
   spouse: WorkerTaxInput;
@@ -219,6 +220,11 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
       ? buildEquity(s, a)
       : { grants: [], vests: [], forfeitures: [], employment: [] };
   const events = [...s.events].sort((x, y) => x.month.localeCompare(y.month));
+  const vestsByMonth: EquityVest[][] = Array.from({ length: years * 12 }, () => []);
+  for (const vest of equity.vests) vestsByMonth[vest.month].push(vest);
+  const forfeituresByMonth = new Map<number, number>();
+  for (const forfeiture of equity.forfeitures)
+    forfeituresByMonth.set(forfeiture.month, (forfeituresByMonth.get(forfeiture.month) ?? 0) + forfeiture.value);
   const monthlyReturn = Math.expm1(Math.log1p(Number(a.returns) / 100) / 12);
   const startingAccountBalances = Object.fromEntries(accountTypes.map((type) => [type, 0])) as RetirementAccountBalances;
   for (const account of a.startingAccounts) {
@@ -274,7 +280,9 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
   let spouseMatchBalance = 0;
   let balanceMatch = activeMatch;
   let balanceEmployerStartMonth = employerStartMonth;
-  let primaryPriorYearFicaWages = Number(s.retirementProfiles.primary.priorYearFicaWages);
+  let primaryPriorYearFicaWages = new Map([
+    [s.employerId, Number(s.retirementProfiles.primary.priorYearFicaWages)],
+  ]);
   let spousePriorYearFicaWages = Number(s.retirementProfiles.spouse.priorYearFicaWages);
   for (let year = 0; year < years; year++) {
     const calendarYear = startYear + year,
@@ -346,7 +354,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
         usedPrimary,
         primaryRetirementCap,
         retirementLimits.employeeDeferral,
-        primaryPriorYearFicaWages > retirementLimits.rothCatchUpWageThreshold && primaryAge !== null && primaryAge >= 50,
+        (primaryPriorYearFicaWages.get(issuerId) ?? 0) > retirementLimits.rothCatchUpWageThreshold && primaryAge !== null && primaryAge >= 50,
         primaryMedicareActive ? 0 : s.taxProfile.hsaCoverage === "self"
           ? primaryHsaCap
           : Math.min(primaryHsaCap, Math.max(0, hsaCap - usedSpouse.hsa)),
@@ -377,6 +385,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
         spouseCash,
         cashGross: base + bonus + spouseCash,
         role,
+        issuerId,
         employer: s.issuers.find((i) => i.id === issuerId)!.name,
         event: e
           ? `${e.kind === "job" ? "Change employer" : "Promotion"}: ${e.role}`
@@ -404,9 +413,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
         unfundedIra: 0,
       });
     }
-    const vestMonths = Array.from({ length: 12 }, (_, within) =>
-      equity.vests.filter((v) => v.month === year * 12 + within),
-    );
+    const vestMonths = vestsByMonth.slice(year * 12, (year + 1) * 12);
     const legacyStock =
       s.stockMode === "legacy" && s.includeStock ? Number(s.stock) : 0;
     if (legacyStock > 0)
@@ -431,12 +438,14 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
       Number(a.taxInflation),
       s.taxProfile.mode === "manual" ? Number(s.tax) : 0,
     );
-    const aggregateMagi = annualCash + annualStock - primary.retirement - primary.health - primary.hsa - spouse.retirement - spouse.health - spouse.hsa;
+    const primaryTaxableCompensation = primary.cash + annualStock - primary.retirement - primary.health - primary.hsa;
+    const spouseTaxableCompensation = spouse.cash - spouse.retirement - spouse.health - spouse.hsa;
+    const aggregateMagi = primaryTaxableCompensation + spouseTaxableCompensation;
     const primaryEligibility = iraEligibility({
       filing: s.taxProfile.filing,
       modifiedAgi: aggregateMagi,
-      ownTaxableCompensation: sum(cashMonths.map((m) => m.base + m.bonus)),
-      spouseTaxableCompensation: s.taxProfile.filing === "joint" ? sum(cashMonths.map((m) => m.spouseCash)) : 0,
+      ownTaxableCompensation: primaryTaxableCompensation,
+      spouseTaxableCompensation,
       age: primaryAge,
       limits: retirementLimits,
       ownWorkplaceCoverage: s.retirementProfiles.primary.workplacePlanCoverage,
@@ -445,8 +454,8 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
     const spouseEligibility = iraEligibility({
       filing: s.taxProfile.filing,
       modifiedAgi: aggregateMagi,
-      ownTaxableCompensation: s.taxProfile.filing === "joint" ? sum(cashMonths.map((m) => m.spouseCash)) : 0,
-      spouseTaxableCompensation: sum(cashMonths.map((m) => m.base + m.bonus)),
+      ownTaxableCompensation: spouseTaxableCompensation,
+      spouseTaxableCompensation: primaryTaxableCompensation,
       age: spouseAge,
       limits: retirementLimits,
       ownWorkplaceCoverage: s.retirementProfiles.spouse.workplacePlanCoverage,
@@ -484,6 +493,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
       return Number(target.traditionalIra) + Number(target.rothIra) + Number(target.backdoorRoth) + Number(target.megaBackdoor);
     };
     let fundingCash = balances.taxable;
+    let householdIraRoom = aggregateMagi;
     let primaryDeduction = 0, spouseDeduction = 0;
     cashMonths.forEach((m, within) => {
       const inflation = (1 + Number(a.inflation) / 100) ** year;
@@ -501,10 +511,22 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
         const payrollRoom = Math.max(0, worker.cash - worker.health - worker.retirement - (worker.roth401k ?? 0) - worker.hsa - workerTax);
         return { ...request, megaBackdoor: Math.min(request.megaBackdoor, payrollRoom) };
       };
-      const primaryFunded = fundIraRequests(payrollRequest(primaryMonthlyRequest, m.primary), Math.max(0, fundingCash), Math.max(0, primaryEligibility.deductibleTraditionalLimit - primaryDeduction));
+      const primaryFunded = fundIraRequests(
+        payrollRequest(primaryMonthlyRequest, m.primary),
+        fundingCash,
+        primaryEligibility.deductibleTraditionalLimit - primaryDeduction,
+        householdIraRoom,
+      );
       fundingCash -= sumRequest(primaryFunded);
-      const spouseFunded = fundIraRequests(payrollRequest(spouseMonthlyRequest, m.spouse), Math.max(0, fundingCash), Math.max(0, spouseEligibility.deductibleTraditionalLimit - spouseDeduction));
+      householdIraRoom -= primaryFunded.traditional + primaryFunded.roth + primaryFunded.backdoor;
+      const spouseFunded = fundIraRequests(
+        payrollRequest(spouseMonthlyRequest, m.spouse),
+        fundingCash,
+        spouseEligibility.deductibleTraditionalLimit - spouseDeduction,
+        householdIraRoom,
+      );
       fundingCash -= sumRequest(spouseFunded);
+      householdIraRoom -= spouseFunded.traditional + spouseFunded.roth + spouseFunded.backdoor;
       primaryDeduction += primaryFunded.deductibleTraditional;
       spouseDeduction += spouseFunded.deductibleTraditional;
       m.primary.deductibleIra = primaryFunded.deductibleTraditional;
@@ -632,9 +654,7 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
       );
       const unrealizedGain =
         balances.employerStock - sum([...held.values()].map((h) => h.basis));
-      const forfeitedEquity = sum(
-        equity.forfeitures.filter((f) => f.month === month).map((f) => f.value),
-      );
+      const forfeitedEquity = forfeituresByMonth.get(month) ?? 0;
       const r: MonthlyRow = {
         month,
         date: monthLabel(month, startYear),
@@ -740,11 +760,14 @@ export function projectScenario(s: ScenarioV2, a: AssumptionsV2, options: Projec
       taxBreakdown: fullTax,
       months,
     });
-    primaryPriorYearFicaWages =
-      employerStartMonth < year * 12
-        ? sum(cashMonths.map((m) => m.employer === last.employer ? m.base + m.bonus - m.primary.health : 0))
-        : 0;
-    spousePriorYearFicaWages = sum(cashMonths.map((m) => m.spouseCash - m.spouse.health));
+    primaryPriorYearFicaWages = new Map();
+    const addPrimaryWages = (issuer: string, wages: number) =>
+      primaryPriorYearFicaWages.set(issuer, (primaryPriorYearFicaWages.get(issuer) ?? 0) + wages);
+    for (const month of cashMonths)
+      addPrimaryWages(month.issuerId, month.primary.cash - month.primary.health - month.primary.hsa);
+    for (const vest of vestMonths.flat())
+      addPrimaryWages(vest.issuerId, vest.value);
+    spousePriorYearFicaWages = spouse.cash - spouse.health - spouse.hsa;
   }
   if (
     Number(s.benefits.retirement) +

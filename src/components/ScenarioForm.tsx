@@ -3,7 +3,7 @@ import { Input } from "./ui/input";
 import { Button } from "./ui/button";
 import { useState, useEffect, useRef, type ReactNode } from "react";
 import { RetirementGuide } from "./RetirementGuide";
-import type { Category } from "../lib/model";
+import type { Categories, Category } from "../lib/model";
 import type { ScenarioV2 as Scenario, AssumptionsV2 } from "../lib/planner";
 import {
   plannerScenarioErrors,
@@ -26,10 +26,23 @@ export const categoryLabels: Record<Category, string> = {
   other: "Other spending",
 };
 
+export interface TotalExpenseDraft {
+  value: string;
+  expenses: Categories;
+  basis: Categories;
+}
+
+const decimalAmount = new Intl.NumberFormat("en-US", {
+  useGrouping: false,
+  maximumSignificantDigits: 17,
+});
+
 export function ScenarioForm({
   scenario: s,
   assumptions: a,
   onChange,
+  totalExpenseDraft,
+  onTotalExpenseChange,
   onAssumptionsChange,
   allowInitialPreset = false,
   showName = false,
@@ -39,25 +52,20 @@ export function ScenarioForm({
   scenario: Scenario;
   assumptions: AssumptionsV2;
   onChange: (s: Scenario) => void;
+  totalExpenseDraft?: TotalExpenseDraft;
+  onTotalExpenseChange: (draft: TotalExpenseDraft) => void;
   onAssumptionsChange: (a: AssumptionsV2) => void;
   allowInitialPreset?: boolean;
   showName?: boolean;
   startup?: boolean;
   startupFields?: ReactNode;
 }) {
-  const [expenseDraft, setExpenseDraft] = useState(() =>
-    categoryKeys.every((k) => !fieldError(s.expenses[k], "monthlyExpenses")) &&
-    Number.isFinite(monthlyExpenses(s))
-      ? String(monthlyExpenses(s))
-      : "",
-  );
   const [showSignOn, setShowSignOn] = useState(false);
-
-  useEffect(() => {
-    setExpenseDraft(String(monthlyExpenses(s)));
-  }, [s.expenses]);
-
   const errors = { ...plannerScenarioErrors(s, a), ...plannerSharedErrors(a) };
+  const invalidCategory = categoryKeys.some((key) => !!errors[key]);
+  const expenseValue = totalExpenseDraft?.value ??
+    (invalidCategory ? "" : decimalAmount.format(monthlyExpenses(s)));
+  const expenseDraftError = totalExpenseDraft && fieldError(expenseValue, "monthlyExpenses");
   const location = locationPresets.find((p) => p.id === s.location);
   const hasSignOn =
     (Number(s.signOnY1) || 0) > 0 || (Number(s.signOnY2) || 0) > 0;
@@ -71,52 +79,28 @@ export function ScenarioForm({
   ) => onAssumptionsChange({ ...a, [key]: value });
 
   function setTotalExpenses(value: string) {
-    setExpenseDraft(value);
+    const basis = totalExpenseDraft?.basis ?? s.expenses;
     if (fieldError(value, "monthlyExpenses")) {
-      onChange({
-        ...s,
-        expenses: {
-          housing: value,
-          food: "0",
-          transportation: "0",
-          healthcare: "0",
-          other: "0",
-        },
-      });
+      onTotalExpenseChange({ value, expenses: s.expenses, basis });
       return;
     }
     const total = Number(value);
-    const previous = monthlyExpenses(s);
+    const previous = monthlyExpenses({ ...s, expenses: basis });
+    const useExistingSplit = previous > 0 &&
+      categoryKeys.every((key) => !fieldError(basis[key], "monthlyExpenses"));
     const next = { ...s.expenses };
     let allocated = 0;
     categoryKeys.forEach((key, i) => {
+      const share = useExistingSplit ? Number(basis[key]) / previous : 1 / categoryKeys.length;
+      const remaining = Math.max(0, total - allocated);
       const amount =
         i === categoryKeys.length - 1
-          ? total - allocated
-          : Math.floor(
-              total *
-                (Number.isFinite(previous) && previous > 0
-                  ? Number(s.expenses[key]) / previous
-                  : 1 / 5) *
-                100,
-            ) / 100;
-      next[key] = String(amount);
+          ? remaining
+          : Math.min(remaining, Math.floor(total * share * 100) / 100);
+      next[key] = decimalAmount.format(amount);
       allocated += amount;
     });
-    onChange({ ...s, expenses: next });
-  }
-
-  function setCategory(key: Category, value: string) {
-    const next = { ...s, expenses: { ...s.expenses, [key]: value } };
-    const sum = monthlyExpenses(next);
-    setExpenseDraft(
-      categoryKeys.some(
-        (k) => !!fieldError(next.expenses[k], "monthlyExpenses"),
-      )
-        ? ""
-        : String(Number(sum.toFixed(8))),
-    );
-    onChange(next);
+    onTotalExpenseChange({ value, expenses: next, basis });
   }
 
   const formRef = useRef<HTMLDivElement>(null);
@@ -272,12 +256,12 @@ export function ScenarioForm({
         <Field
           label="Monthly living expenses"
           unit="$ / month"
-          value={expenseDraft}
+          value={expenseValue}
           onChange={setTotalExpenses}
           error={
-            fieldError(expenseDraft, "monthlyExpenses") ||
+            expenseDraftError ||
             errors.expenses ||
-            (categoryKeys.some((k) => errors[k])
+            (invalidCategory
               ? "Check the expense breakdown below."
               : undefined)
           }
@@ -368,18 +352,13 @@ export function ScenarioForm({
               onClick={() => {
                 if (location) {
                   onChange({ ...s, ...applyLocation(s, location) });
-                  setExpenseDraft(
-                    String(
-                      monthlyExpenses({ ...s, expenses: location.expenses }),
-                    ),
-                  );
                 }
               }}
             >
               Apply budget
             </Button>
           </div>
-          <AutoDetails hasErrors={categoryKeys.some((k) => !!errors[k])}>
+          <AutoDetails hasErrors={invalidCategory}>
             <summary>Expense category breakdown</summary>
             <div className="details-body">
               {categoryKeys.map((k) => (
@@ -387,7 +366,7 @@ export function ScenarioForm({
                   key={k}
                   label={categoryLabels[k]}
                   value={s.expenses[k]}
-                  onChange={(v) => setCategory(k, v)}
+                  onChange={(v) => set("expenses", { ...s.expenses, [k]: v })}
                   error={errors[k]}
                 />
               ))}
@@ -488,7 +467,12 @@ export function ScenarioForm({
             assumptions={a}
             onScenarioChange={onChange}
           />
-          <BenefitsEditor s={s} a={a} onChange={onChange} />
+          <BenefitsEditor
+            s={s}
+            a={a}
+            onChange={onChange}
+            canEstimateSavings={!expenseDraftError && Object.keys(errors).length === 0}
+          />
           <RetirementGuide />
         </div>
       </details>

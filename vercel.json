@@ -9,21 +9,6 @@
       "continue": true
     },
     {
-      "src": "/",
-      "has": [
-        {
-          "type": "header",
-          "key": "x-careerworth-markdown",
-          "value": "1"
-        }
-      ],
-      "dest": "/home.md",
-      "headers": {
-        "Content-Type": "text/markdown; charset=utf-8",
-        "Vary": "Accept"
-      }
-    },
-    {
       "handle": "filesystem"
     },
     {

@@ -1,6 +1,7 @@
 import { parseStartupSession, type StartupSession } from "./startupComparison";
 import type { PlannerV2, TaxLocation } from "./planner";
 import { defaultPlanner } from "./planner";
+import { fieldError } from "./model";
 import { loadPlanner, PLANNER_KEY } from "./plannerStorage";
 
 export const VALID_LOCATIONS = new Set<TaxLocation>([
@@ -126,18 +127,23 @@ export function parsePlannerUrlParams(search: string): {
     if (stock !== null && Number.isFinite(Number(stock))) {
       s0.stock = stock;
       s0.includeStock = Number(stock) > 0;
+      s0.stockMode = "legacy";
     }
     if (growth !== null && Number.isFinite(Number(growth))) {
       s0.growth = growth;
     }
     if (expenses !== null && Number.isFinite(Number(expenses))) {
-      const total = Number(expenses);
+      const cents = Math.round(Number(expenses) * 100);
+      const housing = Math.floor(cents * 65 / 100);
+      const food = Math.floor(cents * 15 / 100);
+      const transportation = Math.floor(cents * 10 / 100);
+      const healthcare = Math.floor(cents * 5 / 100);
       s0.expenses = {
-        housing: String(Math.round(total * 0.65)),
-        food: String(Math.round(total * 0.15)),
-        transportation: String(Math.round(total * 0.1)),
-        healthcare: String(Math.round(total * 0.05)),
-        other: String(Math.round(total * 0.05)),
+        housing: String(housing / 100),
+        food: String(food / 100),
+        transportation: String(transportation / 100),
+        healthcare: String(healthcare / 100),
+        other: String((cents - housing - food - transportation - healthcare) / 100),
       };
     }
     if (location && VALID_LOCATIONS.has(location as TaxLocation)) {
@@ -204,6 +210,7 @@ export function parsePlannerUrlParams(search: string): {
         value === null ||
         (value.trim() !== "" && Number.isFinite(Number(value))),
     ) &&
+    (expenses === null || !fieldError(expenses, "monthlyExpenses")) &&
     (location === null || VALID_LOCATIONS.has(location as TaxLocation)) &&
     (filing === null || filing === "single" || filing === "joint") &&
     (params.get("mode") === null || mode !== undefined);
@@ -432,7 +439,7 @@ export function readFullPlannerLink(
         key === PLANNER_KEY ? JSON.stringify(stateToLoad) : null,
       setItem: () => {},
     });
-    if (result.message.startsWith("Saved inputs could not")) throw new Error();
+    if (result.restoreFailed) throw new Error();
     return { state: result.state, quickMode: data.quickMode ?? false };
   } catch {
     throw new Error("This plan link is invalid. Your saved plan was kept.");
@@ -496,7 +503,7 @@ export function readSessionLink(
         key === PLANNER_KEY ? JSON.stringify(data.planner) : null,
       setItem: () => {},
     });
-    if (result.message.startsWith("Saved inputs could not")) throw new Error();
+    if (result.restoreFailed) throw new Error();
     return { state: result.state, startup: parseStartupSession(data.startup) };
   } catch {
     throw new Error("This plan link is invalid. Your saved plan was kept.");

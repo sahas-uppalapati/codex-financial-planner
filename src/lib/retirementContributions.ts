@@ -38,10 +38,19 @@ export function fundIraRequests(
   requested: IraContributionRequest,
   availableFunds: number,
   deductibleTraditionalLimit: number,
+  iraCompensationRoom = Infinity,
 ): IraContributionFunding {
-  const total = routes.reduce((sum, key) => sum + requested[key], 0);
+  const iraTotal = requested.traditional + requested.roth + requested.backdoor;
+  const iraRatio = iraTotal > 0 ? Math.min(1, Math.max(0, iraCompensationRoom) / iraTotal) : 1;
+  const eligible = {
+    traditional: requested.traditional * iraRatio,
+    roth: requested.roth * iraRatio,
+    backdoor: requested.backdoor * iraRatio,
+    megaBackdoor: requested.megaBackdoor,
+  };
+  const total = routes.reduce((sum, key) => sum + eligible[key], 0);
   const fundedRatio = total > 0 ? Math.min(1, Math.max(0, availableFunds) / total) : 0;
-  const result = Object.fromEntries(routes.map((key) => [key, requested[key] * fundedRatio])) as unknown as IraContributionRequest;
+  const result = Object.fromEntries(routes.map((key) => [key, eligible[key] * fundedRatio])) as unknown as IraContributionRequest;
   const deductibleTraditional = Math.min(result.traditional, Math.max(0, deductibleTraditionalLimit));
   return {
     ...result,

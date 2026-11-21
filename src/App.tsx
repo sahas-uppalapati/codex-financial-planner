@@ -17,7 +17,7 @@ import {
   plannerSharedErrors,
   validPlanner,
 } from "./lib/planner";
-import { loadPlanner, savePlanner } from "./lib/plannerStorage";
+import { loadPlanner, PLANNER_KEY, savePlanner } from "./lib/plannerStorage";
 import {
   parsePlannerUrlParams,
   readFullPlannerLink,
@@ -28,6 +28,8 @@ import {
 import { projectScenario } from "./lib/projection";
 import { QuickSetup } from "./components/QuickSetup";
 import { ScenarioForm } from "./components/ScenarioForm";
+import type { TotalExpenseDraft } from "./components/ScenarioForm";
+import { fieldError } from "./lib/model";
 import { Results } from "./components/Results";
 import { InvestmentCalculators } from "./components/InvestmentCalculators";
 import { PlannerBackup } from "./components/PlannerBackup";
@@ -47,26 +49,23 @@ function initial() {
   let loadedState: PlannerV2;
   let message = "";
   let fresh = false;
+  let restoreFailed = false;
   try {
-    fresh = !["careerworth:v1", "careerworth:v2", "careerworth:v3"].some(
+    fresh = !["careerworth:v1", "careerworth:v2", PLANNER_KEY].some(
       (key) => window.localStorage.getItem(key) !== null,
     );
     const res = loadPlanner(window.localStorage);
     loadedState = res.state;
-    message = res.message;
+    restoreFailed = res.restoreFailed === true;
+    message = restoreFailed
+      ? `${res.message} Reset the plan, restore a backup, or load a shared plan to replace the saved data.`
+      : res.message;
   } catch {
     loadedState = defaultPlanner();
     message = "Browser storage is unavailable. Your inputs will not be saved.";
   }
 
-  if (
-    message.startsWith("Saved inputs upgraded") ||
-    message.startsWith("Saved inputs could not be restored")
-  ) {
-    return { state: loadedState, message, fresh };
-  }
-
-  return { state: loadedState, message, fresh };
+  return { state: loadedState, message, fresh, restoreFailed };
 }
 
 const startupSessionKey = "careerworth:startup-v1";
@@ -151,6 +150,7 @@ export default function App() {
     [active, setActive] = useState(0),
     [resetVersion, setResetVersion] = useState(0),
     [storageMessage, setStorageMessage] = useState(loaded.message),
+    [restoreFailed, setRestoreFailed] = useState(loaded.restoreFailed),
     [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
     [pendingLink, setPendingLink] = useState(incomingLink),
     [setup, setSetup] = useState(loaded.fresh),
@@ -158,14 +158,18 @@ export default function App() {
       try {
         return (
           loaded.fresh ||
+          loaded.restoreFailed ||
           window.localStorage.getItem("careerworth:example") === "true"
         );
       } catch {
-        return loaded.fresh;
+        return loaded.fresh || loaded.restoreFailed;
       }
     }),
     [shareOpen, setShareOpen] = useState(false),
     [shareMessage, setShareMessage] = useState("");
+  const [expenseDrafts, setExpenseDrafts] = useState<
+    Partial<Record<number, TotalExpenseDraft>>
+  >({});
 
   const [replacement, setReplacement] = useState<"reset" | "copy" | null>(null);
   const replacementTrigger = useRef<HTMLButtonElement>(null);
@@ -179,10 +183,12 @@ export default function App() {
   function confirmReplacement() {
     if (replacement === "reset") {
       setState(defaultPlanner());
+      setExpenseDrafts({});
       setExample(true);
       setSelectedYear(0);
       setActive(0);
       setStorageMessage("");
+      setRestoreFailed(false);
       setAllowInitialPreset(false);
       setStartupScenario(null);
       setStartupInputs(emptyStartupSession().inputs);
@@ -194,6 +200,7 @@ export default function App() {
           name: current.scenarios[1].name || "Scenario B",
         }],
       }));
+      setExpenseDrafts({ 0: currentExpenseDrafts[0], 1: currentExpenseDrafts[0] });
       setAllowInitialPreset(false);
       setExample(false);
     }
@@ -252,6 +259,17 @@ export default function App() {
     focusSection(next === "calculators" ? "investment-calculator-heading" : "results-heading");
   }
 
+  function updateActiveScenario(next: PlannerV2["scenarios"][number]) {
+    if (allowInitialPreset) setAllowInitialPreset(false);
+    else setExample(false);
+    setState((current) => ({
+      ...current,
+      scenarios: active === 0
+        ? [next, current.scenarios[1]]
+        : [current.scenarios[0], next],
+    }));
+  }
+
   function fixInputs(scenario?: number) {
     if (scenario !== undefined) setActive(scenario);
     requestAnimationFrame(() => {
@@ -277,7 +295,7 @@ export default function App() {
   useEffect(() => setAllowInitialPreset(false), []);
 
   useEffect(() => {
-    if (setup || pendingLink) return;
+    if (setup || pendingLink || restoreFailed) return;
     try {
       window.localStorage.setItem(
         startupSessionKey,
@@ -288,10 +306,15 @@ export default function App() {
         "Browser storage is unavailable. Your startup inputs will not be saved.",
       );
     }
-  }, [startupScenario, startupInputs, setup, pendingLink]);
+  }, [startupScenario, startupInputs, setup, pendingLink, restoreFailed]);
 
-  const scenarioErrors = state.scenarios.map((scenario) =>
-    Object.keys(plannerScenarioErrors(scenario, state.shared)).length > 0,
+  const currentExpenseDrafts = state.scenarios.map((scenario, index) => {
+    const draft = expenseDrafts[index];
+    return draft?.expenses === scenario.expenses ? draft : undefined;
+  });
+  const scenarioErrors = state.scenarios.map((scenario, index) =>
+    Object.keys(plannerScenarioErrors(scenario, state.shared)).length > 0 ||
+    !!fieldError(currentExpenseDrafts[index]?.value ?? "0", "monthlyExpenses"),
   );
   const visibleScenarioErrors = scenarioErrors.slice(0, state.comparison ? 2 : 1);
   const sharedErrors = Object.keys(plannerSharedErrors(state.shared)).length > 0;
@@ -337,9 +360,10 @@ export default function App() {
   }, [projectedState, valid]);
 
   const ready = valid && !calculation.error;
+  const shareReady = ready && !scenarioErrors.some(Boolean);
 
   useEffect(() => {
-    if (!ready || setup || pendingLink) return;
+    if (!shareReady || setup || pendingLink || restoreFailed) return;
     try {
       window.localStorage.setItem("careerworth:example", String(example));
       if (!savePlanner(window.localStorage, state))
@@ -351,9 +375,8 @@ export default function App() {
         "Browser storage is unavailable. Your inputs will not be saved.",
       );
     }
-  }, [state, ready, setup, pendingLink, example]);
+  }, [state, shareReady, setup, pendingLink, example, restoreFailed]);
 
-  const shareReady = ready && !scenarioErrors.some(Boolean);
   useEffect(() => {
     function handleIncomingLink() {
       const next = incomingLink();
@@ -382,7 +405,7 @@ export default function App() {
   return (
     <>
       <a className="skip-link" href={
-        setup ? "#setup-heading" : destination === "calculators" ? "#investment-calculator-heading" : "#planner-input-heading"
+        setup ? "#setup-heading" : destination === "calculators" ? "#investment-calculator-inputs" : "#planner-input-heading"
       }>
         {setup ? "Skip to setup" : "Skip to inputs"}
       </a>
@@ -424,10 +447,14 @@ export default function App() {
             <div className="top-actions" role="group" aria-label="Plan actions">
               <PlannerBackup
                 compact
+                canExport={shareReady}
                 state={state}
                 startup={{ scenario: startupScenario, inputs: startupInputs }}
                 onRestore={(restored) => {
                   setState(restored.planner);
+                  setExpenseDrafts({});
+                  setStorageMessage("");
+                  setRestoreFailed(false);
                   setSetup(false);
                   setExample(false);
                   setSelectedYear(0);
@@ -513,6 +540,10 @@ export default function App() {
                   type="button"
                   onClick={() => {
                     setState(pendingLink.state);
+                    setExpenseDrafts({});
+                    setStorageMessage("");
+                    setRestoreFailed(false);
+                    setResetVersion((version) => version + 1);
                     setStartupScenario(pendingLink.startup.scenario);
                     setStartupInputs(pendingLink.startup.inputs);
                     setSelectedYear(0);
@@ -701,6 +732,17 @@ export default function App() {
                   showName={state.comparison}
                   allowInitialPreset={allowInitialPreset}
                   startup={startupScenario === active}
+                  totalExpenseDraft={currentExpenseDrafts[active]}
+                  onTotalExpenseChange={(draft) => {
+                    setExpenseDrafts((current) => ({
+                      ...current,
+                      [active]: draft,
+                    }));
+                    const scenario = state.scenarios[active];
+                    if (draft.expenses !== scenario.expenses) {
+                      updateActiveScenario({ ...scenario, expenses: draft.expenses });
+                    }
+                  }}
                   startupFields={
                     <StartupFields
                       enabled={startupScenario === active}
@@ -718,16 +760,7 @@ export default function App() {
                       onApplyExample={applyStartupExample}
                     />
                   }
-                  onChange={(next) => {
-                    if (allowInitialPreset) setAllowInitialPreset(false);
-                    else setExample(false);
-                    setState((s) => ({
-                      ...s,
-                      scenarios: s.scenarios.map((old, i) =>
-                        i === active ? next : old,
-                      ) as PlannerV2["scenarios"],
-                    }));
-                  }}
+                  onChange={updateActiveScenario}
                   onAssumptionsChange={(shared) => {
                     if (!allowInitialPreset) setExample(false);
                     setState((s) => ({ ...s, shared }));
@@ -792,7 +825,7 @@ export default function App() {
         )}
 
         <AppFooter
-          ready={ready}
+          ready={shareReady}
           storageMessage={storageMessage}
           analyticsEnabled={analyticsEnabled}
           onAnalyticsToggle={setAnalyticsEnabled}

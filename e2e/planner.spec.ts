@@ -360,13 +360,26 @@ test("calculated defaults, immediate edits, comparison, CSV and reset", async ({
 test("cash presets, independent tax location, budget edits and reload", async ({
   page,
 }) => {
+  await openAdvanced(page, "Career changes");
+  await page.getByRole("button", { name: "Change employer" }).click();
+  const salary = page.getByLabel("Annual base salary");
+  await salary.fill("150001");
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
-  await page
+  const apple = page
     .getByRole("group", { name: "Big Tech Company" })
-    .getByRole("button", { name: "Apple" })
-    .click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("217000");
-  await page.getByLabel("Annual base salary").fill("150001");
+    .getByRole("button", { name: "Apple" });
+  await apple.click();
+  const preview = page.getByRole("dialog", { name: "Replace values with this preset?" });
+  await expect(preview).toContainText("150001");
+  await page.keyboard.press("Escape");
+  await expect(apple).toBeFocused();
+  await expect(salary).toHaveValue("150001");
+  await apple.click();
+  await preview.getByRole("button", { name: "Apply full preset" }).click();
+  await expect(salary).toHaveValue("217000");
+  await expect(page.getByTestId("ending-0")).toBeVisible();
+  await expect(page.locator("summary").filter({ hasText: "New role" })).toBeVisible();
+  await salary.fill("150001");
   await page
     .locator(".inputs-panel summary")
     .filter({ hasText: /^Taxes/ })
@@ -584,6 +597,37 @@ test("invalid drafts pause results and exports; zero income and negative returns
   await page.locator(".starting-accounts-section").getByLabel("Annual investment return").fill("-50");
   await expect(page.getByTestId("ending-0")).toBeVisible();
   expect(await page.locator("body").innerText()).not.toMatch(/NaN|Infinity/);
+});
+test("editing total living expenses preserves the category split and typed decimals", async ({ page }) => {
+  await openAdvanced(page, "Living costs");
+  await page.getByText("Expense category breakdown", { exact: true }).click();
+  const housing = page.getByLabel("Housing and utilities");
+  const food = page.getByLabel("Food", { exact: true });
+  const expenses = page.getByLabel("Monthly living expenses");
+  const originalHousing = await housing.inputValue();
+  const originalFood = await food.inputValue();
+  const doubled = String(2 * Number(await expenses.inputValue()));
+  await expenses.fill("");
+  await expect(page.getByRole("heading", { name: "Check your plan inputs" })).toBeVisible();
+  await expect(housing).toHaveValue(originalHousing);
+  await expect(food).toHaveValue(originalFood);
+  await expenses.fill(doubled);
+  await expect(housing).toHaveValue(String(2 * Number(originalHousing)));
+  await expect(food).toHaveValue(String(2 * Number(originalFood)));
+  await expenses.press("End");
+  await expenses.pressSequentially(".25");
+  await expect(expenses).toHaveValue(`${doubled}.25`);
+  await expect(page.getByTestId("ending-0")).toBeVisible();
+
+  await expenses.fill("");
+  await page.getByRole("button", { name: "Download backup" }).click();
+  await expect(page.getByText("Fix invalid inputs before exporting a backup.")).toBeVisible();
+  await page.getByRole("button", { name: "Add comparison" }).click();
+  await page.getByRole("button", { name: "Copy from Scenario A" }).click();
+  await page.getByRole("button", { name: "Replace Scenario B", exact: true }).click();
+  await expect(expenses).toHaveValue("");
+  await page.locator("#scenario-tab-0").click();
+  await expect(expenses).toHaveValue("");
 });
 test("v1 migration preserves inputs and supports explicit legacy equity conversion", async ({
   page,

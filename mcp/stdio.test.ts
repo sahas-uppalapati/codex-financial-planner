@@ -21,6 +21,8 @@ it("serves validated projections over local stdio", async () => {
     expect(JSON.parse(output[0].text).scenarios).toHaveLength(1);
     const optimization = await client.callTool({ name: "optimize_retirement", arguments: { backup: content[0].text, targetSavings: 30000 } });
     expect(optimization.isError).not.toBe(true);
+    const invalidSavings = await client.callTool({ name: "optimize_retirement", arguments: { backup: content[0].text, targetSavings: -1 } });
+    expect(invalidSavings.isError).toBe(true);
     const invalid = await client.callTool({ name: "project_plan", arguments: { backup: "{}" } });
     expect(invalid.isError).toBe(true);
   } finally {

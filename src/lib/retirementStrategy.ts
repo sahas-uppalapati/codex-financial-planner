@@ -157,6 +157,23 @@ export function estimateNetCashSurplus(
 /**
  * Computes preset target savings amounts for common financial milestones.
  */
+export function retirementConversionAvailability(
+  scenario: ScenarioV2,
+  assumptions: AssumptionsV2,
+) {
+  const target = scenario.retirementTargets.primary;
+  const hasPretaxIraBalance = assumptions.startingAccounts.some(
+    (account) =>
+      account.owner === "primary" &&
+      ["traditional-ira", "sep-ira", "simple-ira"].includes(account.type) &&
+      Number(account.balance) > 0,
+  );
+  return {
+    backdoor: target.backdoorConfirmed && target.iraBalanceZeroConfirmed && !hasPretaxIraBalance,
+    megaBackdoor: target.megaBackdoorSupported && target.megaBackdoorRoute !== "none",
+  };
+}
+
 export function getStrategyPresets(
   scenario: ScenarioV2,
   assumptions: AssumptionsV2,
@@ -181,7 +198,10 @@ export function getStrategyPresets(
   const iraLimit = limits.iraContribution + (age !== null && age >= 50 ? limits.iraCatchUp : 0);
 
   const potentialMatch = calculateEmployerMatch(scenario.employerMatch, baseSalary, matchDollars);
-  const megaBackdoorRoom = definedContributionRoom(limits, baseSalary, max401k, potentialMatch);
+  const { megaBackdoor } = retirementConversionAvailability(scenario, assumptions);
+  const megaBackdoorRoom = megaBackdoor
+    ? definedContributionRoom(limits, baseSalary, Math.min(max401k, limits.employeeDeferral), potentialMatch)
+    : 0;
 
   const surplus = estimateNetCashSurplus(scenario, assumptions);
 
@@ -224,9 +244,7 @@ export function getStrategyPresets(
       id: "max-all",
       label: "Max All Accounts",
       amount: Math.round(max401k + hsaLimit + iraLimit + megaBackdoorRoom),
-      description: hsaEligible
-        ? "Max 401(k), HSA, IRA, and Mega Backdoor capacity"
-        : "Max 401(k), IRA, and Mega Backdoor capacity",
+      description: `Max eligible 401(k), ${hsaEligible ? "HSA, " : ""}IRA${megaBackdoor ? ", and mega backdoor" : ""} capacity`,
     },
     {
       id: "surplus",
@@ -259,6 +277,9 @@ export function calculateRetirementStrategy(
   const recommendedTaxPreference: "traditional" | "roth" =
     marginalTaxRate >= 0.22 ? "traditional" : "roth";
 
+  const conversions = retirementConversionAvailability(scenario, assumptions);
+  const enableBackdoor = config.enableBackdoor && conversions.backdoor;
+  const enableMegaBackdoor = config.enableMegaBackdoor && conversions.megaBackdoor;
   const effectiveTaxPreference =
     config.taxPreference === "auto" ? recommendedTaxPreference : config.taxPreference;
 
@@ -346,48 +367,33 @@ export function calculateRetirementStrategy(
   // -------------------------------------------------------------
   // Tier 3: IRA (Direct Roth, Deductible Traditional, or Backdoor Roth)
   // -------------------------------------------------------------
-  const iraBaseLimit =
-    limits.iraContribution + (age !== null && age >= 50 ? limits.iraCatchUp : 0);
-
+  const primaryCash = baseSalary + Number(scenario.bonus) + Number(scenario.signOnY1);
+  const spouseCash = scenario.taxProfile.filing === "joint" ? Number(scenario.taxProfile.spouseWages) : 0;
   const iraEligibilityResult = iraEligibility({
     filing: scenario.taxProfile.filing,
-    modifiedAgi: baseSalary,
-    ownTaxableCompensation: baseSalary,
-    spouseTaxableCompensation: Number(scenario.taxProfile.spouseWages) || 0,
+    modifiedAgi: primaryCash + spouseCash,
+    ownTaxableCompensation: primaryCash,
+    spouseTaxableCompensation: spouseCash,
     age,
     limits,
     ownWorkplaceCoverage: scenario.retirementProfiles.primary.workplacePlanCoverage,
     spouseWorkplaceCoverage: scenario.retirementProfiles.spouse.workplacePlanCoverage,
   });
 
-  let recommendedIraType: "traditional" | "roth" | "backdoor" | "none" = "none";
-  let iraCap = iraBaseLimit;
-
-  if (effectiveTaxPreference === "roth" || effectiveTaxPreference === "balanced") {
-    if (iraEligibilityResult.rothContributionLimit >= iraBaseLimit) {
-      recommendedIraType = "roth";
-    } else if (config.enableBackdoor) {
-      recommendedIraType = "backdoor";
-    } else if (iraEligibilityResult.deductibleTraditionalLimit > 0) {
-      recommendedIraType = "traditional";
-      iraCap = iraEligibilityResult.deductibleTraditionalLimit;
-    } else {
-      recommendedIraType = "none";
-      iraCap = 0;
-    }
-  } else {
-    // Traditional preference
-    if (iraEligibilityResult.deductibleTraditionalLimit >= iraBaseLimit) {
-      recommendedIraType = "traditional";
-    } else if (iraEligibilityResult.rothContributionLimit >= iraBaseLimit) {
-      recommendedIraType = "roth";
-    } else if (config.enableBackdoor) {
-      recommendedIraType = "backdoor";
-    } else {
-      recommendedIraType = "none";
-      iraCap = 0;
-    }
-  }
+  const contributionLimit = iraEligibilityResult.contributionLimit;
+  const traditionalIra = { type: "traditional" as const, cap: iraEligibilityResult.deductibleTraditionalLimit };
+  const rothIra = { type: "roth" as const, cap: iraEligibilityResult.rothContributionLimit };
+  const preferredIra = effectiveTaxPreference === "traditional" ? traditionalIra : rothIra;
+  const fallbackIra = effectiveTaxPreference === "traditional" ? rothIra : traditionalIra;
+  const choices = [
+    { ...preferredIra, cap: preferredIra.cap >= contributionLimit ? preferredIra.cap : 0 },
+    { ...fallbackIra, cap: fallbackIra.cap >= contributionLimit ? fallbackIra.cap : 0 },
+    { type: "backdoor" as const, cap: enableBackdoor ? contributionLimit : 0 },
+    preferredIra,
+    fallbackIra,
+  ];
+  const { type: recommendedIraType, cap: iraCap } = choices.find(({ cap }) => cap > 0)
+    ?? { type: "none" as const, cap: 0 };
 
   const tier3Allocated = iraCap > 0 ? Math.min(remaining, iraCap) : 0;
   remaining -= tier3Allocated;
@@ -485,14 +491,14 @@ export function calculateRetirementStrategy(
     baseSalary,
     totalStrategy401k,
   );
-  const megaBackdoorCap = config.enableMegaBackdoor
+  const megaBackdoorCap = enableMegaBackdoor
     ? definedContributionRoom(limits, baseSalary, totalStrategy401k, fullPotentialMatch)
     : 0;
 
-  const tier5Allocated = config.enableMegaBackdoor ? Math.min(remaining, megaBackdoorCap) : 0;
+  const tier5Allocated = enableMegaBackdoor ? Math.min(remaining, megaBackdoorCap) : 0;
   remaining -= tier5Allocated;
 
-  const tier5Status: WaterfallTier["status"] = !config.enableMegaBackdoor
+  const tier5Status: WaterfallTier["status"] = !enableMegaBackdoor
     ? "ineligible"
     : megaBackdoorCap <= 0
       ? "skipped"
@@ -510,7 +516,7 @@ export function calculateRetirementStrategy(
     taxAdvantage: "Tax-Free Growth",
     maxCap: Math.round(megaBackdoorCap),
     allocated: Math.round(tier5Allocated),
-    details: config.enableMegaBackdoor
+    details: enableMegaBackdoor
       ? `Utilizes remaining annual additions room ($${Math.round(megaBackdoorCap).toLocaleString()}).`
       : "Disabled or not supported by employer plan.",
     status: tier5Status,
@@ -686,7 +692,7 @@ export function applyRetirementStrategy(
 
   const next401kAmount = isPercent
     ? baseSalary > 0
-      ? ((comp.total401k / baseSalary) * 100).toFixed(1)
+      ? Math.min(100, (comp.total401k / baseSalary) * 100).toFixed(1)
       : "0"
     : String(Math.round(comp.total401k));
 
@@ -704,23 +710,6 @@ export function applyRetirementStrategy(
     backdoorRoth:
       comp.iraType === "backdoor" ? String(Math.round(comp.ira)) : "0",
     megaBackdoor: String(Math.round(comp.megaBackdoor)),
-    backdoorConfirmed:
-      comp.iraType === "backdoor"
-        ? true
-        : scenario.retirementTargets.primary.backdoorConfirmed,
-    iraBalanceZeroConfirmed:
-      comp.iraType === "backdoor"
-        ? true
-        : scenario.retirementTargets.primary.iraBalanceZeroConfirmed,
-    megaBackdoorSupported:
-      comp.megaBackdoor > 0
-        ? true
-        : scenario.retirementTargets.primary.megaBackdoorSupported,
-    megaBackdoorRoute:
-      comp.megaBackdoor > 0 &&
-      scenario.retirementTargets.primary.megaBackdoorRoute === "none"
-        ? "in-plan"
-        : scenario.retirementTargets.primary.megaBackdoorRoute,
   };
 
   const nextBenefits: Benefits = {

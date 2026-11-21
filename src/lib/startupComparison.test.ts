@@ -16,6 +16,7 @@ it('compares partial startup offer details using five-year vesting and optional 
   expect(startupComparison({ ...input, grant: '' }, 5, 0, 0)).toBeNull();
   expect(fullGrantPaperSpread({ ...input, strike: '2', currentPrice: '6', currentPriceType: 'common' })).toBeCloseTo(80000);
   expect(fullGrantPaperSpread({ ...input, strike: '2', currentPrice: '6', currentPriceType: 'preferred' })).toBeNull();
+  expect(startupComparison({ ...input, grant: '1', exit: '1e308' }, 5, 1e308, 1e308)!.difference).toBe(1e308);
 });
 
 it('excludes preset grants and promotions from a startup projection without changing the saved scenario', () => {
