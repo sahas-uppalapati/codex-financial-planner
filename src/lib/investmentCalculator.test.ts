@@ -168,6 +168,16 @@ describe("investment calculators", () => {
     expect(JSON.stringify(plan)).toBe(before);
   });
 
+  it("solves career returns near zero without rejecting internal search values", () => {
+    const plan = careerPlan();
+    const [result] = calculateInvestments({
+      draft: draft({ source: "career", mode: "return", years: "2", target: "44000" }),
+      plan,
+    });
+    expect(result.answer).toBe(0);
+    expect(result.balances.at(-1)).toBe(44000);
+  });
+
   it("solves career saving, starting funds and return through the actual engine, and searches 40 years", () => {
     const plan = careerPlan();
     const run = (patch: Partial<CalculatorDraft>) =>

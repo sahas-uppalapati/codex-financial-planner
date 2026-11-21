@@ -200,7 +200,7 @@ export function buildEquity(s: ScenarioV2, a: AssumptionsV2): EquityPlan {
   const vests: EquityVest[] = [],
     forfeitures: Forfeiture[] = [];
   for (const g of grants) {
-    if (s.grantOverrides[g.id] !== undefined)
+    if (Object.hasOwn(s.grantOverrides, g.id))
       g.keepOnDeparture = s.grantOverrides[g.id];
     const issuer = s.issuers.find((i) => i.id === g.issuerId),
       period = employment.find((p) => p.id === g.employmentId);

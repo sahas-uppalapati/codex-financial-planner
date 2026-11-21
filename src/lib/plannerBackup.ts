@@ -39,7 +39,7 @@ export function exportPlannerBackup(
     getItem: (key) => (key === PLANNER_KEY ? saved : null),
     setItem: () => {},
   });
-  if (checked.message.startsWith("Saved inputs could not"))
+  if (checked.restoreFailed)
     throw new Error("This plan could not be exported.");
   return JSON.stringify(
     {
@@ -77,7 +77,7 @@ export function importPlannerBackup(raw: string): PlannerSession {
       getItem: (key) => (key === PLANNER_KEY ? saved : null),
       setItem: () => {},
     });
-    if (result.message.startsWith("Saved inputs could not")) throw new Error();
+    if (result.restoreFailed) throw new Error();
     return {
       planner: result.state,
       startup:

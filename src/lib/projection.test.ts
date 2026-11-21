@@ -75,6 +75,15 @@ function event(p: PlannerV2, patch: Partial<CareerEvent> = {}): CareerEvent {
   };
 }
 describe("monthly career and investment engine", () => {
+  it("only applies explicit equity departure overrides", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.grants = [grant(p, { id: "toString" })];
+    s.events = [event(p, { kind: "job" })];
+    expect(buildEquity(s, p.shared).vests).toHaveLength(0);
+    s.grantOverrides = { toString: true };
+    expect(buildEquity(s, p.shared).vests.length).toBeGreaterThan(0);
+  });
+
   it("adds hypothetical after-tax deposits once at month-end and makes them available for IRA funding", () => {
     const p = fixture(), s = p.scenarios[0];
     p.shared.years = "1";
@@ -296,6 +305,22 @@ describe("monthly career and investment engine", () => {
     expect(limited.deductibleIraContribution).toBe(0);
     expect(limited.unfundedIraContribution).toBeGreaterThan(0);
   });
+  it("limits both joint IRAs to shared taxable compensation after pretax deferrals", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.starting = "100000";
+    s.base = "16000";
+    s.taxProfile.filing = "joint";
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "6000";
+    s.retirementProfiles.primary.workplacePlanCoverage = false;
+    s.retirementProfiles.spouse.workplacePlanCoverage = false;
+    s.retirementTargets.primary.traditionalIra = "7500";
+    s.retirementTargets.spouse.rothIra = "7500";
+    const row = projectScenario(s, p.shared).rows[0];
+    expect(row.traditionalIraContribution + row.rothIraContribution).toBeCloseTo(10000);
+    expect(row.deductibleIraContribution).toBeCloseTo(row.traditionalIraContribution);
+    expect(row.unfundedIraContribution).toBeCloseTo(5000);
+  });
   it("does not fund an IRA in earlier months with a year-end bonus", () => {
     const p = fixture(), s = p.scenarios[0];
     p.shared.years = "1";
@@ -334,6 +359,32 @@ describe("monthly career and investment engine", () => {
     const row = projectScenario(s, p.shared).rows[0];
     expect(row.retirementContribution).toBeCloseTo(24500, 8);
     expect(row.roth401kContribution).toBeCloseTo(8000, 8);
+  });
+  it("uses prior-year wages and vests from the sponsoring employer after a job change", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.years = "2";
+    s.base = "100000";
+    s.retirementProfiles.primary.ageAtFirstYearEnd = "50";
+    s.retirementProfiles.primary.ageConfirmed = true;
+    s.retirementProfiles.primary.allowsCatchUp = true;
+    s.retirementProfiles.primary.priorYearFicaWages = "160000";
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "32500";
+    const nextIssuer = { ...s.issuers[0], id: "next-employer" };
+    s.issuers.push(nextIssuer);
+    s.events = [event(p, {
+      id: "next-job",
+      kind: "job",
+      month: "2026-01",
+      issuerId: nextIssuer.id,
+      base: "100000",
+      bonus: "0",
+      growth: "0",
+      awardValue: "240000",
+    })];
+    const { rows } = projectScenario(s, p.shared);
+    expect(rows[0].roth401kContribution).toBe(0);
+    expect(rows[1].roth401kContribution).toBeCloseTo(8000);
   });
   it("continues employer match across employers and supports employer-specific match formulas", () => {
     const p = fixture(), s = p.scenarios[0];

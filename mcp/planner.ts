@@ -16,13 +16,17 @@ export function optimizeRetirement(
   targetSavings?: number,
   taxPreference: TaxStrategyPreference = "auto",
 ) {
+  if (targetSavings !== undefined && (!Number.isFinite(targetSavings) || targetSavings < 0)) {
+    throw new RangeError("Annual target savings must be a finite, non-negative amount.");
+  }
   const { planner: plan, startup } = importPlannerBackup(backup);
   const scenario = startup.scenario === 0 ? startupScenarioView(plan.scenarios[0]) : plan.scenarios[0];
+  const targets = scenario.retirementTargets.primary;
   const strategy = calculateRetirementStrategy(scenario, plan.shared, {
     targetSavings: targetSavings ?? 30000,
     taxPreference,
-    enableBackdoor: true,
-    enableMegaBackdoor: true,
+    enableBackdoor: targets.backdoorConfirmed && targets.iraBalanceZeroConfirmed,
+    enableMegaBackdoor: targets.megaBackdoorSupported && targets.megaBackdoorRoute !== "none",
   });
   return {
     scenarioName: scenario.name,
@@ -44,7 +48,8 @@ export function projectPlan(backup: string) {
   const { planner: plan, startup } = importPlannerBackup(backup);
   const scenarios = plan.scenarios.slice(0, plan.comparison ? 2 : 1).map((scenario, index) => {
     const projection = projectScenario(index === startup.scenario ? startupScenarioView(scenario) : scenario, plan.shared);
-    return { name: scenario.name, ...projection, months: undefined };
+    const { months: _months, ...annualProjection } = projection;
+    return { name: scenario.name, ...annualProjection };
   });
   return {
     input: plan,

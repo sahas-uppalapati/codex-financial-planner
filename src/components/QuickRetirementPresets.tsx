@@ -1,5 +1,5 @@
-import { useState } from "react";
-import type { ScenarioV2, AssumptionsV2 } from "../lib/planner";
+import { useEffect, useState } from "react";
+import { plannerScenarioErrors, plannerSharedErrors, type ScenarioV2, type AssumptionsV2 } from "../lib/planner";
 import { money } from "../lib/format";
 import {
   calculateRetirementStrategy,
@@ -17,7 +17,18 @@ export function QuickRetirementPresets({
 }) {
   const [strategyNotice, setStrategyNotice] = useState<string | null>(null);
 
+  useEffect(() => {
+    if (!strategyNotice) return;
+    const timer = setTimeout(() => setStrategyNotice(null), 4000);
+    return () => clearTimeout(timer);
+  }, [strategyNotice]);
+
+  if (Object.keys(plannerScenarioErrors(scenario, assumptions)).length || Object.keys(plannerSharedErrors(assumptions)).length)
+    return null;
+
   const strategyPresets = getStrategyPresets(scenario, assumptions);
+  const standardMaximum = strategyPresets.find((p) => p.id === "max-401k")!;
+  const maximum = strategyPresets.find((p) => p.id === "max-all")!;
   const optimalMaxTotal =
     strategyPresets.find((p) => p.id === "max-all")?.amount ||
     strategyPresets.find((p) => p.id === "max-401k")?.amount ||
@@ -45,7 +56,6 @@ export function QuickRetirementPresets({
           ? "max 401(k)"
           : "optimal tax-advantaged accounts";
     setStrategyNotice(`Applied ${label} (${money(amount)}/yr)!`);
-    setTimeout(() => setStrategyNotice(null), 4000);
   };
 
   const handleMaxOptimal = () => {
@@ -72,15 +82,15 @@ export function QuickRetirementPresets({
           <button
             type="button"
             className="pill-btn"
-            title="Max out employee 401(k) deferral limit ($23,500/yr)"
+            title={standardMaximum.description}
             onClick={() => applyPresetStrategy("max-401k")}
           >
-            Max 401(k)
+            {standardMaximum.label}
           </button>
           <button
             type="button"
             className="max-optimal-hero-btn"
-            title={`Max out optimal accounts: 401(k), ${scenario.taxProfile.hsaCoverage !== "none" ? "HSA, " : ""}IRA, and Mega Backdoor (${money(optimalMaxTotal)} / year)`}
+            title={maximum.description}
             onClick={handleMaxOptimal}
           >
             Max Out Retirement Accounts ({money(optimalMaxTotal)}/yr)

@@ -120,6 +120,10 @@ test("standalone calculators support all five modes, keyboard use, and navigatio
   await expect(
     form.getByLabel("Target investment balance", { exact: false }),
   ).toHaveValue("2200");
+  await navigate(page, "Overview");
+  await page.getByLabel("Annual base salary", { exact: false }).fill("50000");
+  await navigate(page, "Calculators");
+  await expect(answer).toContainText("%");
   await page.reload();
   await navigate(page, "Calculators");
   await expect(
@@ -138,7 +142,7 @@ test("standalone calculators support all five modes, keyboard use, and navigatio
 
 test("career calculators run in a worker, compare plans, and preserve saved inputs", async ({
   page,
-}) => {
+}, testInfo) => {
   await expect(page.getByTestId("ending-0")).toHaveText("$44,000");
   const saved = await page.evaluate(() =>
     localStorage.getItem("careerworth:v3"),
@@ -151,9 +155,12 @@ test("career calculators run in a worker, compare plans, and preserve saved inpu
   });
   await expect(form.getByLabel("Input source")).toHaveValue("career");
   await form.getByLabel("Investment length", { exact: false }).fill("1");
-  await form.getByRole("button", { name: "Calculate", exact: true }).click();
+  await form.getByRole("button", { name: "Calculate", exact: true }).press("Enter");
   await expect(page.getByTestId("calculator-answer-0")).toHaveText("$32,000");
   await expect(page.getByTestId("calculator-answer-1")).toHaveText("$44,000");
+  if (testInfo.project.name === "mobile") {
+    await expect(page.locator("#investment-calculator-results")).toBeFocused();
+  }
   await page
     .getByRole("tab", { name: "Monthly saving needed", exact: true })
     .click();
@@ -181,4 +188,9 @@ test("career calculators run in a worker, compare plans, and preserve saved inpu
     .getByRole("button", { name: "Edit career plan", exact: true })
     .click();
   await expect(page.getByTestId("ending-0")).toHaveText("$44,000");
+
+  await page.getByLabel("Monthly living expenses").fill("");
+  await page.getByRole("button", { name: "Calculators", exact: true }).click();
+  await expect(form.getByRole("button", { name: "Calculate", exact: true })).toBeDisabled();
+  await expect(page.getByTestId("calculator-answer-0")).toHaveCount(0);
 });

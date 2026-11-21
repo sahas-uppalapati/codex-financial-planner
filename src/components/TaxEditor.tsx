@@ -215,10 +215,12 @@ export function BenefitsEditor({
   s,
   a,
   onChange,
+  canEstimateSavings,
 }: {
   s: ScenarioV2;
   a: AssumptionsV2;
   onChange: (s: ScenarioV2) => void;
+  canEstimateSavings: boolean;
 }) {
   const errors = plannerScenarioErrors(s, a);
   const retirementTargets = (owner: "primary" | "spouse") => {
@@ -299,7 +301,9 @@ export function BenefitsEditor({
   return (
     <div className="advanced-section">
       <div className="details-body">
-        <RetirementStrategyAdvisor s={s} a={a} onChange={onChange} />
+        {canEstimateSavings
+          ? <RetirementStrategyAdvisor s={s} a={a} onChange={onChange} />
+          : <p className="hint">Correct invalid planner inputs to use the savings strategy.</p>}
         {retirementTargets("primary")}
         {s.taxProfile.filing === "joint" && retirementTargets("spouse")}
         <fieldset className="benefits-group">

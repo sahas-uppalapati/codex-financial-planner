@@ -110,6 +110,8 @@ describe("retirementStrategy", () => {
 
   it("handles high earner backdoor Roth IRA when income exceeds direct Roth phaseout", () => {
     const s = createTestScenario({ base: "250000" });
+    s.retirementTargets.primary.backdoorConfirmed = true;
+    s.retirementTargets.primary.iraBalanceZeroConfirmed = true;
     const res = calculateRetirementStrategy(s, testAssumptions, {
       targetSavings: 30000,
       taxPreference: "roth",
@@ -120,6 +122,26 @@ describe("retirementStrategy", () => {
     const iraTier = res.tiers.find((t) => t.id === "ira")!;
     expect(iraTier.accountType).toBe("Backdoor Roth IRA");
     expect(iraTier.allocated).toBe(7500);
+  });
+
+  it("respects combined wages and preserves unconfirmed conversion settings", () => {
+    const s = createTestScenario({ base: "120000" });
+    s.taxProfile.filing = "joint";
+    s.taxProfile.spouseWages = "180000";
+    const strategy = calculateRetirementStrategy(s, testAssumptions, {
+      targetSavings: 65000,
+      taxPreference: "roth",
+      enableBackdoor: true,
+      enableMegaBackdoor: true,
+    });
+
+    expect(strategy.comparison.strategy.ira).toBe(0);
+    expect(strategy.comparison.strategy.megaBackdoor).toBe(0);
+    const updated = applyRetirementStrategy(s, strategy);
+    expect(updated.retirementTargets.primary.backdoorConfirmed).toBe(false);
+    expect(updated.retirementTargets.primary.iraBalanceZeroConfirmed).toBe(false);
+    expect(updated.retirementTargets.primary.megaBackdoorSupported).toBe(false);
+    expect(updated.retirementTargets.primary.megaBackdoorRoute).toBe("none");
   });
 
   it("skips HSA tier when hsaCoverage is none", () => {

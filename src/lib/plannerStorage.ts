@@ -16,11 +16,15 @@ interface StorageLike {
 export function loadPlanner(storage: StorageLike): {
   state: PlannerV2;
   message: string;
+  restoreFailed?: true;
 } {
   try {
     const saved = storage.getItem(PLANNER_KEY) ?? storage.getItem(PRIOR_PLANNER_KEY);
-    if (saved) {
+    if (saved !== null) {
       const state = JSON.parse(saved) as PlannerV2;
+      const version: unknown = state?.version;
+      if (version !== 2 && version !== 3)
+        throw new Error("Unsupported planner version");
       let migrationMessage = "";
       // Pre-match v2 saves are retained and receive the conservative zero-match default.
       if (Array.isArray(state?.scenarios)) {
@@ -40,7 +44,7 @@ export function loadPlanner(storage: StorageLike): {
           state.shared?.startingSpouseHsa ?? "0",
         ].every((value) => typeof value === "string" && Number.isFinite(Number(value)) && Number(value) >= 0);
         if (canMigrateStartingBalances && oldRetirementBalances.length)
-          migrationMessage = "Saved inputs upgraded. Existing retirement and HSA balances were assigned to the primary owner. Review Starting balances to reassign them if needed.";
+          migrationMessage = "Saved inputs upgraded. Existing retirement and HSA balances were moved to Starting balances. Review the account owners there.";
         else if (legacyContributionTargets)
           migrationMessage = "Saved inputs upgraded. Existing 401(k) annual-dollar targets were retained in dollar mode; new Roth and IRA targets start at zero.";
         const accounts = !canMigrateStartingBalances
@@ -102,7 +106,8 @@ export function loadPlanner(storage: StorageLike): {
     }
     if (storage.getItem(LEGACY_KEY)) {
       const old = loadLegacy(storage);
-      if (old.message) return { state: defaultPlanner(), message: old.message };
+      if (old.message)
+        return { state: defaultPlanner(), message: old.message, restoreFailed: true };
       const state: PlannerV2 = {
         version: 3,
         comparison: old.state.comparison,
@@ -132,6 +137,7 @@ export function loadPlanner(storage: StorageLike): {
       state: defaultPlanner(),
       message:
         "Saved inputs could not be restored. Showing the example instead.",
+      restoreFailed: true,
     };
   }
 }
