@@ -7,6 +7,7 @@ import {
 } from "./planner";
 import type { PlannerV2 } from "./planner";
 import { projectScenario } from "./projection";
+import { techCompanies } from "../data/techCompPresets";
 export const PLANNER_KEY = "careerworth:v3";
 const PRIOR_PLANNER_KEY = "careerworth:v2";
 interface StorageLike {
@@ -61,6 +62,10 @@ export function loadPlanner(storage: StorageLike): {
         };
         state.scenarios = state.scenarios.map((scenario, index) => ({
           ...scenario,
+          issuers: scenario.issuers.map((issuer) => ({
+            ...issuer,
+            name: techCompanies.find((company) => issuer.name === `${company.name} (${company.ticker})`)?.name ?? issuer.name,
+          })),
           employerMatch: scenario.employerMatch ? { ...defaults.scenarios[index].employerMatch, ...scenario.employerMatch } : defaults.scenarios[index].employerMatch,
           spouseEmployerMatch: scenario.spouseEmployerMatch ? { ...defaults.scenarios[index].spouseEmployerMatch, ...scenario.spouseEmployerMatch } : defaults.scenarios[index].spouseEmployerMatch,
           retirementProfiles: scenario.retirementProfiles ?? defaults.scenarios[index].retirementProfiles,

@@ -12,7 +12,7 @@
     <main id="main">
       <a class="back-link" href="/">CareerWorth planner</a>
       <h1>Privacy</h1>
-      <p>Last updated November 9, 2026</p>
+      <p>Last updated November 21, 2026</p>
       <p>CareerWorth is a career and compensation planning tool. This page describes the browser storage, sharing, backups, and optional analytics in this version of the site.</p>
 
       <h2>Planner information and browser storage</h2>
@@ -21,8 +21,8 @@
       <h2>Share links and backups</h2>
       <p>Financial inputs are not automatically placed in the address bar. Share links are created explicitly and include both offers and startup details; anyone with a link can read them. Incoming links require confirmation before replacing your plan. Backups include the complete plan and startup details and are stored wherever you save them. Keep links and backups private.</p>
 
-      <h2>Optional analytics</h2>
-      <p>If analytics are configured for a deployment, analytics are off until you choose “Allow anonymous analytics.” Your choice is stored in local storage. With consent, the app sends events when opened, when you add a comparison, export a CSV, and grant consent to the configured PostHog service. Events include the event name and fixed labels such as export period; they do not include salary, balances, tax values, company names, scenario contents, or share-link values. Automatic page capture, exception capture, session recording, autocapture, surveys, feature flags, and person profiles are disabled. PostHog is configured for in-memory persistence and with IP collection disabled. The analytics service and hosting provider may still process technical request information, and the site host may keep operational logs; processing and retention depend on the deployment configuration and provider terms. Use “Turn off analytics” in the site footer to withdraw consent.</p>
+      <h2>Visit and optional usage analytics</h2>
+      <p>If analytics are configured for a deployment, the planner sends a basic page view to PostHog when it opens. Optional usage analytics are off unless you choose “Allow usage analytics” in the footer. With that choice, the app also records comparison additions, CSV exports, and consent. Your choice is stored in local storage and you can turn usage analytics off in the footer. Analytics events do not intentionally include salary, balances, tax values, company names, scenario contents, or share-link values; query strings and fragments are removed from URL properties before sending. Automatic event capture, exception capture, session recording, surveys, feature flags, and person profiles are disabled. PostHog uses in-memory persistence and IP processing is disabled. PostHog and the hosting provider may still process technical request information, and the host may keep operational logs; processing and retention depend on provider terms and deployment configuration.</p>
 
       <h2>Hosting and external sources</h2>
       <p>The site host necessarily receives network requests to serve the app and may keep operational logs under its own configuration. The planner links to third-party sources; when you follow those links, those providers handle your visit under their own privacy terms.</p>

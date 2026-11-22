@@ -1,4 +1,5 @@
-import { locationPresets } from "../data/presets";
+import { budgetSource, compensationSource, locationPresets } from "../data/presets";
+import { sourceDate } from "../lib/format";
 import {
   analyticsConfigured,
   disableAnalytics,
@@ -91,10 +92,10 @@ export function AppFooter({
             <p>
               Company compensation presets are a small static snapshot of reported
               software engineer averages from{" "}
-              <a href="https://www.levels.fyi" target="_blank" rel="noreferrer">
-                Levels.fyi
+              <a href={compensationSource.url} target="_blank" rel="noreferrer">
+                {compensationSource.name}
               </a>
-              , checked November 17, 2026. U.S., Bay Area, Seattle, and New York
+              , checked {sourceDate(compensationSource.accessed)}. U.S., Bay Area, Seattle, and New York
               snapshots are available where the public table reports comparable
               components; other tax locations use the U.S. snapshot. These are
               rounded public averages, not city-specific offers or guaranteed pay.
@@ -111,15 +112,15 @@ export function AppFooter({
               CareerWorth is not affiliated with Levels.fyi or the companies.
             </p>
             <p>
-              Location budgets are derived 2026 minimum-needs estimates from the{" "}
+              Location budgets are derived {budgetSource.edition} minimum-needs estimates from the{" "}
               <a
-                href="https://livingwage.mit.edu"
+                href={budgetSource.url}
                 target="_blank"
                 rel="noreferrer"
               >
-                Living Wage Institute
+                {budgetSource.name}
               </a>
-              , updated February 15, 2026 and checked November 17, 2026. The main
+              , updated {sourceDate(budgetSource.updated)} and checked {sourceDate(budgetSource.accessed)}. The main
               location presets describe one renting adult without children; the
               quick estimator also offers a two-adult, one-worker household with
               no children. These are minimum-needs estimates, not average
@@ -162,7 +163,7 @@ export function AppFooter({
               >
                 reuse guidance
               </a>
-              . Seven source locations are used; no scraper or runtime data feed is
+              . {locationPresets.length} source locations are used; no scraper or runtime data feed is
               included.
             </p>
           </div>
@@ -170,11 +171,11 @@ export function AppFooter({
       </div>
       <footer>
         <p>
-          ◈ Your planner inputs are stored in this browser. Optional analytics records basic actions only. Results are planning estimates.
+          ◈ Your planner inputs are stored in this browser. Basic visit analytics are enabled when configured; usage analytics are optional. Results are planning estimates.
         </p>
         {analyticsConfigured() && (
           <p className="analytics-preference">
-            Analytics are {analyticsEnabled ? "on" : "off"}.{" "}
+            Optional usage analytics are {analyticsEnabled ? "on" : "off"}.{" "}
             <button
               type="button"
               className="text-button"
@@ -188,8 +189,8 @@ export function AppFooter({
               }}
             >
               {analyticsEnabled
-                ? "Turn off analytics"
-                : "Allow anonymous analytics"}
+                ? "Turn off usage analytics"
+                : "Allow usage analytics"}
             </button>
           </p>
         )}

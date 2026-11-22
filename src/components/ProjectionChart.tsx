@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import type { PointerEvent } from "react";
 import { compactMoney, money } from "../lib/format";
 export interface Series {
   name: string;
@@ -13,9 +14,7 @@ export interface Series {
     traditionalIraContribution?: number;
     rothIraContribution?: number;
     megaBackdoorContribution?: number;
-    employerMatch?: number;
-    forfeitedMatch?: number;
-    unvestedMatch?: number;
+    vestedEmployerMatch?: number;
     calendarYear?: number;
   }[];
   starting?: number;
@@ -52,7 +51,6 @@ export function ProjectionChart({
   ]);
   const contributions = series.map((s) => {
     let total = s.starting ?? starting;
-    let previousUnvestedMatch = 0;
     return [
       s.starting ?? starting,
       ...s.rows.map((row) => {
@@ -66,10 +64,7 @@ export function ProjectionChart({
           (row.traditionalIraContribution ?? 0) +
           (row.rothIraContribution ?? 0) +
           (row.megaBackdoorContribution ?? 0) +
-          (row.employerMatch ?? 0) -
-          (row.forfeitedMatch ?? 0) -
-          ((row.unvestedMatch ?? 0) - previousUnvestedMatch);
-        previousUnvestedMatch = row.unvestedMatch ?? 0;
+          (row.vestedEmployerMatch ?? 0);
         total += added;
         return total;
       }),
@@ -109,37 +104,35 @@ export function ProjectionChart({
       years,
     ]),
   ];
+  function inspectPointer(e: PointerEvent<SVGSVGElement>) {
+    const box = e.currentTarget.getBoundingClientRect();
+    setSelected(Math.max(0, Math.min(years, Math.round((((e.clientX - box.left) / box.width) * plot.width - plot.left) / plotSpan * years))));
+  }
   return (
     <div ref={container} className="chart-container">
+      <p className="chart-help">Move over or tap the graph to inspect a year. Use arrow keys when focused.</p>
       <svg
         viewBox={`0 0 ${plot.width} 322`}
         role="img"
+        tabIndex={0}
         aria-labelledby={`${id}-title`}
         aria-describedby={`${id}-desc`}
-        onPointerMove={(e) => {
-          const box = e.currentTarget.getBoundingClientRect();
-          setSelected(
-            Math.max(
-              0,
-              Math.min(
-                years,
-                Math.round(
-                  ((((e.clientX - box.left) / box.width) * plot.width -
-                    plot.left) /
-                    plotSpan) *
-                    years,
-                ),
-              ),
-            ),
-          );
+        onPointerMove={inspectPointer}
+        onPointerDown={inspectPointer}
+        onPointerLeave={(e) => { if (e.pointerType === "mouse") setSelected(null); }}
+        onKeyDown={(e) => {
+          if (!["ArrowLeft", "ArrowDown", "ArrowRight", "ArrowUp", "Home", "End"].includes(e.key)) return;
+          e.preventDefault();
+          setSelected(e.key === "Home" ? 0 : e.key === "End" ? years : Math.max(0, Math.min(years, year + (e.key === "ArrowLeft" || e.key === "ArrowDown" ? -1 : 1))));
         }}
-        onPointerLeave={() => setSelected(null)}
       >
         <title id={`${id}-title`}>Projected balance, contributions, and investment growth by year</title>
         <desc id={`${id}-desc`}>
           {summary} The breakdown separates positive contributions, cash
           shortfalls, and investment growth. Nominal US dollars.
-          Negative balances are unfunded shortfalls.
+          Negative balances are unfunded shortfalls. Move over or tap the graph,
+          or use arrow keys, Home and End to inspect years. Selected year {year}.
+          {series.map((s, i) => ` ${s.name}: ${money(balances[i][year])}.`).join("")}
         </desc>
         <defs>
           <pattern
@@ -287,53 +280,33 @@ export function ProjectionChart({
             </span>
           )}
         </div>
-        <div className="chart-inspector-equation">
-          {series.map((s, i) => (
+        {series.map((s, i) => (
+        <div key={s.index}>
+          <p className="inspector-starting">{series.length > 1 ? `${s.name}: ` : ""}Starting balance {money(s.starting ?? starting)} included in contributions</p>
+          <div className="chart-inspector-equation">
             <span key={`${s.index}-contributions`} className="inspector-value inspector-contribution">
-              <i className="dot contribution-dot" />
-              <span>{series.length > 1 ? `${s.name} contributions` : "Contributions"}</span>
+              <span><i className="dot contribution-dot" /> {series.length > 1 ? `${s.name} contributions` : "Contributions"}</span>
               <strong>{money(contributions[i][year])}</strong>
             </span>
-          ))}
           <span className="inspector-equation-symbol inspector-minus" aria-hidden="true">−</span>
-          {series.map((s, i) => (
             <span key={`${s.index}-shortfall`} className="inspector-value inspector-shortfall">
-              <i className="dot shortfall-dot" />
-              <span>{series.length > 1 ? `${s.name} cash shortfall` : "Cash shortfall"}</span>
+              <span><i className="dot shortfall-dot" /> {series.length > 1 ? `${s.name} cash shortfall` : "Cash shortfall"}</span>
               <strong>{money(shortfalls[i][year])}</strong>
             </span>
-          ))}
           <span className="inspector-equation-symbol inspector-plus" aria-hidden="true">+</span>
-          {series.map((s, i) => (
             <span key={`${s.index}-growth`} className="inspector-value inspector-growth">
-              <i className="dot growth-dot" />
-              <span>{series.length > 1 ? `${s.name} growth` : "Growth"}</span>
+              <span><i className="dot growth-dot" /> {series.length > 1 ? `${s.name} growth` : "Growth"}</span>
               <strong>{money(growths[i][year])}</strong>
             </span>
-          ))}
           <span className="inspector-equation-symbol inspector-equals" aria-hidden="true">=</span>
-          {series.map((s, i) => (
             <span key={`${s.index}-balance`} className="inspector-value inspector-total">
-              <i className="dot total-dot" />
-              <span>{series.length > 1 ? `${s.name} total balance` : "Total balance"}</span>
+              <span><i className="dot total-dot" /> {series.length > 1 ? `${s.name} total balance` : "Total balance"}</span>
               <strong>{money(balances[i][year])}</strong>
             </span>
-          ))}
+          </div>
         </div>
+        ))}
       </div>
-      <label className="sr-only" htmlFor={`${id}-year`}>
-        Inspect projection year
-      </label>
-      <input
-        className="chart-range"
-        id={`${id}-year`}
-        aria-label="Inspect projection year"
-        type="range"
-        min="0"
-        max={years}
-        value={year}
-        onChange={(e) => setSelected(Number(e.target.value))}
-      />
     </div>
   );
 }

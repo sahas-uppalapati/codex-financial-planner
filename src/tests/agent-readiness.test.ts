@@ -8,9 +8,10 @@ const read = (path: string) => readFileSync(new URL(`../../${path}`, import.meta
 describe('public agent resources', () => {
   it('provides meaningful initial HTML and valid application metadata', () => {
     const html = read('index.html');
-    const root = html.match(/<div id="root">([\s\S]*?)<\/div>/)?.[1] ?? '';
-    expect(root.replace(/<[^>]*>/g, '').trim().length).toBeGreaterThan(500);
-    expect(root).toContain('<h1>');
+    const fallback = html.match(/<noscript>([\s\S]*?)<\/noscript>/)?.[1] ?? '';
+    expect(html).toContain('<div id="root"></div>');
+    expect(fallback.replace(/<[^>]*>/g, '').trim().length).toBeGreaterThan(500);
+    expect(fallback).toContain('<h1>');
     const json = html.match(/<script type="application\/ld\+json">([\s\S]*?)<\/script>/)?.[1] ?? '';
     expect(JSON.parse(json)).toMatchObject({ '@type': 'WebApplication', name: 'CareerWorth' });
   });

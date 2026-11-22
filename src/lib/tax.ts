@@ -165,10 +165,9 @@ export function calculateTaxes(
     active.reduce((sum, w) => sum + pick(w), 0);
   const gross = total((w) => w.cash + w.stock),
     wages = active.map((w) => Math.max(0, w.cash + w.stock - w.health - w.hsa));
-  const agis = active.map((w) =>
-      Math.max(0, w.cash + w.stock - w.health - w.hsa - w.retirement - (w.deductibleIra ?? 0)),
-    ),
-    agi = agis.reduce((a, b) => a + b, 0);
+  const adjustedWages = (w: WorkerTaxInput) => Math.max(0, w.cash + w.stock - w.health - w.hsa - w.retirement);
+  const incomeBeforeIra = total(adjustedWages);
+  const agi = Math.max(0, incomeBeforeIra - total((w) => w.deductibleIra ?? 0));
   const filing = profile.filing,
     joint = filing === "joint";
   const federalTaxable = Math.max(0, agi - idx(federal.deduction[filing]));
@@ -264,7 +263,7 @@ export function calculateTaxes(
         : 332 + 0.0275 * (result.stateTaxable - 26050);
     if (result.stateTaxable < 30000)
       state = Math.max(0, state - 20 * active.length);
-    if (joint && agis.every((a) => a >= 500) && agi < 500000) {
+    if (joint && active.every((w) => adjustedWages(w) - (w.deductibleIra ?? 0) >= 500) && agi < 500000) {
       const rate =
         result.stateTaxable <= 25000
           ? 0.2
@@ -289,7 +288,7 @@ export function calculateTaxes(
     );
     result.stateTaxable = Math.max(
       0,
-      agi - (joint ? 8800 : 4400) - ficaDeduction,
+      incomeBeforeIra - (joint ? 8800 : 4400) - ficaDeduction,
     );
     const regular =
       0.05 * result.stateTaxable +
@@ -297,10 +296,10 @@ export function calculateTaxes(
     const threshold = joint ? 16400 : 8000,
       ceiling = joint ? 28700 : 14000;
     result.stateIncome =
-      agi <= threshold
+      incomeBeforeIra <= threshold
         ? 0
-        : agi <= ceiling
-          ? Math.min(regular, 0.1 * (agi - threshold))
+        : incomeBeforeIra <= ceiling
+          ? Math.min(regular, 0.1 * (incomeBeforeIra - threshold))
           : regular;
     if (profile.employeePremiums)
       result.employeePremiums =

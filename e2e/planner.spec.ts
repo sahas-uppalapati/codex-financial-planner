@@ -5,6 +5,8 @@ import { defaultState } from "../src/lib/model";
 import { defaultPlanner } from "../src/lib/planner";
 import { exportPlannerBackup } from "../src/lib/plannerBackup";
 import { templateSchedule } from "../src/data/vesting";
+import { findTechCompPoint, techCompanies, techLevels } from "../src/data/techCompPresets";
+import { projectScenario } from "../src/lib/projection";
 
 async function openAdvanced(page: Page, name: string) {
   const summary = page
@@ -41,15 +43,64 @@ test("fresh plans start with the Amazon L4 Seattle preset", async ({ page }) => 
   await page.evaluate(() => localStorage.clear());
   await page.goto("/");
   await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Skip to setup" })).toBeFocused();
+  await expect(page.getByRole("link", { name: "Skip to inputs" })).toBeFocused();
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("heading", { name: "Get started" })).toBeFocused();
-  await page.getByRole("button", { name: "Explore an example" }).click();
+  await expect(page.getByRole("heading", { name: "Your scenarios" })).toBeFocused();
+  await expect(page.getByRole("button", { name: "Explore an example" })).toHaveCount(0);
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await expect(page.getByRole("button", { name: "Amazon", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByRole("group", { name: "Job Level" }).getByRole("button", { name: "L4", exact: true })).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Location", { exact: true }).first()).toHaveValue("seattle");
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("134000");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("129000");
+  const estimate = findTechCompPoint("amazon", "l4", "seattle")!;
+  await expect(page.getByLabel("Year 1 sign-on bonus")).toHaveValue(String(estimate.signOnY1));
+  await expect(page.getByLabel("Year 2 sign-on bonus")).toHaveValue(String(estimate.signOnY2));
+  await page.getByLabel("Year 1 sign-on bonus").fill("42000");
+  await page.reload();
+  await expect(page.getByLabel("Year 1 sign-on bonus")).toHaveValue("42000");
+});
+
+test("overview adapts its chart and supports high investment returns", async ({ page }) => {
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/");
+  const chart = page.locator(".projection-panel");
+  const accounts = page.locator(".portfolio-breakdown");
+  for (const width of [1042, 838, 390]) {
+    await page.setViewportSize({ width, height: 800 });
+    expect((await accounts.boundingBox())!.y).toBeGreaterThan((await chart.boundingBox())!.y);
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+    const equation = page.locator(".chart-inspector-equation").first();
+    const center = async (selector: string) => {
+      const box = (await equation.locator(selector).boundingBox())!;
+      return box.x + box.width / 2;
+    };
+    expect(Math.abs(await center(".inspector-minus") - ((await center(".inspector-contribution") + await center(".inspector-shortfall")) / 2))).toBeLessThan(1);
+    expect(Math.abs(await center(".inspector-equals") - ((await center(".inspector-growth") + await center(".inspector-total")) / 2))).toBeLessThan(1);
+  }
+  await expect(page.locator(".chart-legend")).not.toContainText("Investment growth");
+  await expect(chart.getByText(/Starting balance .* included in contributions/)).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Career and compensation by year" })).toBeVisible();
+  const timeline = page.getByRole("table", { name: /Annual career and compensation/ });
+  await expect(page.locator(".timeline-scenario h4")).toHaveCount(0);
+  await expect(timeline.getByRole("columnheader", { name: "Base earned" })).toBeVisible();
+  await expect(timeline.getByRole("columnheader", { name: "Stock vested" })).toBeVisible();
+  await expect(timeline.getByRole("columnheader", { name: "Total compensation" })).toBeVisible();
+  await expect(timeline.getByRole("columnheader", { name: "Stock awarded" })).toBeVisible();
+  const plan = await page.evaluate(() => JSON.parse(localStorage.getItem("careerworth:v3")!));
+  const annual = projectScenario(plan.scenarios[0], plan.shared).rows[0];
+  const cells = timeline.locator("tbody tr").first().locator("td");
+  const dollars = (value: number) => `$${Math.round(value).toLocaleString("en-US")}`;
+  await expect(cells.nth(0)).toContainText("L4");
+  await expect(cells.nth(2)).toHaveText(dollars(0));
+  await expect(cells.nth(3)).toHaveText(dollars(Number(plan.scenarios[0].signOnY1)));
+  await expect(cells.nth(4)).toHaveText(dollars(annual.stockGross));
+  await expect(cells.nth(5)).toHaveText(dollars(annual.cashGross - annual.spouseCash + annual.stockGross));
+  await expect(cells.nth(6)).toHaveText(dollars(Number(plan.scenarios[0].grants[0].value)));
+  await expect(page.getByText("Explore what-ifs", { exact: true })).toHaveCount(0);
+  await page.getByText("Starting balances & assumptions", { exact: true }).click();
+  await page.locator(".starting-accounts-section").getByLabel("Annual investment return").fill("40");
+  await expect(page.getByTestId("ending-0")).toBeVisible();
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });
 
 test("backup download contains the current plan", async ({ page }) => {
@@ -116,8 +167,7 @@ test("unified view defaults, inputs, progressive accordions and calculations", a
   await expect(
     page.getByRole("heading", { name: "Your financial future" }),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Explore an example" }).click();
-  await expect(page.getByLabel("Annual base salary")).toHaveValue("134000");
+  await expect(page.getByLabel("Annual base salary")).toHaveValue("129000");
   await expect(page.getByLabel("Monthly living expenses")).toHaveValue("4463.43");
   await expect(page.getByLabel("Current invested savings")).toHaveValue(
     "20000",
@@ -155,9 +205,8 @@ test("quick presets preserve edits and full replacement requires confirmation", 
     window.sessionStorage.clear();
   });
   await page.goto("/?mode=quick");
-  await page.getByRole("button", { name: "Explore an example" }).click();
   const salary = page.getByLabel("Annual base salary");
-  await expect(salary).toHaveValue("134000");
+  await expect(salary).toHaveValue("129000");
   await salary.fill("300001");
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
   await page
@@ -186,11 +235,11 @@ test("switching company and level updates pay and stock when not manually custom
     window.sessionStorage.clear();
   });
   await page.goto("/?mode=quick");
-  await page.getByRole("button", { name: "Explore an example" }).click();
   const salary = page.getByLabel("Annual base salary");
   const stock = page.getByLabel("Annual stock / RSUs");
-  await expect(salary).toHaveValue("134000");
-  await expect(stock).toHaveValue("31700");
+  const location = page.getByLabel("Location", { exact: true });
+  await expect(salary).toHaveValue("129000");
+  await expect(stock).toHaveValue("27250");
 
   // Switch to Meta: compensation should change to Meta E5
   await page.locator("summary").filter({ hasText: "Company presets" }).click();
@@ -198,14 +247,19 @@ test("switching company and level updates pay and stock when not manually custom
     .getByRole("group", { name: "Big Tech Company" })
     .getByRole("button", { name: "Meta" })
     .click();
-  await expect(salary).toHaveValue("223000");
-  await expect(stock).toHaveValue("203000");
+  await expect(location).toHaveValue("san-francisco");
+  await expect(salary).toHaveValue("232000");
+  await expect(stock).toHaveValue("181000");
 
   // Switch to Level E4: compensation should change to Meta E4
   await page
     .getByRole("group", { name: "Job Level" })
     .getByRole("button", { name: "E4" })
     .click();
+  await expect(salary).toHaveValue("195000");
+  await expect(stock).toHaveValue("75300");
+
+  await location.selectOption("seattle");
   await expect(salary).toHaveValue("180000");
   await expect(stock).toHaveValue("91500");
 
@@ -225,8 +279,66 @@ test("switching company and level updates pay and stock when not manually custom
     .getByRole("group", { name: "Big Tech Company" })
     .getByRole("button", { name: "Google" })
     .click();
-  await expect(salary).toHaveValue("218000");
+  await expect(location).toHaveValue("san-francisco");
+  await expect(salary).toHaveValue("237000");
   await expect(stock).toHaveValue("0");
+});
+test("company and level presets update modeled pay, grants and promotions", async ({ page }) => {
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/");
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  const salary = page.getByLabel("Annual base salary");
+  const stock = page.getByLabel("Annual stock / RSUs");
+  const companyButtons = page.getByRole("group", { name: "Big Tech Company" });
+  const levelButtons = page.getByRole("group", { name: "Job Level" });
+  const readPlan = () => page.evaluate(() => JSON.parse(localStorage.getItem("careerworth:v3")!));
+  let l5Balance = 0;
+  let l6Balance = 0;
+  let l5WithoutPromotion = 0;
+
+  for (const company of techCompanies) {
+    await companyButtons.getByRole("button", { name: company.name, exact: true }).click();
+    await expect(page.getByLabel("Location", { exact: true })).toHaveValue(company.headquartersLocation);
+    for (const level of techLevels[company.id]) {
+      const point = findTechCompPoint(company.id, level.id, company.headquartersLocation);
+      if (!point) continue;
+      await levelButtons.getByRole("button", { name: level.level, exact: true }).click();
+      await expect(salary).toHaveValue(String(point.base));
+      await expect(stock).toHaveValue(String(point.annualRsu));
+      await expect.poll(async () => (await readPlan()).scenarios[0].base).toBe(String(point.base));
+      const plan = await readPlan();
+      const scenario = plan.scenarios[0];
+      expect(scenario.grants.map((grant: { value: string }) => Number(grant.value))).toEqual(point.annualRsu ? [point.annualRsu * 4] : []);
+      expect(scenario.employerMatch.payPercent).toBe(String(company.matchPolicy.payPercentCap ?? 100));
+      if (company.id === "microsoft") expect(scenario.events.filter((event: { presetProgression?: string }) => event.presetProgression)).toHaveLength(0);
+      if (company.id === "amazon" && level.id === "l5") {
+        l5Balance = projectScenario(scenario, plan.shared).rows.at(-1)!.endingBalance;
+        l5WithoutPromotion = projectScenario({ ...scenario, events: scenario.events.filter((event: { presetProgression?: string }) => !event.presetProgression) }, plan.shared).rows.at(-1)!.endingBalance;
+      }
+      if (company.id === "amazon" && level.id === "l6") l6Balance = projectScenario(scenario, plan.shared).rows.at(-1)!.endingBalance;
+    }
+  }
+  expect(l6Balance).toBeGreaterThan(l5Balance);
+  console.log(`Amazon Seattle 10-year balances: L5 $${Math.round(l5Balance)}, L5 without promotion $${Math.round(l5WithoutPromotion)}, L6 $${Math.round(l6Balance)}`);
+  expect(l6Balance).toBeGreaterThan(l5WithoutPromotion);
+
+  await companyButtons.getByRole("button", { name: "Amazon", exact: true }).click();
+  await page.reload();
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await levelButtons.getByRole("button", { name: "L5", exact: true }).click();
+  await expect.poll(async () => (await readPlan()).scenarios[0].events.some((event: { presetProgression?: string }) => event.presetProgression === "amazon")).toBe(true);
+});
+test("switching presets replaces automatic promotions while preserving manual events", async ({ page }) => {
+  await page.evaluate(() => localStorage.clear());
+  await page.goto("/");
+  await page.locator("summary").filter({ hasText: "Company presets" }).click();
+  await openAdvanced(page, "Career changes");
+  await page.getByRole("button", { name: "+ Add promotion" }).click();
+  const manualId = await page.evaluate(() => JSON.parse(localStorage.getItem("careerworth:v3")!).scenarios[0].events.find((event: { presetProgression?: string }) => !event.presetProgression).id);
+  await page.getByRole("group", { name: "Big Tech Company" }).getByRole("button", { name: "Google" }).click();
+  await expect.poll(() => page.evaluate((id) => JSON.parse(localStorage.getItem("careerworth:v3")!).scenarios[0].events.some((event: { id: string }) => event.id === id), manualId)).toBe(true);
+  await expect(page.getByRole("button", { name: /SDE III \/ Senior at Amazon/ })).toHaveCount(0);
+  await expect(page.getByText(/Google.*SDE III \/ Senior at Amazon/)).toHaveCount(0);
 });
 test("quick forecast separates cash from sold stock and explains negative balances", async ({
   page,
@@ -752,12 +864,12 @@ test("keyboard controls open editors, switch scenarios and inspect chart years",
   await comparison.focus();
   await page.keyboard.press("Enter");
   await expect(page.getByTestId("ending-1")).toBeVisible();
-  const range = page.getByRole("slider", { name: "Inspect projection year" });
-  await range.focus();
+  const chart = page.getByRole("img", { name: "Projected balance, contributions, and investment growth by year" });
+  await chart.focus();
   await page.keyboard.press("Home");
-  await expect(range).toHaveValue("0");
+  await expect(page.locator(".chart-inspector-year")).toHaveText("Year 0");
   await page.keyboard.press("ArrowRight");
-  await expect(range).toHaveValue("1");
+  await expect(page.locator(".chart-inspector-year")).toHaveText("Year 1");
 });
 
 test("results navigation keeps the inspected year and theme persists", async ({

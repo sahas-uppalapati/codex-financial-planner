@@ -99,9 +99,9 @@ export function annualRetirementLimits(
 }
 
 export function annualAge(profile: PersonRetirementProfile, yearOffset: number): number | null {
-  if (!profile.ageConfirmed || !/^\d{1,3}$/.test(profile.ageAtFirstYearEnd)) return null;
-  const age = Number(profile.ageAtFirstYearEnd) + yearOffset;
-  return Number.isInteger(age) && age >= 0 && age <= 120 ? age : null;
+  if (!profile.ageConfirmed || !/^\d{1,3}$/.test(profile.ageAtFirstYearEnd) || !Number.isInteger(yearOffset) || yearOffset < 0) return null;
+  const startingAge = Number(profile.ageAtFirstYearEnd);
+  return startingAge <= 120 ? startingAge + yearOffset : null;
 }
 
 export function employeeDeferralLimit(
@@ -139,14 +139,14 @@ export function definedContributionRoom(
 }
 
 function phaseoutRemaining(
-  requested: number,
+  limit: number,
   magi: number,
   range: readonly [number, number],
 ): number {
-  if (magi <= range[0]) return requested;
+  if (magi <= range[0]) return limit;
   if (magi >= range[1]) return 0;
-  const reduction = Math.ceil(((magi - range[0]) / (range[1] - range[0]) * requested) / 10) * 10;
-  return Math.max(0, requested - reduction);
+  const remaining = (range[1] - magi) / (range[1] - range[0]) * limit;
+  return Math.min(limit, Math.max(200, Math.ceil(remaining / 10) * 10));
 }
 
 export interface IraEligibilityInput {
@@ -195,11 +195,11 @@ export function iraEligibility(input: IraEligibilityInput): IraEligibility {
       limits.iraRothPhaseout.single,
     );
     if (ownWorkplaceCoverage === true)
-      deductibleTraditionalLimit = phaseoutRemaining(
-        contributionLimit,
+      deductibleTraditionalLimit = Math.min(contributionLimit, phaseoutRemaining(
+        baseLimit,
         modifiedAgi,
         limits.iraDeductionPhaseout.coveredSingle,
-      );
+      ));
     else if (ownWorkplaceCoverage === "unsure") deductibleTraditionalLimit = 0;
   } else {
     rothContributionLimit = phaseoutRemaining(
@@ -208,19 +208,19 @@ export function iraEligibility(input: IraEligibilityInput): IraEligibility {
       limits.iraRothPhaseout.joint,
     );
     if (ownWorkplaceCoverage === true) {
-      deductibleTraditionalLimit = phaseoutRemaining(
-        contributionLimit,
+      deductibleTraditionalLimit = Math.min(contributionLimit, phaseoutRemaining(
+        baseLimit,
         modifiedAgi,
         limits.iraDeductionPhaseout.coveredJoint,
-      );
+      ));
     } else if (ownWorkplaceCoverage === "unsure" || spouseWorkplaceCoverage === "unsure") {
       deductibleTraditionalLimit = 0;
     } else if (spouseWorkplaceCoverage === true) {
-      deductibleTraditionalLimit = phaseoutRemaining(
-        contributionLimit,
+      deductibleTraditionalLimit = Math.min(contributionLimit, phaseoutRemaining(
+        baseLimit,
         modifiedAgi,
         limits.iraDeductionPhaseout.uncoveredWithCoveredSpouseJoint,
-      );
+      ));
     }
   }
   return {

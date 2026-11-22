@@ -1,3 +1,5 @@
+import startupExamples from "../data/startupExamples.json";
+import { money } from "../lib/format";
 import { Input } from "./ui/input";
 import { useState } from "react";
 import type { Projection } from "../lib/projection";
@@ -7,12 +9,6 @@ import {
   type StartupInputs,
 } from "../lib/startupComparison";
 
-const currency = (amount: number) =>
-  amount.toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
 const entries: { key: "grant" | "strike"; label: string; hint: string }[] = [
   {
     key: "grant",
@@ -37,9 +33,10 @@ export function StartupFields({
   onToggle: (enabled: boolean) => void;
   input: StartupInputs;
   onChange: (input: StartupInputs) => void;
-  onApplyExample: (choice: "series-a" | "series-b" | "series-c") => void;
+  onApplyExample: (offer: (typeof startupExamples.offers)[number]) => void;
 }) {
   const [example, setExample] = useState("");
+  const selectedOffer = startupExamples.offers.find((offer) => offer.id === example);
   return (
     <div className="startup-editor">
       <label className="startup-confirm">
@@ -64,17 +61,17 @@ export function StartupFields({
               onChange={(e) => setExample(e.target.value)}
             >
               <option value="">Choose an offer</option>
-              <option value="series-a">Series A · $170,000 base</option>
-              <option value="series-b">Series B · $175,000 base</option>
-              <option value="series-c">Series C · $175,000 base</option>
+              {startupExamples.offers.map((offer) => (
+                <option key={offer.id} value={offer.id}>
+                  {offer.label} · {money(Number(offer.base))} base
+                </option>
+              ))}
             </select>
             <button
               className="secondary small"
               type="button"
-              disabled={!example}
-              onClick={() =>
-                onApplyExample(example as "series-a" | "series-b" | "series-c")
-              }
+              disabled={!selectedOffer}
+              onClick={() => selectedOffer && onApplyExample(selectedOffer)}
             >
               Apply offer
             </button>
@@ -87,11 +84,11 @@ export function StartupFields({
                 one-year cliff. Living costs, grants, tax location and career
                 events are retained. Salary figures use{" "}
                 <a
-                  href="https://www.yourcadre.com/comp"
+                  href={startupExamples.source.url}
                   target="_blank"
                   rel="noreferrer"
                 >
-                  Cadre placement data
+                  {startupExamples.source.name}
                 </a>
                 ; option counts and prices are fictional, not benchmarks.
               </p>
@@ -348,7 +345,7 @@ export function StartupComparison({
       {paperSpread !== null && (
         <p>
           At the entered 409A value, the full grant has an illustrative paper
-          spread of {currency(paperSpread)} before taxes and fees, assuming all
+          spread of {money(paperSpread)} before taxes and fees, assuming all
           options vest. It is not cash or a sale price.
         </p>
       )}
@@ -403,13 +400,13 @@ export function StartupComparison({
               <h3>Hypothetical outcome at year {years}</h3>
               <p>
                 Modeled gross compensation:{" "}
-                <strong>{currency(startupComp)}</strong> for{" "}
+                <strong>{money(startupComp)}</strong> for{" "}
                 {series[startup].name || "the startup"} and{" "}
-                <strong>{currency(alternativeComp!)}</strong> for{" "}
+                <strong>{money(alternativeComp!)}</strong> for{" "}
                 {series[1 - startup].name || "the other offer"}.{" "}
                 {result.gap > 0
-                  ? `The startup starts ${currency(result.gap)} behind.`
-                  : `The startup starts ${currency(-result.gap)} ahead.`}
+                  ? `The startup starts ${money(result.gap)} behind.`
+                  : `The startup starts ${money(-result.gap)} ahead.`}
               </p>
               <p>
                 At exit, an estimated{" "}
@@ -420,7 +417,7 @@ export function StartupComparison({
                   options
                 </strong>{" "}
                 are vested; exercising them costs{" "}
-                <strong>{currency(result.exercise)}</strong>.
+                <strong>{money(result.exercise)}</strong>.
               </p>
               <p>
                 {result.breakEvenShare === null ? (
@@ -449,10 +446,10 @@ export function StartupComparison({
                     ? "share price"
                     : "common-share exit value"}
                   , hypothetical proceeds after exercise cost are{" "}
-                  <strong>{currency(result.proceeds)}</strong>. Combined with
+                  <strong>{money(result.proceeds)}</strong>. Combined with
                   modeled compensation, the startup is{" "}
                   <strong>
-                    {currency(Math.abs(result.difference))}{" "}
+                    {money(Math.abs(result.difference))}{" "}
                     {result.difference >= 0 ? "ahead" : "behind"}
                   </strong>
                   .
@@ -472,7 +469,7 @@ export function StartupComparison({
                   {(result.fraction * 100).toFixed(4)}%.{" "}
                   {result.breakEvenCompany !== null &&
                     result.breakEvenCompany > 0 &&
-                    `The implied common-share exit value needed to close the gap is ${currency(result.breakEvenCompany)}.`}
+                    `The implied common-share exit value needed to close the gap is ${money(result.breakEvenCompany)}.`}
                 </p>
               )}
             </div>

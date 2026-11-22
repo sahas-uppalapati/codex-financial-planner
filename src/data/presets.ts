@@ -1,33 +1,28 @@
 import compensationData from "./compensation.json" with { type: "json" };
 import locationBudgetData from "./locationBudgets.json" with { type: "json" };
-import type { Categories, Scenario } from "../lib/model";
-import type { CareerEvent, ScenarioV2 } from "../lib/planner";
-import { monthLabel, uid } from "../lib/planner";
-export const companies = [
-  "Google",
-  "Meta",
-  "Amazon",
-  "Microsoft",
-  "Apple",
-] as const;
-export const stages = [
-  { id: "entry", label: "Entry-level" },
-  { id: "mid", label: "Mid-level" },
-  { id: "senior", label: "Senior" },
-];
-export const compensationRegions = [
-  "United States",
-  "San Francisco Bay Area",
-  "Greater Seattle Area",
-  "New York City Area",
-] as const;
+import techPresetData from "./techPresets.json" with { type: "json" };
+import { sourceDate } from "../lib/format";
+import { categoryKeys, type Categories, type Scenario } from "../lib/model";
+
+export const companies = techPresetData.techCompanies.map(({ name }) => name);
+export const stages = compensationData.stages;
+export const compensationRegions = compensationData.regions.map(({ scope }) => scope);
+export const compensationSource = compensationData.source;
+export const budgetSource = locationBudgetData.source;
+
+type TreatmentOverride = Partial<typeof compensationData.defaultTreatment> & {
+  vestingTemplate?: string;
+  signOnYears?: number;
+};
+const companyTreatments: Partial<Record<string, TreatmentOverride>> = compensationData.overrides;
+
 export interface CompensationPreset {
   id: string;
   company: string;
   stage: string;
   level: string;
-  role: "Software engineer";
-  scope: (typeof compensationRegions)[number];
+  role: string;
+  scope: string;
   base: number;
   stock: number;
   bonus: number;
@@ -35,84 +30,61 @@ export interface CompensationPreset {
   bonusNote: string;
   stockKind: "annualized" | "first-year";
   stockGrantMultiplier: number;
+  signOnYears?: number;
   vestingTemplate: string;
-  statistic: "Reported average";
+  statistic: string;
   source: string;
   accessed: string;
   reportedPeriod: string;
 }
-// Manually curated from Levels.fyi's public "Average Compensation By Level" tables.
-// Values retain the precision shown publicly (components are rounded); these are not offer quotes.
-const snapshot = (
-  company: string,
-  stage: string,
-  level: string,
-  base: number,
-  stock: number,
-  bonus: number,
-  scope: CompensationPreset["scope"] = "United States",
-): CompensationPreset => ({
-  id: `${company.toLowerCase()}-${stage}-${scope.toLowerCase().replaceAll(" ", "-")}`,
-  company,
-  stage,
-  level,
-  role: "Software engineer",
-  scope,
-  base,
-  stock,
-  bonus,
-  bonusProjection: company === "Amazon" || company === "Google" ? 0 : bonus,
-  bonusNote:
-    company === "Amazon"
-      ? "The published bonus average is sign-on bonus spread across four years; excluded from recurring projected cash."
-      : company === "Google"
-        ? "The published bonus combines annual bonus and sign-on; not modeled as recurring without a verified split."
-        : "Published annual bonus average; may include an annualized sign-on component.",
-  stockKind: company === "Google" ? "first-year" : "annualized",
-  stockGrantMultiplier: company === "Google" ? 0 : 4,
-  vestingTemplate:
-    company === "Meta"
-      ? "quarterly"
-      : company === "Apple"
-        ? "semiannual"
-        : company === "Amazon"
-          ? "amazon-annual"
-          : company === "Google"
-            ? "google"
-            : "annual",
-  statistic: "Reported average",
-  source: `https://www.levels.fyi/companies/${company.toLowerCase()}/salaries/software-engineer${scope === "United States" ? "/locations/united-states" : `/locations/${scope === "San Francisco Bay Area" ? "san-francisco-bay-area" : scope === "Greater Seattle Area" ? "greater-seattle-area" : "new-york-city-area"}`}`,
-  accessed: "2026-11-17",
-  reportedPeriod: "Levels.fyi public aggregate snapshot accessed 2026-11-17; source update date is shown on the linked page",
+
+// Component values retain the precision shown in the public Levels.fyi tables.
+export const compensationPresets: CompensationPreset[] = compensationData.snapshots.map((snapshot) => {
+  const company = techPresetData.techCompanies.find(({ name }) => name === snapshot.company);
+  const region = compensationData.regions.find(({ scope }) => scope === snapshot.scope);
+  if (!company || !region) {
+    throw new Error("Compensation snapshot references an unknown company or region");
+  }
+  const treatment = { ...compensationData.defaultTreatment, ...companyTreatments[company.id] };
+  const { url, accessed, role, statistic } = compensationSource;
+  return {
+    ...snapshot,
+    id: [company.id, snapshot.stage, region.slug].join("-"),
+    role,
+    statistic,
+    bonusProjection: treatment.includeRecurringBonus ? snapshot.bonus : 0,
+    bonusNote: treatment.bonusNote,
+    stockKind: treatment.includeRecurringStock ? "annualized" : "first-year",
+    stockGrantMultiplier: treatment.stockGrantMultiplier,
+    signOnYears: treatment.signOnYears,
+    vestingTemplate: treatment.vestingTemplate ?? company.defaultVestingTemplate,
+    source: url + '/companies/' + company.id + '/salaries/software-engineer/locations/' + region.slug,
+    accessed,
+    reportedPeriod: compensationSource.name + ' public aggregate snapshot accessed ' + accessed + '; source update date is shown on the linked page',
+  };
 });
-export const compensationPresets: CompensationPreset[] = compensationData.map(({ company, stage, level, base, stock, bonus, scope }) =>
-  snapshot(company, stage, level, base, stock, bonus, scope as CompensationPreset["scope"]),
-);
-export const levelMappings: Record<string, string[]> = {
-  Google: ["L3 · SWE II", "L4 · SWE III", "L5 · Senior SWE"],
-  Meta: ["E3", "E4", "E5"],
-  Amazon: ["L4 · SDE I", "L5 · SDE II", "L6 · SDE III"],
-  Microsoft: ["59–60 · SDE", "61–62 · SDE II", "63–64 · Senior SDE"],
-  Apple: ["ICT2", "ICT3", "ICT4"],
-};
-// Levels.fyi community analysis of 40,000 submissions; mean years of experience
-// by its normalized levels. These are cross-sectional averages, not promotion dates.
-export const levelExperience: Record<string, number[]> = {
-  Meta: [1.5, 4.02, 8.39],
-  Google: [3.11, 5.52, 9.36],
-  Apple: [2.03, 4.17, 9.45],
-  Amazon: [2.09, 6.26, 11.3],
-};
-export const levelExperienceSource =
-  "https://www.levels.fyi/community/thread/M5XW4v/average-yoe-vs-level-at-faang";
-export function findCompensation(s: Scenario) {
+
+export function findCompensationPreset(company: string, stage: string, scope: string) {
   return compensationPresets.find(
-    (p) =>
-      p.company === s.company &&
-      p.stage === s.stage &&
-      p.scope === s.compensationLocation,
+    (preset) => preset.company === company && preset.stage === stage && preset.scope === scope,
   );
 }
+
+export function findCompensation(s: Scenario) {
+  return findCompensationPreset(s.company, s.stage, s.compensationLocation);
+}
+
+export function findAppliedCompensation(id: string | null) {
+  return compensationPresets.find(
+    (preset) => preset.id === id || preset.company.toLowerCase() + '-' + preset.stage === id,
+  );
+}
+
+export function compensationScopeForLocation(locationId: string): string {
+  return compensationData.regions.find((region) => region.locationId === locationId)?.scope
+    ?? compensationData.defaultScope;
+}
+
 export function applyCompensation(
   s: Scenario,
   p: CompensationPreset,
@@ -126,71 +98,8 @@ export function applyCompensation(
     appliedCompensation: p.id,
   };
 }
-export function compensationProgressionEvents(
-  s: ScenarioV2,
-  preset: CompensationPreset,
-  startYear: number,
-  horizonYears: number,
-): CareerEvent[] {
-  const stagesFromCurrent = stages.slice(
-    stages.findIndex((stage) => stage.id === preset.stage) + 1,
-  );
-  const experience = levelExperience[preset.company];
-  if (!experience) return [];
-  let elapsedMonths = 0,
-    previousIndex = stages.findIndex((stage) => stage.id === preset.stage);
-  const events: CareerEvent[] = [];
-  for (const stage of stagesFromCurrent) {
-    const index = stages.findIndex((item) => item.id === stage.id),
-      nextPreset = compensationPresets.find(
-        (item) => item.company === preset.company && item.stage === stage.id && item.scope === preset.scope,
-      );
-    if (!nextPreset || experience[index] === undefined) break;
-    elapsedMonths += Math.max(
-      1,
-      Math.round((experience[index] - experience[previousIndex]) * 12),
-    );
-    if (elapsedMonths >= horizonYears * 12) break;
-    events.push({
-      id: uid(),
-      kind: "promotion",
-      month: monthLabel(elapsedMonths, startYear),
-      issuerId: s.employerId,
-      role: `${preset.company} ${nextPreset.level} · Software engineer`,
-      base: String(nextPreset.base),
-      bonus: String(nextPreset.bonusProjection),
-      growth: s.growth,
-      awardValue: String(nextPreset.stock * nextPreset.stockGrantMultiplier),
-      awardTemplate: nextPreset.vestingTemplate,
-      awardTreatment: "sell",
-      refresherValue: "0",
-      refresherAfter: "12",
-      refresherEvery: "12",
-      refresherTemplate: "annual",
-      refresherTreatment: "sell",
-      presetProgression: preset.company,
-    });
-    previousIndex = index;
-  }
-  return events;
-}
-export function hasCompensationProgression(preset: CompensationPreset): boolean {
-  const stageIndex = stages.findIndex((stage) => stage.id === preset.stage);
-  return Boolean(
-    levelExperience[preset.company] &&
-      stages.slice(stageIndex + 1).some((stage) =>
-        compensationPresets.some(
-          (item) => item.company === preset.company && item.stage === stage.id && item.scope === preset.scope,
-        ),
-      ),
-  );
-}
 export function compensationStatus(s: Scenario): string {
-  const p = compensationPresets.find(
-    (p) =>
-      p.id === s.appliedCompensation ||
-      `${p.company.toLowerCase()}-${p.stage}` === s.appliedCompensation,
-  );
+  const p = findAppliedCompensation(s.appliedCompensation);
   if (!p) return "Manual entry";
   return Number(s.base) === p.base &&
     Number(s.bonus) === p.bonusProjection &&
@@ -229,40 +138,27 @@ const monthlyExpenses = (annual: AnnualBudget): Categories => ({
   healthcare: (annual.medical / 12).toFixed(2),
   other: ((annual.civic + annual.other) / 12).toFixed(2),
 });
-const location = (
-  id: string,
-  label: string,
-  county: string,
-  fips: string,
-  annual: AnnualBudget,
-  familyAnnual: AnnualBudget,
-  accessed = "2026-11-17",
-): LocationPreset => ({
-  id,
-  label,
-  expenses: monthlyExpenses(annual),
-  familyExpenses: monthlyExpenses(familyAnnual),
-  annualPublished: annual,
-  familyAnnualPublished: familyAnnual,
-  scope: county,
-  sourceYear: "2026; updated February 15, 2026",
-  accessed,
-  source: `https://livingwage.mit.edu/counties/${fips}`,
-  kind: "Derived minimum-needs budget",
-});
-export const locationPresets = locationBudgetData.map(({ id, label, county, fips, annual, familyAnnual }) =>
-  location(id, label, county, fips, annual, familyAnnual),
-);
+export const locationPresets: LocationPreset[] = locationBudgetData.locations.map((location) => ({
+  id: location.id,
+  label: location.label,
+  expenses: monthlyExpenses(location.annual),
+  familyExpenses: monthlyExpenses(location.familyAnnual),
+  annualPublished: location.annual,
+  familyAnnualPublished: location.familyAnnual,
+  scope: location.county,
+  sourceYear: String(budgetSource.edition) + "; updated " + sourceDate(budgetSource.updated),
+  accessed: budgetSource.accessed,
+  source: budgetSource.url + '/counties/' + location.fips,
+  kind: budgetSource.kind,
+}));
 export function applyLocation(s: Scenario, p: LocationPreset): Scenario {
   return { ...s, expenses: { ...p.expenses }, appliedLocation: p.id };
 }
 export function locationStatus(s: Scenario): string {
   const p = locationPresets.find((p) => p.id === s.appliedLocation);
   if (!p) return "Illustrative example";
-  return Object.keys(p.expenses).every(
-    (k) =>
-      Number(s.expenses[k as keyof Categories]) ===
-      Number(p.expenses[k as keyof Categories]),
+  return categoryKeys.every(
+    (key) => Number(s.expenses[key]) === Number(p.expenses[key]),
   )
     ? `${p.label} · Minimum needs`
     : "Customized";

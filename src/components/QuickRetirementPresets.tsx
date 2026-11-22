@@ -27,20 +27,16 @@ export function QuickRetirementPresets({
     return null;
 
   const strategyPresets = getStrategyPresets(scenario, assumptions);
-  const standardMaximum = strategyPresets.find((p) => p.id === "max-401k")!;
-  const maximum = strategyPresets.find((p) => p.id === "max-all")!;
-  const optimalMaxTotal =
-    strategyPresets.find((p) => p.id === "max-all")?.amount ||
-    strategyPresets.find((p) => p.id === "max-401k")?.amount ||
-    36400;
+  const standardMaximum = strategyPresets.find((preset) => preset.id === "max-401k");
+  const maximum = strategyPresets.find((preset) => preset.id === "max-all");
+  if (!standardMaximum || !maximum) return null;
 
   const applyPresetStrategy = (
     presetId: "match-only" | "max-401k" | "max-all",
   ) => {
-    const targetPreset = strategyPresets.find((p) => p.id === presetId);
-    const amount =
-      targetPreset?.amount ??
-      (presetId === "max-all" ? optimalMaxTotal : 23500);
+    const targetPreset = strategyPresets.find((preset) => preset.id === presetId);
+    if (!targetPreset) return;
+    const amount = targetPreset.amount;
     const optStrategy = calculateRetirementStrategy(scenario, assumptions, {
       targetSavings: amount,
       taxPreference: "traditional",
@@ -93,7 +89,7 @@ export function QuickRetirementPresets({
             title={maximum.description}
             onClick={handleMaxOptimal}
           >
-            Max Out Retirement Accounts ({money(optimalMaxTotal)}/yr)
+            Max Out Retirement Accounts ({money(maximum.amount)}/yr)
           </button>
         </div>
         {strategyNotice && (

@@ -3,30 +3,6 @@ import { startupComparison, type StartupInputs } from "./startupComparison";
 import type { Projection } from "./projection";
 import { projectScenario } from "./projection";
 
-export function previewPlan(
-  plan: PlannerV2,
-  offer: number,
-  appreciation: string,
-  housing: string,
-  returns: string,
-  excludePromotions: boolean,
-): PlannerV2 {
-  const scenarios = plan.scenarios.map((s, i) =>
-    i !== offer
-      ? s
-      : {
-          ...s,
-          expenses: { ...s.expenses, housing },
-          issuers: s.issuers.map((issuer) =>
-            issuer.id === s.employerId ? { ...issuer, appreciation } : issuer,
-          ),
-          events: excludePromotions
-            ? s.events.filter((event) => event.kind !== "promotion")
-            : s.events,
-        },
-  ) as PlannerV2["scenarios"];
-  return { ...plan, scenarios, shared: { ...plan.shared, returns } };
-}
 export function projectDecision(plan: PlannerV2, year: number) {
   if (
     !validPlanner(plan) ||

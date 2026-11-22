@@ -103,6 +103,63 @@ function generatedGrant(
     keepOnDeparture: false,
   };
 }
+function grantShares(grant: Grant, issuer: Issuer, grantMonth: number): number {
+  const shares = grant.units === "shares"
+    ? Number(grant.value)
+    : Number(grant.value) / (grant.priceMode === "explicit"
+      ? Number(grant.grantPrice)
+      : issuerPrice(issuer, grantMonth));
+  if (!Number.isFinite(shares) || shares < 0)
+    throw new RangeError("Invalid grant share count");
+  return shares;
+}
+
+function promotionTopUp(
+  event: CareerEvent,
+  period: EmploymentPeriod,
+  issuer: Issuer,
+  grants: Grant[],
+  startYear: number,
+): Grant | undefined {
+  const promotionMonth = monthIndex(event.month, startYear);
+  const existingEquity = [0, 0, 0, 0];
+  for (const grant of grants) {
+    const grantMonth = monthIndex(grant.month, startYear);
+    if (grant.employmentId !== period.id || grant.issuerId !== issuer.id || grantMonth > promotionMonth) continue;
+    const shares = grantShares(grant, issuer, grantMonth);
+    for (const vest of grant.schedule) {
+      const offset = grantMonth + Number(vest.month) - 1 - promotionMonth;
+      if (offset < 0 || offset >= 48) continue;
+      existingEquity[Math.floor(offset / 12)] += shares * Number(vest.percent) / 100
+        * issuerPrice(issuer, promotionMonth + offset + 1);
+    }
+  }
+
+  // Size the award once at promotion, assuming continued employment.
+  const tranches = existingEquity.flatMap((equity, year) => {
+    const base = Number(event.base) * (1 + Number(event.growth) / 100) ** year;
+    const shortfall = Number(event.promotionTargetTc) - base - Number(event.bonus) - equity;
+    if (shortfall <= 0) return [];
+    const offsets = [3, 6, 9, 12].map((quarter) => year * 12 + quarter);
+    const combinedPrice = offsets.reduce((total, offset) => total + issuerPrice(issuer, promotionMonth + offset), 0);
+    return offsets.map((offset) => ({ offset, shares: shortfall / combinedPrice }));
+  });
+  const shares = tranches.reduce((total, tranche) => total + tranche.shares, 0);
+  if (shares === 0) return undefined;
+  return {
+    ...generatedGrant(
+      `${event.id}:award`, `${event.role} top-up`, String(shares),
+      event.month, issuer.id, period.id, "quarterly", event.awardTreatment,
+    ),
+    units: "shares",
+    template: "custom",
+    schedule: tranches.map((tranche) => ({
+      month: String(tranche.offset),
+      percent: String(tranche.shares / shares * 100),
+    })),
+  };
+}
+
 function expandRule(
   rule: RefresherRule,
   s: ScenarioV2,
@@ -118,8 +175,9 @@ function expandRule(
   let end = Math.min(last + 1, period.end, horizon);
   if (rule.untilNextRole) {
     const next = s.events
+      .filter((e) => e.kind === "promotion")
       .map((e) => monthIndex(e.month, year))
-      .filter((m) => m > period.start && m < period.end)
+      .filter((m) => m >= period.start && m < period.end)
       .sort((x, y) => x - y)[0];
     if (next !== undefined) end = Math.min(end, next);
   }
@@ -155,7 +213,12 @@ export function buildEquity(s: ScenarioV2, a: AssumptionsV2): EquityPlan {
       (p) => eventMonth >= p.start && eventMonth < p.end,
     );
     if (!period) continue;
-    if (Number(e.awardValue) > 0)
+    if (e.kind === "promotion" && e.promotionTargetTc !== undefined) {
+      const issuer = s.issuers.find((issuer) => issuer.id === e.issuerId);
+      if (!issuer) throw new RangeError("Choose a valid promotion employer");
+      const topUp = promotionTopUp(e, period, issuer, grants, start);
+      if (topUp) grants.push(topUp);
+    } else if (Number(e.awardValue) > 0)
       grants.push(
         generatedGrant(
           `${e.id}:award`,
@@ -216,14 +279,7 @@ export function buildEquity(s: ScenarioV2, a: AssumptionsV2): EquityPlan {
       throw new RangeError(
         `${g.name}: grant must be awarded during its employment period.`,
       );
-    const grantPrice =
-      g.priceMode === "explicit"
-        ? Number(g.grantPrice)
-        : issuerPrice(issuer, grantMonth);
-    const shares =
-      g.units === "shares" ? Number(g.value) : Number(g.value) / grantPrice;
-    if (!Number.isFinite(shares) || shares < 0)
-      throw new RangeError("Invalid grant share count");
+    const shares = grantShares(g, issuer, grantMonth);
     let forfeited = 0;
     for (const row of g.schedule) {
       // Offset 1 means the end of the grant month; offset 12 means the end of its 12th month.

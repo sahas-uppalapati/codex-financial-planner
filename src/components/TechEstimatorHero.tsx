@@ -14,12 +14,16 @@ import {
   techCompanies,
   techLevels,
   growthPresets,
+  growthPresetForReturn,
+  companyEmployerMatch,
+  quickOffer,
   housingPresets,
   findTechCompPoint,
+  techCompensationScope,
   buildTechProgressionEvents,
 } from "../data/techCompPresets";
-import type { GrowthPreset } from "../data/techCompPresets";
-import { compensationPresets, locationPresets } from "../data/presets";
+import type { CompanyPreset, GrowthPreset } from "../data/techCompPresets";
+import { findCompensationPreset, locationPresets } from "../data/presets";
 import { templateSchedule } from "../data/vesting";
 import { uid } from "../lib/planner";
 
@@ -82,26 +86,27 @@ export function TechEstimatorHero({
     : undefined;
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string>(
-    initialCompany || "amazon",
+    initialCompany || quickOffer.initial.companyId,
   );
   const [selectedLevelId, setSelectedLevelId] = useState<string>(() => {
-    const compId = initialCompany || "amazon";
+    const compId = initialCompany || quickOffer.initial.companyId;
     const levels = availableLevels(compId, scenario.taxProfile.location);
     const matched = levels.find(
       (l) =>
         scenario.name?.toLowerCase().includes(l.level.toLowerCase()) ||
         scenario.role?.toLowerCase().includes(l.title.toLowerCase()),
     );
-    return matched?.id ?? (initialCompany ? levels[2]?.id : "l4") ?? levels[0]?.id ?? "l4";
+    return matched?.id ?? (initialCompany ? levels[2]?.id : quickOffer.initial.levelId)
+      ?? levels[0]?.id ?? quickOffer.initial.levelId;
   });
 
   useEffect(() => {
     if (!initialized.current) {
       if (allowInitialPreset && !initialCompany) {
         applyTechPreset(
-          "amazon",
-          "l4",
-          "seattle",
+          quickOffer.initial.companyId,
+          quickOffer.initial.levelId,
+          quickOffer.initial.locationId as TaxLocation,
           scenario.taxProfile.filing,
           activeGrowthId,
           true,
@@ -148,7 +153,7 @@ export function TechEstimatorHero({
     const unchangedGrant = comp.annualRsu > 0
       ? scenario.grants.length === 1 &&
         grant.presetCompensation === "tech-quick" &&
-        grant.name === "Initial 4-Year New Hire Grant" &&
+        grant.name === quickOffer.grantName &&
         grant.issuerId === scenario.employerId &&
         grant.employmentId === "initial" &&
         grant.month === `${assumptions.startYear}-01` &&
@@ -166,8 +171,8 @@ export function TechEstimatorHero({
         scenario.includeStock === (comp.annualRsu > 0) &&
         scenario.issuers.length === 1 &&
         issuer.id === scenario.employerId &&
-        issuer.name === `${company.name} (${company.ticker})` &&
-        issuer.price === "150" &&
+        (issuer.name === company.name || issuer.name === `${company.name} (${company.ticker})`) &&
+        issuer.price === quickOffer.sharePrice &&
         growthPresets.some((preset) => issuer.appreciation === String(preset.stockAppreciation)) &&
         issuer.startingShares === "0" &&
         issuer.startingBasis === "0" &&
@@ -196,10 +201,18 @@ export function TechEstimatorHero({
       owned.add("expenses");
     }
 
-    if (scenario.employerMatch?.rate === String(company.matchPolicy.rate))
+    const expectedMatch = companyEmployerMatch(company);
+    if (scenario.employerMatch?.type === expectedMatch.type &&
+        scenario.employerMatch.rate === expectedMatch.rate &&
+        scenario.employerMatch.payPercent === expectedMatch.payPercent &&
+        scenario.employerMatch.cap === expectedMatch.cap &&
+        scenario.employerMatch.vestingType === expectedMatch.vestingType &&
+        JSON.stringify(scenario.employerMatch.vestingSchedule) === JSON.stringify(expectedMatch.vestingSchedule))
       owned.add("employerMatch");
 
-    if (scenario.events.some((e) => e.presetProgression)) owned.add("events");
+    // A saved terminal-level preset has no generated events, but switching to
+    // a lower level must still be able to generate its promotion timeline.
+    if (isPresetApplied) owned.add("events");
 
     const growth = growthPresets.find((g) => g.id === activeGrowthId);
     if (growth && assumptions.returns === String(growth.returns))
@@ -242,23 +255,19 @@ export function TechEstimatorHero({
   });
 
   // Find active growth preset
-  const activeGrowthId: GrowthPreset["id"] =
-    Number(assumptions.returns) >= 9
-      ? "bull"
-      : Number(assumptions.returns) >= 6.5
-        ? "moderate"
-        : "conservative";
+  const activeGrowthId = growthPresetForReturn(Number(assumptions.returns)).id;
 
-  function handleCompanyChange(companyId: string, trigger: HTMLButtonElement) {
+  function handleCompanyChange(company: CompanyPreset, trigger: HTMLButtonElement) {
+    const { id: companyId, headquartersLocation } = company;
     setSelectedCompanyId(companyId);
-    const levels = availableLevels(companyId, selectedLocationId);
+    const levels = availableLevels(companyId, headquartersLocation);
     const defaultLevel = levels[2]?.id || levels[0]?.id || "l5";
     setSelectedLevelId(defaultLevel);
     if (!isPresetApplied) previewTrigger.current = trigger;
     applyTechPreset(
       companyId,
       defaultLevel,
-      selectedLocationId,
+      headquartersLocation,
       selectedFiling,
       activeGrowthId,
       includeProgression,
@@ -376,8 +385,8 @@ export function TechEstimatorHero({
 
     const newIssuer = {
       id: issuerId,
-      name: `${company.name} (${company.ticker})`,
-      price: "150",
+      name: company.name,
+      price: quickOffer.sharePrice,
       appreciation: String(growth.stockAppreciation),
       startingShares: "0",
       startingBasis: "0",
@@ -386,14 +395,14 @@ export function TechEstimatorHero({
     const startYear = assumptions.startYear || "2026";
     const newGrant = {
       id: grantId,
-      name: `Initial 4-Year New Hire Grant`,
+      name: quickOffer.grantName,
       issuerId,
       employmentId: "initial",
       month: `${startYear}-01`,
       units: "dollars" as const,
       value: String(fourYearGrantValue),
       priceMode: "modeled" as const,
-      grantPrice: "150",
+      grantPrice: quickOffer.sharePrice,
       schedule: templateSchedule(vestingTemplate),
       template: vestingTemplate,
       treatment: "sell" as const,
@@ -444,15 +453,7 @@ export function TechEstimatorHero({
         filing,
       },
       expenses: { ...living },
-      employerMatch: {
-        type: "simple",
-        rate: String(company.matchPolicy.rate),
-        payPercent: String(company.matchPolicy.payPercentCap ?? "6"),
-        cap: String(company.matchPolicy.dollarCap ?? "0"),
-        tiers: [],
-        vestingType: "immediate",
-        vestingSchedule: ["100"],
-      },
+      employerMatch: companyEmployerMatch(company),
     };
 
     const updatedAssumptions = {
@@ -500,10 +501,17 @@ export function TechEstimatorHero({
     const owned = new Set<string>();
     const result = { ...scenario };
     for (const key of keys) {
+      // Manual career events do not take ownership away from generated promotions.
+      const unchanged = key === "events"
+        ? same(
+            scenario.events.filter((event) => event.presetProgression),
+            old.scenario.events.filter((event) => event.presetProgression),
+          )
+        : same(scenario[key], old.scenario[key]);
       if (
         fullApply ||
         forced.includes(key) ||
-        (old?.owned.has(key) && same(scenario[key], old.scenario[key]))
+        (old.owned.has(key) && unchanged)
       ) {
         // Keep linked stock settings together when the corresponding grants or
         // issuer have been customized, rather than orphaning a user's grant.
@@ -563,25 +571,17 @@ export function TechEstimatorHero({
   const currentLevels = availableLevels(selectedCompanyId, selectedLocationId);
   const selectedCompany =
     techCompanies.find((c) => c.id === selectedCompanyId) || techCompanies[0];
-  const scope =
-    selectedLocationId === "san-francisco"
-      ? "San Francisco Bay Area"
-      : selectedLocationId === "seattle"
-        ? "Greater Seattle Area"
-        : selectedLocationId === "new-york"
-          ? "New York City Area"
-          : "United States";
-  const sourcePreset = compensationPresets.find(
-    (item) =>
-      item.company === selectedCompany.name &&
-      item.stage === currentLevels.find((level) => level.id === selectedLevelId)?.stage &&
-      item.scope === scope,
-  );
+  const scope = techCompensationScope(selectedLocationId);
+  const selectedLevel = currentLevels.find((level) => level.id === selectedLevelId);
+  const sourcePreset = selectedLevel
+    ? findCompensationPreset(selectedCompany.name, selectedLevel.stage, scope)
+    : undefined;
   const budgetSource = locationPresets.find(
     (item) => item.id === selectedLocationId,
   );
   const selectedLocation =
     taxLocations.find((l) => l.id === selectedLocationId) || taxLocations[0];
+  const selectedComp = findTechCompPoint(selectedCompanyId, selectedLevelId, selectedLocationId);
 
   return (
     <div className="tech-estimator-hero" aria-label="Big Tech Preset Selector">
@@ -619,7 +619,7 @@ export function TechEstimatorHero({
                 type="button"
                 className={`pill-btn ${selectedCompanyId === c.id ? "active" : ""}`}
                 aria-pressed={selectedCompanyId === c.id}
-                onClick={(event) => handleCompanyChange(c.id, event.currentTarget)}
+                onClick={(event) => handleCompanyChange(c, event.currentTarget)}
               >
                 {c.name}
               </button>
@@ -665,6 +665,7 @@ export function TechEstimatorHero({
               </option>
             ))}
           </select>
+          <p className="hint">{scope} pay benchmark</p>
         </div>
 
         {/* Filing & Household Status */}
@@ -734,18 +735,31 @@ export function TechEstimatorHero({
               Model {selectedCompany.name} promotions in forecast
             </span>
           </label>
+          <p className="hint">{selectedCompanyId === "microsoft" ? "No automatic Microsoft promotions are modeled because comparable timing data is unavailable." : selectedCompanyId === "amazon" ? "The L4 to L5 promotion is modeled after 24 months, and L5 to L6 after another 60 months. Promotions are assumptions, not guarantees. A modeled promotion can top up pay using scheduled stock vesting." : "Promotion timing is estimated from differences in average experience. Where annualized stock data is available, a modeled promotion tops up projected compensation for the first four years in the role using cash pay and scheduled stock vesting."}</p>
         </div>
 
         {/* Optimal Retirement Strategy 1-Click Action */}
       </div>
+      {selectedComp?.signOnY1 !== undefined && selectedComp.signOnY2 !== undefined && (
+        <div className="preset-sign-on hint">
+          <p>{selectedComp.usesRoundedInputs ? "Rounded preset inputs" : "Estimated Amazon sign-on"}: year 1 ${selectedComp.signOnY1.toLocaleString("en-US")} and year 2 ${selectedComp.signOnY2.toLocaleString("en-US")}. {selectedComp.usesRoundedInputs ? "These inputs are illustrative; review your own offer." : "The source reports only a four-year average; this illustrative split offsets the first two years’ vesting difference before raises."} Enter your actual amounts in Offer.</p>
+          {(Number(scenario.signOnY1) !== selectedComp.signOnY1 || Number(scenario.signOnY2) !== selectedComp.signOnY2) && (
+            <button type="button" className="text-button" onClick={() => onScenarioChange({ ...scenario, signOnY1: String(selectedComp.signOnY1), signOnY2: String(selectedComp.signOnY2) })}>
+              Apply estimated sign-on bonuses
+            </button>
+          )}
+        </div>
+      )}
       <details className="preset-disclaimer">
         <summary>About these estimates</summary>
         <p className="hint">
           Preset changes keep values you have customized. Saved values are kept
           unless you choose to replace them. Market outlook changes the investment
-          return only. Pay references are public Levels.fyi averages; city data is
-          used for San Francisco, Seattle, and New York, and the U.S. aggregate is
-          used for other locations. Google first-year stock and combined bonus / sign-on
+          return only. Choosing a company starts at its U.S. headquarters metro. Pay
+          references generally use public Levels.fyi averages for the Bay Area, Greater Seattle,
+          or New York City metro when selected, with U.S. averages for other
+          locations. The Amazon L4 Seattle preset uses rounded illustrative inputs instead.
+          Google first-year stock and combined bonus / sign-on
           figures are excluded from recurring projections. Cost presets use MIT's
           2026 county budgets for one adult or two adults with one worker, with no
           children; the two-adult household is the planner's joint option.
@@ -790,6 +804,12 @@ export function TechEstimatorHero({
                 </DialogDescription>
               </DialogHeader>
               <ul>
+                {preview.scenario.taxProfile.location !== selectedLocationId && (
+                  <li>
+                    Location changes from {selectedLocation.label} to{" "}
+                    {taxLocations.find((location) => location.id === preview.scenario.taxProfile.location)?.label}
+                  </li>
+                )}
                 <li>
                   Annual salary: {scenario.base} → {preview.scenario.base}
                 </li>

@@ -1,0 +1,43 @@
+{
+  "returns": {
+    "label": "Annual investment return",
+    "groupLabel": "Investment return presets",
+    "description": "annual return",
+    "values": [
+      "5",
+      "7",
+      "8.5",
+      "10",
+      "12"
+    ]
+  },
+  "inflation": {
+    "label": "Annual expense inflation",
+    "groupLabel": "Expense inflation presets",
+    "description": "annual expense inflation",
+    "values": [
+      "2",
+      "2.5",
+      "3",
+      "4"
+    ]
+  },
+  "employerMatches": [
+    {
+      "rate": "0",
+      "payPercent": "0"
+    },
+    {
+      "rate": "50",
+      "payPercent": "6"
+    },
+    {
+      "rate": "100",
+      "payPercent": "4"
+    },
+    {
+      "rate": "100",
+      "payPercent": "6"
+    }
+  ]
+}

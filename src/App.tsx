@@ -1,3 +1,4 @@
+import startupExamples from "./data/startupExamples.json";
 import { RotateCcw, ShieldCheck, ArrowUpRight, Share2 } from "lucide-react";
 import { Button } from "./components/ui/button";
 import {
@@ -26,7 +27,6 @@ import {
   clearFinancialUrl,
 } from "./lib/plannerUrl";
 import { projectScenario } from "./lib/projection";
-import { QuickSetup } from "./components/QuickSetup";
 import { ScenarioForm } from "./components/ScenarioForm";
 import type { TotalExpenseDraft } from "./components/ScenarioForm";
 import { fieldError } from "./lib/model";
@@ -74,6 +74,7 @@ function initialStartup(): {
   inputs: [StartupInputs, StartupInputs];
 } {
   try {
+    if (!["careerworth:v1", "careerworth:v2", PLANNER_KEY].some((key) => window.localStorage.getItem(key) !== null)) return emptyStartupSession();
     const saved = window.localStorage.getItem(startupSessionKey);
     return saved
       ? parseStartupSession(JSON.parse(saved))
@@ -153,7 +154,6 @@ export default function App() {
     [restoreFailed, setRestoreFailed] = useState(loaded.restoreFailed),
     [allowInitialPreset, setAllowInitialPreset] = useState(loaded.fresh),
     [pendingLink, setPendingLink] = useState(incomingLink),
-    [setup, setSetup] = useState(loaded.fresh),
     [example, setExample] = useState(() => {
       try {
         return (
@@ -208,22 +208,12 @@ export default function App() {
     setReplacement(null);
   }
 
-  function applyStartupExample(choice: "series-a" | "series-b" | "series-c") {
+  function applyStartupExample(offer: (typeof startupExamples.offers)[number]) {
     setExample(true);
-    const base = {
-      "series-a": "170000",
-      "series-b": "175000",
-      "series-c": "175000",
-    }[choice];
     const input: StartupInputs = {
       ...emptyStartup,
-      grant: {
-        "series-a": "16000",
-        "series-b": "12000",
-        "series-c": "8000",
-      }[choice],
-      strike: "1.25",
-      vesting: "cliff",
+      ...startupExamples.options,
+      grant: offer.grant,
     };
     setStartupInputs((current) =>
       active === 0 ? [input, current[1]] : [current[0], input],
@@ -235,8 +225,8 @@ export default function App() {
           ? scenario
           : {
               ...scenario,
-              name: `Example Series ${choice.slice(-1).toUpperCase()}`,
-              base,
+              name: "Example " + offer.label,
+              base: offer.base,
               bonus: "0",
               growth: "0",
               signOnY1: "0",
@@ -295,7 +285,7 @@ export default function App() {
   useEffect(() => setAllowInitialPreset(false), []);
 
   useEffect(() => {
-    if (setup || pendingLink || restoreFailed) return;
+    if (pendingLink || restoreFailed) return;
     try {
       window.localStorage.setItem(
         startupSessionKey,
@@ -306,7 +296,7 @@ export default function App() {
         "Browser storage is unavailable. Your startup inputs will not be saved.",
       );
     }
-  }, [startupScenario, startupInputs, setup, pendingLink, restoreFailed]);
+  }, [startupScenario, startupInputs, pendingLink, restoreFailed]);
 
   const currentExpenseDrafts = state.scenarios.map((scenario, index) => {
     const draft = expenseDrafts[index];
@@ -363,7 +353,7 @@ export default function App() {
   const shareReady = ready && !scenarioErrors.some(Boolean);
 
   useEffect(() => {
-    if (!shareReady || setup || pendingLink || restoreFailed) return;
+    if (!shareReady || pendingLink || restoreFailed) return;
     try {
       window.localStorage.setItem("careerworth:example", String(example));
       if (!savePlanner(window.localStorage, state))
@@ -375,7 +365,7 @@ export default function App() {
         "Browser storage is unavailable. Your inputs will not be saved.",
       );
     }
-  }, [state, shareReady, setup, pendingLink, example, restoreFailed]);
+  }, [state, shareReady, pendingLink, example, restoreFailed]);
 
   useEffect(() => {
     function handleIncomingLink() {
@@ -405,15 +395,13 @@ export default function App() {
   return (
     <>
       <a className="skip-link" href={
-        setup ? "#setup-heading" : destination === "calculators" ? "#investment-calculator-inputs" : "#planner-input-heading"
+        destination === "calculators" ? "#investment-calculator-inputs" : "#planner-input-heading"
       }>
-        {setup ? "Skip to setup" : "Skip to inputs"}
+        Skip to inputs
       </a>
-      {!setup && (
         <a className="skip-link" href={destination === "calculators" ? "#investment-calculator-results" : "#results"}>
           Skip to results
         </a>
-      )}
       <header className="site-header">
         <div className="header-inner">
           <a href="#" className="brand" aria-label="CareerWorth home">
@@ -438,12 +426,9 @@ export default function App() {
           <div>
             <h1>Your financial future</h1>
             <p>
-              {setup
-                ? "Enter an offer to estimate take-home pay, savings, and investment growth."
-                : "Estimate take-home pay, savings, and investment growth for up to two offers."}
+              Estimate take-home pay, savings, and investment growth for up to two offers.
             </p>
           </div>
-          {!setup && (
             <div className="top-actions" role="group" aria-label="Plan actions">
               <PlannerBackup
                 compact
@@ -455,7 +440,6 @@ export default function App() {
                   setExpenseDrafts({});
                   setStorageMessage("");
                   setRestoreFailed(false);
-                  setSetup(false);
                   setExample(false);
                   setSelectedYear(0);
                   setStartupScenario(restored.startup.scenario);
@@ -489,7 +473,6 @@ export default function App() {
                 </Button>
               )}
             </div>
-          )}
         </div>
         {storageMessage.startsWith("Saved inputs upgraded") && (
           <p className="migration-note">{storageMessage}</p>
@@ -498,7 +481,6 @@ export default function App() {
           <section
             className="cash-panel prose share-panel"
             aria-label="Shared estimate"
-            id={setup ? "setup-heading" : undefined}
             tabIndex={-1}
           >
             {"error" in pendingLink ? (
@@ -549,7 +531,6 @@ export default function App() {
                     setSelectedYear(0);
                     setActive(0);
                     setPendingLink(null);
-                    setSetup(false);
                     setExample(false);
                   }}
                 >
@@ -566,7 +547,7 @@ export default function App() {
             </button>
           </section>
         )}
-        {!setup && shareOpen && (
+        {shareOpen && (
           <section id="share-details" className="cash-panel prose share-panel" aria-label="Share plan">
               <div>
                 <p>
@@ -598,28 +579,6 @@ export default function App() {
               </div>
           </section>
         )}
-        {setup && !pendingLink && (
-          <QuickSetup
-            onExample={() => {
-              setStartupScenario(null);
-              setStartupInputs(emptyStartupSession().inputs);
-              setAllowInitialPreset(true);
-              setSetup(false);
-              setExample(true);
-              focusSection("planner-input-heading");
-            }}
-            onComplete={(plan, startup) => {
-              setState(plan);
-              setStartupInputs(emptyStartupSession().inputs);
-              setStartupScenario(startup ? 0 : null);
-              setSetup(false);
-              setExample(false);
-              setAllowInitialPreset(false);
-              focusSection("planner-input-heading");
-            }}
-          />
-        )}
-        {!setup && (
           <div className="workspace-layout">
             <ResultsNavigation
               destination={destination}
@@ -822,7 +781,6 @@ export default function App() {
               </div>
             </div>
           </div>
-        )}
 
         <AppFooter
           ready={shareReady}

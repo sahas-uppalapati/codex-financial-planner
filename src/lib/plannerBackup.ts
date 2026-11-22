@@ -1,18 +1,23 @@
 import { loadPlanner, PLANNER_KEY, savePlanner } from "./plannerStorage";
 import type { PlannerV2 } from "./planner";
 
-const FORMAT = "careerworth-plan";
-const FORMAT_VERSION = 2;
 import {
   emptyStartupSession,
   parseStartupSession,
   type StartupSession,
 } from "./startupComparison";
+const FORMAT = "careerworth-plan";
+const FORMAT_VERSION = 2;
+
 export interface PlannerSession {
   planner: PlannerV2;
   startup: StartupSession;
 }
 export const MAX_BACKUP_BYTES = 5 * 1024 * 1024;
+
+export function backupFitsSizeLimit(raw: string): boolean {
+  return raw.length <= MAX_BACKUP_BYTES && new TextEncoder().encode(raw).byteLength <= MAX_BACKUP_BYTES;
+}
 
 /** Export only a valid, restorable plan; drafts stay in the editor. */
 export function exportPlannerBackup(
@@ -55,7 +60,7 @@ export function exportPlannerBackup(
 
 /** Validate and migrate a backup before returning it; never write to browser storage here. */
 export function importPlannerBackup(raw: string): PlannerSession {
-  if (new TextEncoder().encode(raw).byteLength > MAX_BACKUP_BYTES)
+  if (!backupFitsSizeLimit(raw))
     throw new Error("Backup is too large.");
   try {
     const data: unknown = JSON.parse(raw);

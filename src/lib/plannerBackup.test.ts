@@ -83,7 +83,7 @@ describe("portable planner backup", () => {
       importPlannerBackup(JSON.stringify({ ...wrapper, planner: plan })),
     ).toThrow();
     expect(() => exportPlannerBackup(plan)).toThrow();
-    expect(() => importPlannerBackup("x".repeat(MAX_BACKUP_BYTES + 1))).toThrow(
+    expect(() => importPlannerBackup("é".repeat(MAX_BACKUP_BYTES / 2 + 1))).toThrow(
       "too large",
     );
   });

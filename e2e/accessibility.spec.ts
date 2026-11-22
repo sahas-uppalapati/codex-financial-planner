@@ -31,13 +31,11 @@ for (const route of [
     await audit(page);
     if (route !== "/") return;
     test.setTimeout(90000);
-    await page.getByRole("button", { name: "Explore an example" }).click();
     await page.getByRole("button", { name: "Add comparison" }).click();
     await page.getByRole("button", { name: "Expand all sections" }).click();
     await page.getByLabel("This is a startup offer").check();
     for (const theme of ["light", "dark"]) {
       await page.getByLabel("Appearance").selectOption(theme);
-      await page.getByText("Explore what-ifs", { exact: true }).click();
       await page.getByText("Salary-gap calculator", { exact: true }).click();
       await audit(page);
       await page

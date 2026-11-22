@@ -2,7 +2,7 @@ import {
   defaultState as legacyDefaults,
   scenarioErrors,
   sharedErrors,
-  categoryKeys,
+  monthlyExpenses,
 } from "./model";
 import type { Scenario, Assumptions } from "./model";
 import type { PersonRetirementProfile, RetirementAccountType, StartingAccountBalance } from "./retirement";
@@ -129,6 +129,7 @@ export interface CareerEvent {
   bonus: string;
   growth: string;
   awardValue: string;
+  promotionTargetTc?: string;
   awardTemplate: string;
   awardTreatment: SaleTreatment;
   refresherValue: string;
@@ -187,18 +188,25 @@ export const emptyBenefits = (): Benefits => ({
   health: "0",
   hsa: "0",
 });
+export function immediateEmployerMatch(rate: string, payPercent: string, cap = "0"): EmployerMatch {
+  return {
+    type: Number(rate) > 0 ? "simple" : "none",
+    rate,
+    payPercent,
+    cap,
+    tiers: [],
+    vestingType: "immediate",
+    vestingSchedule: ["100"],
+  };
+}
+
 export function defaultEmployerMatch(): EmployerMatch {
   return {
-    type: "simple",
-    rate: "50",
-    payPercent: "6",
-    cap: "0",
+    ...immediateEmployerMatch("50", "6"),
     tiers: [
       { rate: "100", payPercent: "3" },
       { rate: "50", payPercent: "2" },
     ],
-    vestingType: "immediate",
-    vestingSchedule: ["100"],
   };
 }
 
@@ -533,7 +541,7 @@ export function plannerScenarioErrors(
     (s.grants.length > 0 ||
       s.refreshers.length > 0 ||
       s.events.some(
-        (e) => Number(e.awardValue) > 0 || Number(e.refresherValue) > 0,
+        (e) => Number(e.awardValue) > 0 || Number(e.promotionTargetTc) > 0 || Number(e.refresherValue) > 0,
       ))
   )
     errors.grants =
@@ -586,6 +594,11 @@ export function plannerScenarioErrors(
     }
     for (const k of ["base", "bonus", "awardValue", "refresherValue"] as const)
       check(`${p}.${k}`, e[k]);
+    if (e.promotionTargetTc !== undefined) {
+      check(`${p}.promotionTargetTc`, e.promotionTargetTc);
+      if (e.kind !== "promotion")
+        errors[`${p}.promotionTargetTc`] = "Total compensation top-ups apply to promotions.";
+    }
     check(`${p}.growth`, e.growth, -100, 20);
     check(`${p}.refresherAfter`, e.refresherAfter, 1, 120, true);
     check(`${p}.refresherEvery`, e.refresherEvery, 1, 120, true);
@@ -700,5 +713,5 @@ export function uid(): string {
   return crypto.randomUUID();
 }
 export function totalBudget(s: ScenarioV2): number {
-  return categoryKeys.reduce((sum, k) => sum + Number(s.expenses[k]), 0);
+  return monthlyExpenses(s);
 }
