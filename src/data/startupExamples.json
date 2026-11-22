@@ -1,0 +1,30 @@
+{
+  "source": {
+    "name": "Cadre placement data",
+    "url": "https://www.yourcadre.com/comp"
+  },
+  "options": {
+    "strike": "1.25",
+    "vesting": "cliff"
+  },
+  "offers": [
+    {
+      "id": "series-a",
+      "label": "Series A",
+      "base": "170000",
+      "grant": "16000"
+    },
+    {
+      "id": "series-b",
+      "label": "Series B",
+      "base": "175000",
+      "grant": "12000"
+    },
+    {
+      "id": "series-c",
+      "label": "Series C",
+      "base": "175000",
+      "grant": "8000"
+    }
+  ]
+}

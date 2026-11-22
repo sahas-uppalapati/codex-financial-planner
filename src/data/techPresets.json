@@ -4,6 +4,7 @@
       "id": "google",
       "name": "Google",
       "ticker": "GOOGL",
+      "headquartersLocation": "san-francisco",
       "defaultVestingTemplate": "google-quarterly",
       "matchPolicy": {
         "type": "percent_of_contribution",
@@ -16,6 +17,7 @@
       "id": "meta",
       "name": "Meta",
       "ticker": "META",
+      "headquartersLocation": "san-francisco",
       "defaultVestingTemplate": "quarterly",
       "matchPolicy": {
         "type": "percent_of_contribution",
@@ -28,6 +30,7 @@
       "id": "amazon",
       "name": "Amazon",
       "ticker": "AMZN",
+      "headquartersLocation": "seattle",
       "defaultVestingTemplate": "amazon",
       "matchPolicy": {
         "type": "percent_of_pay",
@@ -40,6 +43,7 @@
       "id": "apple",
       "name": "Apple",
       "ticker": "AAPL",
+      "headquartersLocation": "san-francisco",
       "defaultVestingTemplate": "semiannual",
       "matchPolicy": {
         "type": "percent_of_pay",
@@ -52,13 +56,26 @@
       "id": "microsoft",
       "name": "Microsoft",
       "ticker": "MSFT",
+      "headquartersLocation": "seattle",
       "defaultVestingTemplate": "annual",
       "matchPolicy": {
         "type": "percent_of_contribution",
         "rate": 50,
         "dollarCap": 11750,
         "description": "50% match up to IRS contribution limit (~$11,750/yr)"
-      }
+      },
+      "supportsProgression": false
+    }
+  ],
+  "compensationOverrides": [
+    {
+      "companyId": "amazon",
+      "levelId": "l4",
+      "scope": "Greater Seattle Area",
+      "base": 129000,
+      "grantTotal": 109000,
+      "year1SignOn": 54000,
+      "year2SignOn": 33000
     }
   ],
   "techLevels": {
@@ -68,21 +85,21 @@
         "level": "L3",
         "title": "L3 · Software Engineer II",
         "stage": "entry",
-        "experienceYears": 2
+        "experienceYears": 3.11
       },
       {
         "id": "l4",
         "level": "L4",
         "title": "L4 · Software Engineer III",
         "stage": "mid",
-        "experienceYears": 4
+        "experienceYears": 5.52
       },
       {
         "id": "l5",
         "level": "L5",
         "title": "L5 · Senior Software Engineer",
         "stage": "senior",
-        "experienceYears": 7
+        "experienceYears": 9.36
       },
       {
         "id": "l6",
@@ -105,14 +122,14 @@
         "level": "E4",
         "title": "E4 · Software Engineer",
         "stage": "mid",
-        "experienceYears": 4
+        "experienceYears": 4.02
       },
       {
         "id": "e5",
         "level": "E5",
         "title": "E5 · Senior Software Engineer",
         "stage": "senior",
-        "experienceYears": 8
+        "experienceYears": 8.39
       },
       {
         "id": "e6",
@@ -128,21 +145,23 @@
         "level": "L4",
         "title": "L4 · SDE I",
         "stage": "entry",
-        "experienceYears": 2
+        "experienceYears": 2.09
       },
       {
         "id": "l5",
         "level": "L5",
         "title": "L5 · SDE II",
         "stage": "mid",
-        "experienceYears": 5
+        "experienceYears": 6.26,
+        "promotionMonthsFromPrevious": 24
       },
       {
         "id": "l6",
         "level": "L6",
         "title": "L6 · SDE III / Senior",
         "stage": "senior",
-        "experienceYears": 9
+        "experienceYears": 11.3,
+        "promotionMonthsFromPrevious": 60
       },
       {
         "id": "l7",
@@ -158,21 +177,21 @@
         "level": "ICT2",
         "title": "ICT2 · Junior Engineer",
         "stage": "entry",
-        "experienceYears": 2
+        "experienceYears": 2.03
       },
       {
         "id": "ict3",
         "level": "ICT3",
         "title": "ICT3 · Software Engineer",
         "stage": "mid",
-        "experienceYears": 4.5
+        "experienceYears": 4.17
       },
       {
         "id": "ict4",
         "level": "ICT4",
         "title": "ICT4 · Senior Engineer",
         "stage": "senior",
-        "experienceYears": 9
+        "experienceYears": 9.45
       },
       {
         "id": "ict5",
@@ -202,7 +221,8 @@
         "level": "63–64",
         "title": "63–64 · Senior SDE",
         "stage": "senior",
-        "experienceYears": 9
+        "experienceYears": 9,
+        "hasCompensation": false
       },
       {
         "id": "principal",
@@ -222,7 +242,8 @@
       "returns": 5,
       "stockAppreciation": 0,
       "inflation": 2.5,
-      "description": "5% portfolio return, 0% equity growth (flat stock)"
+      "description": "5% portfolio return, 0% equity growth (flat stock)",
+      "minimumReturn": null
     },
     {
       "id": "moderate",
@@ -232,7 +253,8 @@
       "returns": 7,
       "stockAppreciation": 5,
       "inflation": 2.5,
-      "description": "7% portfolio return, 5% annual equity growth"
+      "description": "7% portfolio return, 5% annual equity growth",
+      "minimumReturn": 6.5
     },
     {
       "id": "bull",
@@ -242,7 +264,17 @@
       "returns": 10,
       "stockAppreciation": 10,
       "inflation": 2.5,
-      "description": "10% portfolio return, 10% annual equity growth"
+      "description": "10% portfolio return, 10% annual equity growth",
+      "minimumReturn": 9
     }
-  ]
+  ],
+  "quickOffer": {
+    "initial": {
+      "companyId": "amazon",
+      "levelId": "l4",
+      "locationId": "seattle"
+    },
+    "grantName": "Initial 4-Year New Hire Grant",
+    "sharePrice": "150"
+  }
 }

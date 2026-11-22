@@ -1,6 +1,6 @@
 // Tax year 2026. Snapshot accessed 2026-10-27. Unknown future law is not predicted.
 // Only explicitly indexed parameters are inflated by the user-selected projection assumption.
-export const TAX_VERSION = "US-W2-2026.1";
+export const TAX_VERSION = "US-W2-2026.2";
 export const taxSources = [
   {
     label: "Federal brackets and deductions · IRS",
@@ -76,6 +76,11 @@ export const taxSources = [
     label: "Massachusetts low-income rules",
     url: "https://www.mass.gov/info-details/no-tax-status-and-limited-income-credit",
     note: "No Tax Status and Limited Income Credit included",
+  },
+  {
+    label: "Massachusetts IRA deductions",
+    url: "https://www.mass.gov/info-details/differences-between-ma-and-federal-tax-law-for-personal-income",
+    note: "Traditional IRA contributions are excluded from state deductions",
   },
   {
     label: "Massachusetts PFML",

@@ -75,6 +75,17 @@ function event(p: PlannerV2, patch: Partial<CareerEvent> = {}): CareerEvent {
   };
 }
 describe("monthly career and investment engine", () => {
+  it("includes the two sign-on payments once in the correct calendar years", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.bonus = "0";
+    s.signOnY1 = "40000";
+    s.signOnY2 = "25000";
+    const result = projectScenario(s, p.shared);
+    expect(result.months[0].bonus).toBe(40000);
+    expect(result.rows[0].bonus).toBe(40000);
+    expect(result.rows[1].bonus).toBeCloseTo(25000);
+    expect(result.rows[2].bonus).toBe(0);
+  });
   it("only applies explicit equity departure overrides", () => {
     const p = fixture(), s = p.scenarios[0];
     s.grants = [grant(p, { id: "toString" })];
@@ -153,6 +164,17 @@ describe("monthly career and investment engine", () => {
     expect(r.months[5].bonus).toBe(0);
     expect(r.months[11].bonus).toBeCloseTo(18000);
     expect(r.rows[1].base).toBeCloseTo(210000);
+  });
+  it("pays the starting employer's second-year sign-on only through departure", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.signOnY1 = "20000";
+    s.signOnY2 = "12000";
+    s.events = [event(p, { month: "2027-07", kind: "job", bonus: "0", growth: "0" })];
+    const { rows, months } = projectScenario(s, p.shared);
+    expect(rows[0].bonus).toBe(20000);
+    expect(rows[1].bonus).toBe(6000);
+    expect(months[17].bonus).toBe(1000);
+    expect(months[18].bonus).toBe(0);
   });
   it("does not stack an automatic anniversary raise on explicit promotion salary", () => {
     const p = fixture(),
@@ -334,6 +356,19 @@ describe("monthly career and investment engine", () => {
     expect(projection.rows[0].deductibleIraContribution).toBeCloseTo(625, 8);
     expect(projection.rows[0].unfundedIraContribution).toBeCloseTo(6875, 8);
   });
+  it("funds a December IRA contribution from sold equity after incremental taxes", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.base = "120000";
+    s.tax = "25";
+    s.expenses.housing = "7500";
+    s.retirementTargets.primary.rothIra = "7500";
+    s.grants = [grant(p, { value: "10000", schedule: [{ month: "12", percent: "100" }] })];
+    const { rows, months } = projectScenario(s, p.shared);
+    expect(months[10].rothIraContribution).toBeCloseTo(0);
+    expect(months[11].rothIraContribution).toBeCloseTo(625);
+    expect(rows[0].stockTaxes).toBeCloseTo(2500);
+    expect(rows[0].balances.taxable).toBeCloseTo(6875);
+  });
   it("does not fund mega backdoor contributions from savings without monthly payroll", () => {
     const p = fixture(), s = p.scenarios[0];
     p.shared.years = "1";
@@ -346,6 +381,17 @@ describe("monthly career and investment engine", () => {
     expect(projection.months[0].megaBackdoorContribution).toBe(0);
     expect(projection.months[11].megaBackdoorContribution).toBeCloseTo(1000, 8);
     expect(projection.rows[0].megaBackdoorContribution).toBeCloseTo(1000, 8);
+  });
+  it("applies a separate after-tax additions limit to each job's plan", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.base = "240000";
+    s.retirementTargets.primary.megaBackdoor = "180000";
+    s.retirementTargets.primary.megaBackdoorSupported = true;
+    s.retirementTargets.primary.megaBackdoorRoute = "in-plan";
+    s.events = [event(p, { kind: "job", base: "240000", bonus: "0", growth: "0" })];
+    const { rows, months } = projectScenario(s, p.shared);
+    expect(months.slice(0, 6).reduce((total, month) => total + month.megaBackdoorContribution, 0)).toBeCloseTo(72000);
+    expect(rows[0].megaBackdoorContribution).toBeCloseTo(144000);
   });
   it("routes catch-up dollars to Roth when prior-year sponsoring-employer wages exceed the threshold", () => {
     const p = fixture(), s = p.scenarios[0];
@@ -388,7 +434,7 @@ describe("monthly career and investment engine", () => {
   });
   it("continues employer match across employers and supports employer-specific match formulas", () => {
     const p = fixture(), s = p.scenarios[0];
-    p.shared.years = "2";
+    p.shared.years = "3";
     p.shared.returns = "0";
     s.base = "100000";
     s.bonus = "0";
@@ -422,10 +468,12 @@ describe("monthly career and investment engine", () => {
           vestingSchedule: ["100"],
         },
       }),
+      event(p, { id: "next-job", kind: "job", month: "2028-01", base: "100000", bonus: "0", growth: "0" }),
     ];
     const proj = projectScenario(s, p.shared);
     expect(proj.rows[0].employerMatch).toBeCloseTo(3000, 5);
     expect(proj.rows[1].employerMatch).toBeCloseTo(4000, 5);
+    expect(proj.rows[2].employerMatch).toBeCloseTo(4000, 5);
   });
   it("tracks a spouse match separately through the primary worker's job change", () => {
     const p = fixture(), s = p.scenarios[0];
@@ -444,6 +492,21 @@ describe("monthly career and investment engine", () => {
     expect(result.rows[1].forfeitedMatch).toBe(0);
     expect(result.rows[1].unvestedMatch).toBe(0);
     expect(result.rows[1].balances.retirement).toBeCloseTo(16000);
+  });
+  it("separates vested match principal from the growth that vests with it", () => {
+    const p = fixture(), s = p.scenarios[0];
+    p.shared.returns = "12";
+    s.base = "120000";
+    s.retirementTargets.primary.workplace401k.mode = "dollars";
+    s.retirementTargets.primary.workplace401k.amount = "12000";
+    s.employerMatch = { type: "simple", rate: "100", payPercent: "10", cap: "0", tiers: [], vestingType: "cliff-2", vestingSchedule: ["0", "100"] };
+    const { rows } = projectScenario(s, p.shared);
+    const [before, after] = rows;
+    expect(before.vestedEmployerMatch).toBe(0);
+    expect(after.vestedEmployerMatch).toBeCloseTo(24000);
+    expect(after.endingBalance - after.openingBalance).toBeCloseTo(
+      after.surplus + after.retirementContribution + after.vestedEmployerMatch + after.investmentGain,
+    );
   });
   it("applies each employer's annual match cap separately after a midyear change", () => {
     const p = fixture(), s = p.scenarios[0];
@@ -527,6 +590,29 @@ describe("monthly career and investment engine", () => {
   });
 });
 describe("vesting, grant overlap and departures", () => {
+  it("tops up only shortfalls after scheduled vesting and salary growth", () => {
+    const p = fixture(), s = p.scenarios[0];
+    s.issuers[0].appreciation = "10";
+    s.grants = [grant(p, {
+      schedule: [
+        { month: "24", percent: "20" },
+        { month: "36", percent: "40" },
+        { month: "48", percent: "40" },
+      ],
+    })];
+    s.events = [event(p, { month: "2027-01", growth: "1", promotionTargetTc: "250000" })];
+
+    const result = projectScenario(s, p.shared);
+    const award = result.equity.grants.find((g) => g.id === "promotion:award");
+    expect(award?.schedule.map((vest) => vest.month)).toEqual(["3", "6", "9", "12", "39", "42", "45", "48"]);
+    const [first, second, third, fourth] = result.rows.slice(1, 5);
+    expect(first.grossIncome).toBeCloseTo(250000);
+    expect(second.grossIncome).toBeGreaterThan(250000);
+    expect(third.grossIncome).toBeGreaterThan(250000);
+    expect(fourth.grossIncome).toBeCloseTo(250000);
+    expect(result.rows[5].stockGross).toBe(0);
+    expect(buildEquity(s, { ...p.shared, years: "2" }).grants).toContainEqual(award);
+  });
   it.each(vestingTemplates)(
     "validates the complete reported template $id",
     (t) => expect(scheduleError(t.schedule)).toBeUndefined(),
@@ -622,6 +708,9 @@ describe("vesting, grant overlap and departures", () => {
       25000, 35000, 45000, 45000, 20000, 10000,
     ]);
     expect(r.rows[6].stockGross).toBe(0);
+    s.refreshers[0].untilNextRole = true;
+    s.events = [event(p, { month: "2026-01" })];
+    expect(buildEquity(s, p.shared).grants.map(({ id }) => id)).toEqual(["grant"]);
   });
   it("forfeits unvested grants at departure and supports individual retention", () => {
     const p = fixture(),

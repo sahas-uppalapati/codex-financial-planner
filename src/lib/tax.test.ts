@@ -156,6 +156,15 @@ describe("independent 2026 W-2 tax fixtures", () => {
       0,
     );
     expect(joint.stateTaxable).toBe(89200);
+    const spousalIra = calculateTaxes(
+      [worker(100000), { ...worker(0), deductibleIra: 7500 }],
+      { ...profile("boston"), filing: "joint" },
+      2026,
+      0,
+    );
+    expect(spousalIra.federalTaxable).toBe(joint.federalTaxable - 7500);
+    expect(spousalIra.stateIncome).toBe(joint.stateIncome);
+    expect(spousalIra.socialSecurity).toBe(joint.socialSecurity);
   });
   it("applies MA no-tax status, limited-income rules and indexed surtax", () => {
     expect(

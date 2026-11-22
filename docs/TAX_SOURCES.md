@@ -1,6 +1,6 @@
 # 2026 tax and vesting references
 
-Snapshot **US-W2-2026.1**. Accessed **October 27, 2026**. These are static planning rules for full-year W-2 residents/workers, single or married-joint, standard deduction, under age 50 and no dependents. Subsequent years project this snapshot; future legislation and other tax-return situations are not modeled.
+Snapshot **US-W2-2026.2**. The original 2026 reference tables were accessed October 27, 2026. IRA and retirement contribution rules were reviewed November 22, 2026. These are static planning rules for full-year W-2 residents/workers, single or married-joint, using the standard deduction with no dependents. Subsequent years project this snapshot. Retirement catch-up rules use confirmed ages separately from the income tax calculation.
 
 ## Federal and benefits
 
@@ -8,6 +8,7 @@ Snapshot **US-W2-2026.1**. Accessed **October 27, 2026**. These are static plann
 - [SSA 2026 fact sheet](https://www.ssa.gov/cola/factsheets/2026.html): 6.2% Social Security on up to $184,500 **per person**, not per employer, plus 1.45% Medicare without a wage ceiling. Wage ceiling indexed.
 - [IRS Additional Medicare](https://www.irs.gov/taxtopics/tc560): 0.9% above fixed combined wage thresholds $200,000 single / $250,000 joint. Employer withholding's $200,000 trigger is not substituted for household liability.
 - [IRS 401(k) limits](https://www.irs.gov/newsroom/401k-limit-increases-to-24500-for-2026-ira-limit-increases-to-7500): under-50 elective deferrals $24,500/person, aggregated across employers. Income-tax exclusion does not exclude ordinary deferrals from FICA wages. [Treatment](https://www.irs.gov/taxtopics/tc424).
+- Traditional IRA deduction and Roth IRA contribution phaseouts round the remaining amount up to the next $10, with a $200 minimum in the phaseout band subject to compensation and the remaining IRA limit. Deductible spousal contributions reduce joint income. After-tax workplace capacity uses §415(c) per unrelated employer plan in the model. [IRS Publication 590-A](https://www.irs.gov/publications/p590a) · [IRS 401(k) and profit-sharing plan limits](https://www.irs.gov/retirement-plans/plan-participant-employee/retirement-topics-401k-and-profit-sharing-plan-contribution-limits)
 - [IRS HSA limits](https://www.irs.gov/irb/2025-21_IRB): $4,400 self-only / $8,750 family; the family limit is shared. [Household and Medicare rules](https://www.irs.gov/publications/p969), [qualified cafeteria-plan payroll treatment](https://www.irs.gov/publications/p15b). A confirmed age of 55 adds a fixed $1,000 catch-up for that owner's account. Medicare enrollment is modeled in the selected month of the year the person turns 65, with the eligible portion of that year prorated; other part-year coverage changes and employer contributions are not modeled.
 
 ## Location-specific income tax
@@ -38,6 +39,7 @@ Snapshot **US-W2-2026.1**. Accessed **October 27, 2026**. These are static plann
 - [DOR rates](https://www.mass.gov/info-details/tax-rates): 5% ordinary income plus 4% surtax above indexed $1,107,750, same threshold for joint filers.
 - [Personal exemptions](https://www.mass.gov/info-details/personal-income-tax-exemptions): $4,400/$8,800, fixed. [FICA deduction](https://www.mass.gov/info-details/social-security-fica-and-medicare-deduction): actual Social Security and Medicare up to $2,000/person; unused spouse allowance is not transferred. HSA treatment conforms federally.
 - [No Tax Status and Limited Income Credit](https://www.mass.gov/info-details/no-tax-status-and-limited-income-credit): NTS AGI thresholds $8,000/$16,400; LIC ceilings $14,000/$28,700. Within LIC range, modeled income tax is the lesser of regular tax and 10% of AGI above the NTS threshold. Thresholds fixed.
+- Massachusetts does not deduct traditional IRA contributions for state income tax. [Massachusetts Department of Revenue](https://www.mass.gov/info-details/differences-between-ma-and-federal-tax-law-for-personal-income)
 - [PFML employee share](https://www.mass.gov/info-details/paid-family-and-medical-leave-employer-contribution-rates-and-calculator): 0.46% capped at the Social Security wage limit per person annually. [Wage reporting](https://www.mass.gov/info-details/wage-contributions-reporting-for-paid-family-and-medical-leave): employee cafeteria-plan salary reductions remain in the PFML contribution base; employer benefit payments are different.
 
 **Washington / Seattle**
@@ -60,4 +62,4 @@ Sources: [general schedule discussion](https://www.levels.fyi/blog/unique-vestin
 
 Historical Amazon 5/15/40/40 uses month offsets 12:5%, 24:15%, and 30/36/42/48:20% each. A reported annual 5/15/45/35 variant is also offered. Google 38/32/20/10 is distributed monthly or quarterly in selectable templates; a historical 33/33/22/12 monthly variant is included. Meta-style quarterly, Apple-style semiannual and Microsoft-style annual examples distribute 25% per year over four years. Custom rows and cliff templates are editable.
 
-The model uses month-resolution, end-of-month events: offset 1 is the end of the grant month and offset 12 is the end of its 12th month. This convention is explicitly displayed and is not a day-level reconstruction of legal vesting dates. Sign-on cash, options, later share sales, capital gains realization and liquidation taxes are excluded.
+The model uses month-resolution, end-of-month vesting. Offset 1 is the end of the grant month and offset 12 is the end of its 12th month. The starting offer can include sign-on cash. Options use a separate illustration. Later share sales, realized capital gains, and liquidation taxes are outside the vesting projection.

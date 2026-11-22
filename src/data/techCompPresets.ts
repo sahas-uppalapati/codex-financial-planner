@@ -1,14 +1,16 @@
 import techPresetData from "./techPresets.json" with { type: "json" };
 import type { TaxLocation, CareerEvent } from "../lib/planner";
-import { compensationPresets, locationPresets } from "./presets";
+import { compensationScopeForLocation, findCompensationPreset, locationPresets } from "./presets";
 import type { Categories } from "../lib/model";
-import { monthLabel, uid } from "../lib/planner";
+import { immediateEmployerMatch, monthLabel, uid } from "../lib/planner";
 
 export interface CompanyPreset {
   id: string;
   name: string;
   ticker: string;
+  headquartersLocation: TaxLocation;
   defaultVestingTemplate: string;
+  supportsProgression?: boolean;
   matchPolicy: {
     type: "percent_of_contribution" | "percent_of_pay";
     rate: number;
@@ -24,6 +26,8 @@ export interface TechLevelPreset {
   title: string;
   stage: "entry" | "mid" | "senior" | "staff";
   experienceYears: number;
+  hasCompensation?: boolean;
+  promotionMonthsFromPrevious?: number;
 }
 
 export interface CompensationDataPoint {
@@ -36,6 +40,7 @@ export interface CompensationDataPoint {
   signOnY1?: number;
   signOnY2?: number;
   grantTotal?: number;
+  usesRoundedInputs?: boolean;
 }
 
 export interface GrowthPreset {
@@ -44,6 +49,7 @@ export interface GrowthPreset {
   shortLabel: string;
   icon: string;
   returns: number;
+  minimumReturn: number | null;
   stockAppreciation: number;
   inflation: number;
   description: string;
@@ -62,49 +68,65 @@ export const techLevels: Record<string, TechLevelPreset[]> = techPresetData.tech
 
 // Compensation is derived from the curated, public Levels.fyi snapshots in compensation.json.
 // Unsupported levels return no value; unsupported cities use a sourced U.S. baseline.
-const companyNames: Record<string, string> = {
-  google: "Google", meta: "Meta", amazon: "Amazon", apple: "Apple", microsoft: "Microsoft",
-};
-const compensationStages: Record<string, Record<string, "entry" | "mid" | "senior">> = {
-  google: { l3: "entry", l4: "mid", l5: "senior" },
-  meta: { e3: "entry", e4: "mid", e5: "senior" },
-  amazon: { l4: "entry", l5: "mid", l6: "senior" },
-  apple: { ict2: "entry", ict3: "mid", ict4: "senior" },
-  microsoft: { sde: "entry", sde2: "mid" },
-};
-const cityScope: Partial<Record<TaxLocation, string>> = {
-  "san-francisco": "San Francisco Bay Area",
-  seattle: "Greater Seattle Area",
-  "new-york": "New York City Area",
-};
+export const techCompensationScope = compensationScopeForLocation;
 
 export function findTechCompPoint(
   companyId: string,
   levelId: string,
   locationId: TaxLocation,
 ): CompensationDataPoint | undefined {
-  const company = companyNames[companyId];
-  const stage = compensationStages[companyId]?.[levelId];
-  if (!company || !stage) return undefined;
-  const scope = cityScope[locationId] ?? "United States";
-  const preset = compensationPresets.find(
-    (item) => item.company === company && item.stage === stage && item.scope === scope,
-  );
+  const company = techCompanies.find((item) => item.id === companyId);
+  if (!company) return undefined;
+  const level = techLevels[company.id]?.find((item) => item.id === levelId);
+  if (!level || level.hasCompensation === false) return undefined;
+  const scope = techCompensationScope(locationId);
+  const preset = findCompensationPreset(company.name, level.stage, scope);
   if (!preset) return undefined;
+  const override = techPresetData.compensationOverrides.find(
+    (entry) => entry.companyId === companyId && entry.levelId === levelId && entry.scope === scope,
+  );
+  // Levels.fyi reports Amazon sign-on averaged over four years, not the
+  // individual payments. Split that total to offset the 5%/15% vest gap,
+  // before raises, as an explicitly illustrative estimate.
+  const signOnTotal = preset.bonus * (preset.signOnYears ?? 0);
+  const signOnY1 = signOnTotal > 0 ? Math.min(signOnTotal, (signOnTotal + preset.stock * 0.4) / 2) : undefined;
+  const signOnY2 = signOnY1 === undefined ? undefined : signOnTotal - signOnY1;
   return {
     companyId,
     levelId,
     locationId,
-    base: preset.base,
+    base: override?.base ?? preset.base,
     // Google's public table reports first-year stock and combined bonus/sign-on;
     // neither is treated as recurring compensation in this planner.
-    annualRsu: preset.stockKind === "annualized" ? preset.stock : 0,
+    annualRsu: override ? override.grantTotal / 4 : preset.stockKind === "annualized" ? preset.stock : 0,
     bonus: preset.bonusProjection,
-    grantTotal: preset.stockKind === "annualized" ? preset.stock * 4 : 0,
+    signOnY1: override?.year1SignOn ?? signOnY1,
+    signOnY2: override?.year2SignOn ?? signOnY2,
+    grantTotal: override?.grantTotal ?? (preset.stock * preset.stockGrantMultiplier),
+    usesRoundedInputs: Boolean(override),
   };
 }
 
+export const quickOffer = techPresetData.quickOffer;
+
 export const growthPresets: GrowthPreset[] = techPresetData.growthPresets as GrowthPreset[];
+
+export function growthPresetForReturn(annualReturn: number): GrowthPreset {
+  return growthPresets.reduce(
+    (selected, preset) => preset.minimumReturn !== null && annualReturn >= preset.minimumReturn
+      ? preset
+      : selected,
+    growthPresets[0],
+  );
+}
+
+export function companyEmployerMatch({ matchPolicy }: CompanyPreset) {
+  return immediateEmployerMatch(
+    String(matchPolicy.rate),
+    String(matchPolicy.payPercentCap ?? 100),
+    String(matchPolicy.dollarCap ?? 0),
+  );
+}
 
 // Reuse the sourced cost-of-living budgets for one adult or two adults with
 // one worker and no children. No hand-estimated rent or geographic multiplier.
@@ -137,10 +159,36 @@ export interface TechProgressionStep {
   isCurrent: boolean;
 }
 
-/**
- * Returns the timeline of promotion steps from the current level onward
- * based on industry average years-of-experience progression.
- */
+function upcomingPromotions(
+  company: CompanyPreset,
+  currentLevelId: string,
+  locationId: TaxLocation,
+  horizonYears: number,
+) {
+  const levels = techLevels[company.id] ?? [];
+  const currentIndex = levels.findIndex((level) => level.id === currentLevelId);
+  const promotions: { level: TechLevelPreset; comp: CompensationDataPoint; elapsedMonths: number; deltaMonths: number }[] = [];
+  if (currentIndex < 0 || company.supportsProgression === false) return promotions;
+
+  let elapsedMonths = 0;
+  for (let i = currentIndex + 1; i < levels.length; i++) {
+    const level = levels[i];
+    const deltaMonths = level.promotionMonthsFromPrevious ?? Math.max(
+      1, Math.round((level.experienceYears - levels[i - 1].experienceYears) * 12),
+    );
+    elapsedMonths += deltaMonths;
+    if (elapsedMonths >= horizonYears * 12) break;
+    const comp = findTechCompPoint(company.id, level.id, locationId);
+    if (!comp) break;
+    promotions.push({ level, comp, elapsedMonths, deltaMonths });
+  }
+  return promotions;
+}
+
+const totalComp = ({ base, bonus, annualRsu }: CompensationDataPoint) => base + bonus + annualRsu;
+const roundedYears = (months: number) => Math.round((months / 12) * 10) / 10;
+
+/** Returns sourced progression steps from the selected level onward. */
 export function getTechProgressionTimeline(
   companyId: string,
   currentLevelId: string,
@@ -148,78 +196,41 @@ export function getTechProgressionTimeline(
   startYear: number = 2026,
   horizonYears: number = 10,
 ): TechProgressionStep[] {
-  const levels = techLevels[companyId] || techLevels.google;
-  const currentIndex = levels.findIndex((l) => l.id === currentLevelId);
-  if (currentIndex < 0) return [];
+  const company = techCompanies.find(({ id }) => id === companyId);
+  if (!company) return [];
+  const current = techLevels[company.id]?.find(({ id }) => id === currentLevelId);
+  const currentComp = findTechCompPoint(company.id, currentLevelId, locationId);
+  if (!current || !currentComp) return [];
 
-  const currentLevel = levels[currentIndex];
-  const currentComp = findTechCompPoint(companyId, currentLevel.id, locationId);
-  if (!currentComp) return [];
-  const currentTc = currentComp.base + currentComp.bonus + currentComp.annualRsu;
-
-  const steps: TechProgressionStep[] = [
-    {
-      levelId: currentLevel.id,
-      levelName: currentLevel.level,
-      title: currentLevel.title,
-      stage: currentLevel.stage,
-      monthsFromStart: 0,
-      yearsFromStart: 0,
-      yearsFromPrev: 0,
-      monthLabel: monthLabel(0, startYear),
-      base: currentComp.base,
-      bonus: currentComp.bonus,
-      annualRsu: currentComp.annualRsu,
-      totalComp: currentTc,
-      compDelta: 0,
-      isCurrent: true,
-    },
+  let previousTotal = totalComp(currentComp);
+  const steps = [
+    { level: current, comp: currentComp, elapsedMonths: 0, deltaMonths: 0 },
+    ...upcomingPromotions(company, currentLevelId, locationId, horizonYears),
   ];
-
-  let elapsedMonths = 0;
-  let prevExp = currentLevel.experienceYears;
-  let prevTc = currentTc;
-
-  for (let i = currentIndex + 1; i < levels.length; i++) {
-    const nextLevel = levels[i];
-    const deltaMonths = Math.max(1, Math.round((nextLevel.experienceYears - prevExp) * 12));
-    elapsedMonths += deltaMonths;
-    if (elapsedMonths >= horizonYears * 12) break;
-
-    const nextComp = findTechCompPoint(companyId, nextLevel.id, locationId);
-    if (!nextComp) break;
-    const nextTc = nextComp.base + nextComp.bonus + nextComp.annualRsu;
-    const yearsFromStart = Math.round((elapsedMonths / 12) * 10) / 10;
-    const yearsFromPrev = Math.round((deltaMonths / 12) * 10) / 10;
-
-    steps.push({
-      levelId: nextLevel.id,
-      levelName: nextLevel.level,
-      title: nextLevel.title,
-      stage: nextLevel.stage,
+  return steps.map(({ level, comp, elapsedMonths, deltaMonths }, index) => {
+    const total = totalComp(comp);
+    const compDelta = total - previousTotal;
+    previousTotal = total;
+    return {
+      levelId: level.id,
+      levelName: level.level,
+      title: level.title,
+      stage: level.stage,
       monthsFromStart: elapsedMonths,
-      yearsFromStart,
-      yearsFromPrev,
+      yearsFromStart: roundedYears(elapsedMonths),
+      yearsFromPrev: roundedYears(deltaMonths),
       monthLabel: monthLabel(elapsedMonths, startYear),
-      base: nextComp.base,
-      bonus: nextComp.bonus,
-      annualRsu: nextComp.annualRsu,
-      totalComp: nextTc,
-      compDelta: nextTc - prevTc,
-      isCurrent: false,
-    });
-
-    prevExp = nextLevel.experienceYears;
-    prevTc = nextTc;
-  }
-
-  return steps;
+      base: comp.base,
+      bonus: comp.bonus,
+      annualRsu: comp.annualRsu,
+      totalComp: total,
+      compDelta,
+      isCurrent: index === 0,
+    };
+  });
 }
 
-/**
- * Builds CareerEvent promotions for 1-click tech presets based on standard promotion intervals.
- * Automatically respects manual events and truncates at any manual collision.
- */
+/** Builds preset promotions up to the first manually entered career event. */
 export function buildTechProgressionEvents(
   companyId: string,
   levelId: string,
@@ -230,39 +241,27 @@ export function buildTechProgressionEvents(
   existingEvents: CareerEvent[] = [],
   growth: string = "0",
 ): CareerEvent[] {
-  const company = techCompanies.find((c) => c.id === companyId) || techCompanies[0];
-  const levels = techLevels[companyId] || techLevels.google;
-  const currentIndex = levels.findIndex((l) => l.id === levelId);
-  if (currentIndex < 0 || currentIndex >= levels.length - 1) {
-    // Terminal level or unknown: keep only manual events
-    return existingEvents.filter((e) => !e.presetProgression);
-  }
+  const manualEvents = existingEvents.filter((event) => !event.presetProgression);
+  const company = techCompanies.find(({ id }) => id === companyId);
+  if (!company) return manualEvents;
+  const promotions = upcomingPromotions(company, levelId, locationId, horizonYears);
+  if (!promotions.length) return manualEvents;
 
-  const currentLevel = levels[currentIndex];
-  let elapsedMonths = 0;
-  let prevExp = currentLevel.experienceYears;
-  const proposed: CareerEvent[] = [];
-
-  for (let i = currentIndex + 1; i < levels.length; i++) {
-    const nextLevel = levels[i];
-    const deltaMonths = Math.max(1, Math.round((nextLevel.experienceYears - prevExp) * 12));
-    elapsedMonths += deltaMonths;
-    if (elapsedMonths >= horizonYears * 12) break;
-
-    const nextComp = findTechCompPoint(companyId, nextLevel.id, locationId);
-    if (!nextComp) break;
-    const awardValue = nextComp.annualRsu * 4;
-
-    proposed.push({
+  const generated: CareerEvent[] = [];
+  for (const { level, comp, elapsedMonths } of promotions) {
+    const month = monthLabel(elapsedMonths, startYear);
+    if (manualEvents.some((event) => event.month <= month)) break;
+    generated.push({
       id: uid(),
       kind: "promotion",
-      month: monthLabel(elapsedMonths, startYear),
+      month,
       issuerId: employerId,
-      role: `${nextLevel.title} at ${company.name}`,
-      base: String(nextComp.base),
-      bonus: String(nextComp.bonus),
+      role: level.title + ' at ' + company.name,
+      base: String(comp.base),
+      bonus: String(comp.bonus),
       growth,
-      awardValue: String(awardValue),
+      awardValue: "0",
+      promotionTargetTc: comp.annualRsu > 0 ? String(totalComp(comp)) : undefined,
       awardTemplate: company.defaultVestingTemplate,
       awardTreatment: "sell",
       refresherValue: "0",
@@ -272,14 +271,6 @@ export function buildTechProgressionEvents(
       refresherTreatment: "sell",
       presetProgression: company.id,
     });
-
-    prevExp = nextLevel.experienceYears;
   }
-
-  const manualEvents = existingEvents.filter((e) => !e.presetProgression);
-  const collision = proposed.findIndex((event) =>
-    manualEvents.some((manual) => manual.month <= event.month),
-  );
-  const generated = proposed.slice(0, collision < 0 ? proposed.length : collision);
   return [...manualEvents, ...generated].sort((a, b) => a.month.localeCompare(b.month));
 }

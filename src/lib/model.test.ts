@@ -189,6 +189,9 @@ describe("editable field validation", () => {
     expect(fieldError("100.123", "base")).toBeUndefined();
     expect(fieldError("-99.9", "returns")).toBeUndefined();
     expect(fieldError("-99.999", "returns")).toBeUndefined();
+    expect(fieldError("40", "returns")).toBeUndefined();
+    expect(fieldError("100", "returns")).toBeUndefined();
+    expect(fieldError("101", "returns")).toBeDefined();
   });
   it("rejects category totals above the expense limit", () => {
     const s = defaultState().scenarios[0];

@@ -79,7 +79,7 @@ export const limits = {
   monthlyExpenses: [0, 1_000_000],
   starting: [0, 10_000_000],
   years: [1, 40],
-  returns: [-100, 30],
+  returns: [-100, 100],
   inflation: [0, 20],
 } as const;
 export type NumericField = keyof typeof limits;
@@ -93,13 +93,13 @@ export function fieldError(
   const n = Number(value),
     [min, max] = limits[key];
   if (key === "returns" && Number.isFinite(n) && n <= -100)
-    return "Use a return greater than −100% and at most 30%.";
+    return "Use a return greater than −100% and at most 100%.";
   if (!Number.isFinite(n) || n < min || n > max)
     return `Use ${min.toLocaleString("en-US")} to ${max.toLocaleString("en-US")}${["growth", "tax", "returns", "inflation"].includes(key) ? "%" : ""}.`;
   if (key === "years" && !Number.isInteger(n))
     return "Use a whole number of years.";
 }
-export function monthlyExpenses(s: Scenario): number {
+export function monthlyExpenses(s: Pick<Scenario, "expenses">): number {
   return categoryKeys.reduce((sum, k) => sum + Number(s.expenses[k]), 0);
 }
 export function scenarioErrors(s: Scenario): Record<string, string> {

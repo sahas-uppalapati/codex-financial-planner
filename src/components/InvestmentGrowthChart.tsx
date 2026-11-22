@@ -26,7 +26,6 @@ export function InvestmentGrowthChart({
       {series.map((scenario) => {
         let cumulativeAdded = 0;
         let cumulativeGrowth = 0;
-        let previousUnvestedMatch = 0;
         const points = scenario.projection.rows.map((row) => {
           const added =
             row.surplus +
@@ -38,10 +37,7 @@ export function InvestmentGrowthChart({
             row.traditionalIraContribution +
             row.rothIraContribution +
             row.megaBackdoorContribution +
-            row.employerMatch -
-            row.forfeitedMatch -
-            (row.unvestedMatch - previousUnvestedMatch);
-          previousUnvestedMatch = row.unvestedMatch;
+            row.vestedEmployerMatch;
           const growth = row.endingBalance - row.openingBalance - added;
           cumulativeAdded += added;
           cumulativeGrowth += growth;

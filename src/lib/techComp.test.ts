@@ -1,3 +1,4 @@
+import { templateSchedule } from "../data/vesting";
 import { describe, expect, it, vi } from "vitest";
 import { computeTechReality, computeVestingSchedule, getStatutoryStateSupplementalRate } from "./techComp";
 import type { TechRealityInput } from "./techComp";
@@ -22,22 +23,18 @@ vi.mock("../data/techPresets.json", async (importOriginal) => {
 vi.mock("../data/presets", async (importOriginal) => {
   const original = await importOriginal<typeof import("../data/presets")>();
   const example = original.compensationPresets[0];
-  return { ...original, compensationPresets: [
+  const presets = [
     { ...example, company: "Google", stage: "entry", scope: "United States", base: 100000, stock: 20000, bonusProjection: 5000, stockKind: "annualized" },
     { ...example, company: "Google", stage: "mid", scope: "United States", base: 150000, stock: 30000, bonusProjection: 10000, stockKind: "annualized" },
-  ] };
+  ];
+  return { ...original, findCompensationPreset: (company: string, stage: string, scope: string) =>
+    presets.find((preset) => preset.company === company && preset.stage === stage && preset.scope === scope),
+  };
 });
 
 describe("techComp calculations", () => {
   it("computes accurate 4-year vesting schedule for Amazon historical 5/15/40/40", () => {
-    const amazonSchedule = [
-      { month: "12", percent: "5" },
-      { month: "24", percent: "15" },
-      { month: "30", percent: "20" },
-      { month: "36", percent: "20" },
-      { month: "42", percent: "20" },
-      { month: "48", percent: "20" },
-    ];
+    const amazonSchedule = templateSchedule("amazon-historical");
     const result = computeVestingSchedule(100000, amazonSchedule, 400000);
     expect(result).toHaveLength(4);
     expect(result[0]).toEqual({ year: 1, percent: 5, value: 20000 });
@@ -47,14 +44,7 @@ describe("techComp calculations", () => {
   });
 
   it("computes accurate 4-year vesting schedule for Amazon current 5/15/45/35 offer", () => {
-    const amazonSchedule = [
-      { month: "12", percent: "5" },
-      { month: "24", percent: "15" },
-      { month: "30", percent: "23" },
-      { month: "36", percent: "22" },
-      { month: "42", percent: "18" },
-      { month: "48", percent: "17" },
-    ];
+    const amazonSchedule = templateSchedule("amazon");
     const result = computeVestingSchedule(27250, amazonSchedule, 109000);
     expect(result).toHaveLength(4);
     expect(result[0]).toEqual({ year: 1, percent: 5, value: 5450 });
@@ -175,7 +165,7 @@ describe("techComp calculations", () => {
       expect(events).toHaveLength(1);
       expect(events[0]).toMatchObject({
         kind: "promotion", month: "2028-01", issuerId: "emp-1",
-        base: "150000", bonus: "10000", awardValue: "120000",
+        base: "150000", bonus: "10000", awardValue: "0", promotionTargetTc: "190000",
         awardTemplate: "google-quarterly", presetProgression: "google",
       });
       expect(getTechProgressionTimeline("google", "l5", "columbus", 2026, 10)).toEqual([]);

@@ -24,3 +24,10 @@ export const compactMoney = (n: number) =>
 
 export const percent = (n: number) =>
   percentFormatter.format(n);
+
+const dateFormatter = new Intl.DateTimeFormat("en-US", {
+  dateStyle: "long",
+  timeZone: "UTC",
+});
+
+export const sourceDate = (isoDate: string) => dateFormatter.format(new Date(isoDate));

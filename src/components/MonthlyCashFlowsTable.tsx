@@ -48,6 +48,7 @@ export function MonthlyCashFlowsTable({
                       "Stock invested",
                       "Equity retained",
                       "Forfeited awards",
+                      "Taxable cash & investments",
                       "Total balance",
                       "Grant vesting",
                     ].map((h) => (
@@ -74,6 +75,7 @@ export function MonthlyCashFlowsTable({
                         m.stockContribution,
                         m.heldContribution,
                         m.forfeitedEquity,
+                        m.balances.taxable,
                         m.endingBalance,
                       ].map((v, i) => (
                         <td key={i} className={v < 0 ? "negative" : ""}>

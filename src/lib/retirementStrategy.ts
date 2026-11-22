@@ -492,7 +492,7 @@ export function calculateRetirementStrategy(
     totalStrategy401k,
   );
   const megaBackdoorCap = enableMegaBackdoor
-    ? definedContributionRoom(limits, baseSalary, totalStrategy401k, fullPotentialMatch)
+    ? definedContributionRoom(limits, baseSalary, Math.min(totalStrategy401k, limits.employeeDeferral), fullPotentialMatch)
     : 0;
 
   const tier5Allocated = enableMegaBackdoor ? Math.min(remaining, megaBackdoorCap) : 0;

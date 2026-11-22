@@ -40,7 +40,6 @@ async function getPostHog(): Promise<PostHog | null> {
   if (!key) return null;
   if (!posthogPromise) {
     posthogPromise = import("posthog-js").then(({ default: posthog }) => {
-      if (!analyticsConsent()) return null;
       posthog.init(key, {
         api_host: import.meta.env.VITE_POSTHOG_HOST || "https://us.i.posthog.com",
         autocapture: false,
@@ -74,7 +73,6 @@ export function enableAnalytics() {
   optedOut = false;
   void getPostHog().then((client) => {
     if (!client || !analyticsConsent()) return;
-    client.opt_in_capturing();
     client.capture("analytics_consent_granted");
   });
   return true;
@@ -87,15 +85,16 @@ export function disableAnalytics() {
   } catch {
     // The opt-out still applies to this page if storage is unavailable.
   }
-  if (posthogClient) {
-    posthogClient.opt_out_capturing();
-    posthogClient.reset();
-  }
+}
+
+/** Count the planner load without recording user interactions or financial inputs. */
+export function trackVisit() {
+  if (!analyticsConfigured()) return;
+  void getPostHog().then((client) => client?.capture("$pageview"));
 }
 
 export function track(
   event:
-    | "app_opened"
     | "view_mode_changed"
     | "comparison_added"
     | "share_link_created"

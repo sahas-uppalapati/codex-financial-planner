@@ -15,6 +15,7 @@ import type { Destination } from "./ResultsNavigation";
 import type { PlannerV2 } from "../lib/planner";
 import { monthIndex } from "../lib/planner";
 import type { Projection } from "../lib/projection";
+import { issuerPrice } from "../lib/equity";
 import { money } from "../lib/format";
 import { exportProjection } from "../lib/plannerCsv";
 import { ProjectionChart } from "./ProjectionChart";
@@ -299,22 +300,6 @@ export function Results({
                 </p>
               </div>
               <div className="projection-chart-carousel">
-                <ProjectionChart
-                  series={chartSeries}
-                  starting={series[0].projection.startingTotal}
-                />
-                {series.length === 1 && (
-                  <div className="forecast-endpoints">
-                    <span>
-                      Starting balance{" "}
-                      <strong>{money(series[0].projection.startingTotal)}</strong>
-                    </span>
-                    <span>
-                      End of {startYear + years - 1}{" "}
-                      <strong>{money(final[0].endingBalance)}</strong>
-                    </span>
-                  </div>
-                )}
                 <div className="chart-legend">
                   <span>
                     <i className="legend-line contribution-line" />
@@ -328,10 +313,6 @@ export function Results({
                     <i className="legend-line total-line" />
                     Total balance
                   </span>
-                  <span>
-                    <i className="legend-line growth-line" />
-                    Investment growth
-                  </span>
                   {series.length > 1 && series.map((s) => (
                     <span key={s.index}>
                       <i className={`legend-line series-${s.index}`} />
@@ -339,6 +320,10 @@ export function Results({
                     </span>
                   ))}
                 </div>
+                <ProjectionChart
+                  series={chartSeries}
+                  starting={series[0].projection.startingTotal}
+                />
               </div>
               <details>
                 <summary>About the portfolio projection</summary>
@@ -346,7 +331,8 @@ export function Results({
                   Balances include investments and vested stock before future
                   sale or withdrawal taxes. Negative taxable balances are
                   unfunded shortfalls; held shares and retirement accounts are
-                  not automatically sold to cover spending.
+                  not automatically sold to cover spending. The area between
+                  contributions after shortfalls and the total represents investment growth.
                 </p>
               </details>
             </Card>
@@ -438,6 +424,40 @@ export function Results({
             </Card>
           </div>
 
+            <section className="cash-panel career-timeline" aria-labelledby="timeline-heading">
+              <h3 id="timeline-heading">Career and compensation by year</h3>
+              <p className="hint">Projected pay earned before taxes in each calendar year. If your role changes midyear, base pay includes time in both roles. Scroll to see all columns.</p>
+              {series.map((item) => {
+                const scenario = state.scenarios[item.index];
+                return <div className="timeline-scenario" key={item.index}>
+                  {series.length > 1 && <h4>{item.name}</h4>}
+                  <div className="table-scroll timeline-scroll" role="region" aria-label={`${item.name} career and compensation`} tabIndex={0}>
+                    <table>
+                      <caption className="sr-only">Annual career and compensation for {item.name}</caption>
+                      <thead><tr>
+                        <th scope="col">Year</th><th scope="col">Role at year end</th><th scope="col">Base earned</th><th scope="col">Recurring bonus</th><th scope="col">Sign-on pay</th><th scope="col">Stock vested</th><th scope="col">Total compensation</th><th scope="col">Stock awarded</th>
+                      </tr></thead>
+                      <tbody>{item.projection.rows.map((row) => {
+                        const awarded = item.projection.equity.grants
+                          .filter((grant) => Number(grant.month.slice(0, 4)) === row.calendarYear)
+                          .reduce((sum, grant) => {
+                            if (grant.units === "dollars") return sum + Number(grant.value);
+                            const issuer = scenario.issuers.find((entry) => entry.id === grant.issuerId);
+                            return sum + (issuer ? Number(grant.value) * issuerPrice(issuer, monthIndex(grant.month, startYear)) : 0);
+                          }, 0);
+                        return <tr key={row.calendarYear}>
+                          <th scope="row">{row.calendarYear}</th>
+                          <td className="timeline-role">{row.role || scenario.role || scenario.name}</td>
+                          <td>{money(row.base)}</td><td>{money(row.bonus - row.signOn)}</td><td>{money(row.signOn)}</td>
+                          <td>{money(row.stockGross)}</td><td>{money(row.cashGross - row.spouseCash + row.stockGross)}</td><td>{money(awarded)}</td>
+                        </tr>;
+                      })}</tbody>
+                    </table>
+                  </div>
+                </div>;
+              })}
+              <p className="hint timeline-note">Total compensation adds base pay, recurring bonus, sign-on pay and stock vested that year; it excludes spouse pay and employer benefits. Stock awarded is the value of new grants at award, not income for that year, and is not added to total compensation until it vests. Share grants use the modeled share price. A midyear change blends pay from both roles; the role shown is the one held at year end. Startup options are excluded.</p>
+            </section>
           <DecisionTools
             state={state}
             year={activeYear}
@@ -452,30 +472,6 @@ export function Results({
           />
           <ResultInsights series={series} year={activeYear} view="comparison" />
 
-          {state.scenarios
-            .slice(0, state.comparison ? 2 : 1)
-            .some((s) => s.events.length > 0) && (
-            <details className="cash-panel">
-              <summary>Career timeline markers</summary>
-              {state.scenarios
-                .slice(0, state.comparison ? 2 : 1)
-                .map((s, i) => (
-                  <div key={i}>
-                    <h3>{s.name}</h3>
-                    <ol className="timeline-list">
-                      {s.events.map((e) => (
-                        <li key={e.id}>
-                          {e.month} ·{" "}
-                          {e.kind === "job" ? "Change employer" : "Promotion"} ·{" "}
-                          {e.role} · {money(Number(e.base))} base +{" "}
-                          {money(Number(e.bonus))} annual bonus
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                ))}
-            </details>
-          )}
         </>
       )}
       {destination !== "overview" && (

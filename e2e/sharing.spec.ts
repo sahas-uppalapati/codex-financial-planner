@@ -6,7 +6,6 @@ test("explicit links preview and require confirmation", async ({
   browser,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore an example" }).click();
   await page.getByLabel("Annual base salary").fill("185000");
   await page.getByLabel("This is a startup offer").check();
   await page.getByLabel("Number of options").fill("1234");
@@ -28,7 +27,7 @@ test("explicit links preview and require confirmation", async ({
   ).toBeVisible();
   await recipient.getByRole("button", { name: "Keep current plan" }).click();
   await expect(
-    recipient.getByRole("button", { name: "Enter my offer" }),
+    recipient.getByLabel("Annual base salary"),
   ).toBeVisible();
   await recipient.goto(link);
   await recipient.getByRole("button", { name: "Load shared estimate" }).click();
@@ -43,7 +42,6 @@ test("invalid and partial links preserve the saved plan until confirmed", async 
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore an example" }).click();
   await page.getByLabel("Annual base salary").fill("185000");
   await page.goto("/?plan=invalid");
   await expect(page.getByLabel("Annual base salary")).toHaveValue("185000");
@@ -69,20 +67,15 @@ test("an unreadable plan is kept until the user chooses a replacement", async ({
   await expect.poll(() => page.evaluate(() => localStorage.getItem("careerworth:v3"))).not.toBe("{broken");
 });
 
-test("personal setup starts neutral and restores both startup input sets from backup", async ({
+test("a fresh plan ignores orphaned startup inputs and restores both input sets from backup", async ({
   page,
 }) => {
   const orphaned = emptyStartupSession();
   orphaned.inputs[0].grant = "9999";
   await page.addInitScript((saved) => localStorage.setItem("careerworth:startup-v1", JSON.stringify(saved)), orphaned);
   await page.goto("/");
-  await page.getByRole("button", { name: "Enter my offer" }).click();
   await page.getByLabel("Annual base salary").fill("165000");
-  await page.getByLabel("Annual bonus").fill("");
-  await page.getByLabel("Starting investments").fill("");
-  await page.getByLabel("Monthly expenses", { exact: true }).fill("4000");
-  await page.getByLabel("Equity type").selectOption("startup");
-  await page.getByRole("button", { name: "Continue to planner" }).click();
+  await page.getByLabel("This is a startup offer").check();
   await expect(page.getByLabel("This is a startup offer")).toBeChecked();
   await expect(page.getByLabel("Annual base salary")).toHaveValue("165000");
   await expect(page.getByLabel("Number of options")).toHaveValue("");
@@ -102,44 +95,28 @@ test("personal setup starts neutral and restores both startup input sets from ba
     .getByRole("dialog")
     .getByRole("button", { name: "Restore plan" })
     .click();
-  await page.getByRole("button", { name: /Offer B/ }).click();
+  await page.getByRole("button", { name: /Seattle offer/ }).click();
   await expect(page.getByLabel("Number of options")).toHaveValue("5678");
-  await page.getByRole("button", { name: /My offer/ }).click();
+  await page.getByRole("button", { name: /Amazon L4/ }).click();
   await page.getByLabel("This is a startup offer").check();
   await expect(page.getByLabel("Number of options")).toHaveValue("1234");
 });
 
-test("example indicator and isolated what-if respond to the selected year", async ({
+test("example indicator and selected year remain usable", async ({
   page,
 }) => {
   await page.goto("/");
-  await page.getByRole("button", { name: "Explore an example" }).click();
   await expect(page.getByText("Example plan", { exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByText("Example plan", { exact: true })).toBeVisible();
   await page.getByLabel("Annual base salary").fill("185000");
   await expect(page.getByText("Example plan", { exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Add comparison" }).click();
-  const details = page
-    .locator("details")
-    .filter({ has: page.locator("summary", { hasText: "Explore what-ifs" }) });
-  await expect(details).not.toHaveAttribute("open", "");
-  await details.locator("summary").focus();
-  await page.keyboard.press("Enter");
   await page.getByLabel("Results for calendar year").click();
   await page.getByRole("option", { name: "2027" }).click();
   await page.setViewportSize({ width: 320, height: 800 });
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
-  await details.getByLabel("Monthly housing cost").fill("2000");
-  const before = await page.evaluate(() =>
-    localStorage.getItem("careerworth:v3"),
-  );
-  await details.getByRole("button", { name: "Run preview" }).click();
-  await expect(details.getByText(/monthly cash .* →/).first()).toBeVisible();
-  expect(
-    await page.evaluate(() => localStorage.getItem("careerworth:v3")),
-  ).toBe(before);
   await page.getByLabel("Results for calendar year").click();
   await page.getByRole("option", { name: "2026" }).click();
-  await expect(details.getByText(/monthly cash .* →/)).toHaveCount(0);
+  await expect(page.getByLabel("Results for calendar year")).toHaveText("2026");
 });

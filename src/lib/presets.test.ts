@@ -18,6 +18,8 @@ import {
 } from "./model";
 import { loadState, saveState, STORAGE_KEY } from "./storage";
 import { csvCell, projectionCsv } from "./csv";
+import { buildTechProgressionEvents, findTechCompPoint, getTechProgressionTimeline, techCompanies, techLevels } from "../data/techCompPresets";
+import { taxLocations } from "./planner";
 const memoryStorage = () => {
   const data = new Map<string, string>();
   return {
@@ -28,6 +30,44 @@ const memoryStorage = () => {
   };
 };
 describe("presets and persistence", () => {
+  it("models Amazon L4 to L5 after 24 months in both timelines and events", () => {
+    const timeline = getTechProgressionTimeline("amazon", "l4", "seattle", 2026, 10);
+    const events = buildTechProgressionEvents("amazon", "l4", "seattle", "employer", 2026, 10);
+    expect(timeline[1]).toMatchObject({ levelId: "l5", monthsFromStart: 24, monthLabel: "2028-01" });
+    expect(events[0]).toMatchObject({ month: "2028-01", presetProgression: "amazon" });
+    expect(timeline[2]).toMatchObject({ levelId: "l6", monthsFromStart: 84, monthLabel: "2033-01" });
+    expect(events[1].month).toBe("2033-01");
+    expect(buildTechProgressionEvents("amazon", "l5", "seattle", "employer", 2026, 10)[0].month).toBe("2031-01");
+  });
+  it("estimates Amazon sign-on without treating it as recurring bonus", () => {
+    const point = findTechCompPoint("amazon", "l4", "new-york")!;
+    const source = compensationPresets.find((p) => p.company === "Amazon" && p.stage === "entry" && p.scope === "New York City Area")!;
+    expect(point.bonus).toBe(0);
+    expect(point.signOnY1! + point.signOnY2!).toBe(source.bonus * 4);
+    expect(point.signOnY1! - point.signOnY2!).toBeCloseTo(source.stock * 0.4);
+    expect(findTechCompPoint("amazon", "l4", "seattle")).toMatchObject({ base: 129000, grantTotal: 109000, annualRsu: 27250, signOnY1: 54000, signOnY2: 33000, usesRoundedInputs: true });
+    expect(findTechCompPoint("meta", "e3", "seattle")!.signOnY1).toBeUndefined();
+  });
+  it("maps every supported company, level and location to consistent promotion inputs", () => {
+    for (const company of techCompanies) for (const location of taxLocations) for (const level of techLevels[company.id]) {
+      const point = findTechCompPoint(company.id, level.id, location.id);
+      if (!point) continue;
+      expect(point.base).toBeGreaterThan(0);
+      expect(point.grantTotal).toBe(point.annualRsu * 4);
+      const events = buildTechProgressionEvents(company.id, level.id, location.id, "employer", 2026, 10);
+      if (company.id === "microsoft") expect(events).toHaveLength(0);
+      for (const event of events) {
+        const target = techLevels[company.id].find((item) => event.role.startsWith(item.title))!;
+        const targetPay = findTechCompPoint(company.id, target.id, location.id)!;
+        expect(Number(event.base)).toBe(targetPay.base);
+        expect(Number(event.bonus)).toBe(targetPay.bonus);
+        expect(event.awardValue).toBe("0");
+        expect(event.promotionTargetTc).toBe(targetPay.annualRsu > 0
+          ? String(targetPay.base + targetPay.bonus + targetPay.annualRsu)
+          : undefined);
+      }
+    }
+  });
   it("uses the published Los Angeles County budget", () => {
     const la = locationPresets.find((preset) => preset.id === "los-angeles")!;
     expect(la.annualPublished.housing).toBe(22471);
@@ -108,6 +148,8 @@ describe("presets and persistence", () => {
     expect(monthlyExpenses(changed)).toBe(3000);
   });
   it("omits incompatible or unverified presets", () => {
+    expect(findTechCompPoint("constructor", "l4", "seattle")).toBeUndefined();
+    expect(getTechProgressionTimeline("constructor", "l4", "seattle")).toEqual([]);
     expect(
       compensationPresets.every(
         (p) =>

@@ -37,6 +37,8 @@ describe("retirement rule calculations", () => {
     expect(iraEligibility({ ...base, ownWorkplaceCoverage: true }).deductibleTraditionalLimit).toBe(7500);
     expect(iraEligibility({ ...base, ownWorkplaceCoverage: "unsure" }).deductibleTraditionalLimit).toBe(0);
     expect(iraEligibility({ ...base, modifiedAgi: 168000, ownWorkplaceCoverage: false }).rothContributionLimit).toBe(0);
+    expect(iraEligibility({ ...base, modifiedAgi: 167999, ownWorkplaceCoverage: false }).rothContributionLimit).toBe(200);
+    expect(iraEligibility({ ...base, modifiedAgi: 81001, ownWorkplaceCoverage: true }).deductibleTraditionalLimit).toBe(7500);
     expect(iraEligibility({ ...base, ownTaxableCompensation: 5000, ownWorkplaceCoverage: false }).contributionLimit).toBe(5000);
   });
 

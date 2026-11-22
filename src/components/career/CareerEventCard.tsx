@@ -56,7 +56,10 @@ export function CareerEventCard({
         <SelectField
           label="Career event type"
           value={e.kind}
-          onChange={(kind) => patch({ kind: kind as CareerEvent["kind"] })}
+          onChange={(kind) => patch({
+            kind: kind as CareerEvent["kind"],
+            promotionTargetTc: kind === "promotion" ? e.promotionTargetTc : undefined,
+          })}
         >
           <option value="promotion">Promotion at current employer</option>
           <option value="job">Change employer / new employment</option>
@@ -169,26 +172,48 @@ export function CareerEventCard({
         <details>
           <summary>Promotion / new-hire equity award</summary>
           <div className="details-body">
-            <NumberField
-              label="New role total equity award"
-              unit="USD / grant"
-              value={e.awardValue}
-              onChange={(awardValue) => patch({ awardValue })}
-            />
-            <TemplateField
-              label="New role award vesting"
-              value={e.awardTemplate}
-              onChange={(awardTemplate) => patch({ awardTemplate })}
-            />
+            {e.kind === "promotion" && (
+              <SelectField
+                label="Promotion equity award method"
+                value={e.promotionTargetTc === undefined ? "fixed" : "target"}
+                onChange={(method) => patch({
+                  promotionTargetTc: method === "target"
+                    ? String(Number(e.base) + Number(e.bonus))
+                    : undefined,
+                })}
+              >
+                <option value="fixed">Fixed grant</option>
+                <option value="target">Top up to target total compensation</option>
+              </SelectField>
+            )}
+            {e.promotionTargetTc !== undefined ? (
+              <NumberField
+                label="Annual target total compensation"
+                value={e.promotionTargetTc}
+                onChange={(promotionTargetTc) => patch({ promotionTargetTc })}
+                error={errors[`${prefix}.promotionTargetTc`]}
+                hint="Estimates a quarterly-vesting grant to fill each of the first four role years’ gaps after base pay, recurring bonus and scheduled vesting from existing awards."
+              />
+            ) : (
+              <>
+                <NumberField
+                  label="New role total equity award"
+                  unit="USD / grant"
+                  value={e.awardValue}
+                  onChange={(awardValue) => patch({ awardValue })}
+                  hint="Set $0 for no award. To enter a custom schedule, add a standalone equity grant linked to this employment."
+                />
+                <TemplateField
+                  label="New role award vesting"
+                  value={e.awardTemplate}
+                  onChange={(awardTemplate) => patch({ awardTemplate })}
+                />
+              </>
+            )}
             <TreatmentField
               value={e.awardTreatment}
               onChange={(awardTreatment) => patch({ awardTreatment })}
             />
-            <p className="hint">
-              A grant is awarded at the modeled price when this role begins. Set
-              $0 for no award. For custom rows, instead add a standalone equity
-              grant linked to this employment.
-            </p>
           </div>
         </details>
         <details>

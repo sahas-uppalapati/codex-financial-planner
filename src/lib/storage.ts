@@ -8,7 +8,7 @@ import type { PlannerState, Scenario } from "./model";
 import {
   companies,
   stages,
-  compensationPresets,
+  findAppliedCompensation,
   compensationRegions,
   locationPresets,
 } from "../data/presets";
@@ -36,16 +36,11 @@ function isScenario(value: unknown): value is Scenario {
     typeof s.includeStock === "boolean" &&
     !!s.expenses &&
     categoryKeys.every((k) => typeof s.expenses[k] === "string") &&
-    companies.includes(s.company as (typeof companies)[number]) &&
+    companies.includes(s.company) &&
     stages.some((p) => p.id === s.stage) &&
-    compensationRegions.includes(s.compensationLocation as (typeof compensationRegions)[number]) &&
+    compensationRegions.includes(s.compensationLocation) &&
     (s.location === "" || locationPresets.some((p) => p.id === s.location)) &&
-    (s.appliedCompensation === null ||
-      compensationPresets.some(
-        (p) =>
-          p.id === s.appliedCompensation ||
-          `${p.company.toLowerCase()}-${p.stage}` === s.appliedCompensation,
-      )) &&
+    (s.appliedCompensation === null || !!findAppliedCompensation(s.appliedCompensation)) &&
     (s.appliedLocation === null ||
       locationPresets.some((p) => p.id === s.appliedLocation)) &&
     !Object.keys(scenarioErrors(s)).length
@@ -78,11 +73,7 @@ export function loadState(storage: StorageLike): {
       comparison: value.comparison,
       scenarios: value.scenarios.map((s: Scenario) => {
         if (!s.appliedCompensation) return s;
-        const match = compensationPresets.find(
-          (p) =>
-            p.id === s.appliedCompensation ||
-            `${p.company.toLowerCase()}-${p.stage}` === s.appliedCompensation,
-        );
+        const match = findAppliedCompensation(s.appliedCompensation);
         return match && s.appliedCompensation !== match.id
           ? { ...s, appliedCompensation: match.id }
           : s;

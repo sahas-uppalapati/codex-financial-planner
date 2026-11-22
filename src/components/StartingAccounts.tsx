@@ -1,3 +1,4 @@
+import economicPresets from "../data/economicPresets.json";
 import { Field } from "./Field";
 import { NumberField, SelectField } from "./EditorFields";
 import { Button } from "./ui/button";
@@ -66,14 +67,28 @@ export function StartingAccounts({
         <div className="economic-assumptions">
           <NumberField label="Projection start calendar year" unit="January 1" min={2026} max={2036} integer value={a.startYear} onChange={(v) => shared("startYear", v)} />
           <div className="two-cols">
-            <div>
-              <Field label="Annual investment return" unit="%" value={a.returns} onChange={(v) => shared("returns", v)} error={errors.returns} />
-              <div className="quick-chip-row" role="group" aria-label="Investment return presets">{["5", "7", "8.5", "10", "12"].map((pct) => <button key={pct} type="button" className={`chip-btn ${a.returns === pct ? "active" : ""}`} onClick={() => shared("returns", pct)} title={`${pct}% annual return`}>{pct}%</button>)}</div>
-            </div>
-            <div>
-              <Field label="Annual expense inflation" unit="%" value={a.inflation} onChange={(v) => shared("inflation", v)} error={errors.inflation} />
-              <div className="quick-chip-row" role="group" aria-label="Expense inflation presets">{["2", "2.5", "3", "4"].map((pct) => <button key={pct} type="button" className={`chip-btn ${a.inflation === pct ? "active" : ""}`} onClick={() => shared("inflation", pct)} title={`${pct}% annual expense inflation`}>{pct}%</button>)}</div>
-            </div>
+            {(["returns", "inflation"] as const).map((field) => {
+              const preset = economicPresets[field];
+              return (
+                <div key={field}>
+                  <Field label={preset.label} unit="%" value={a[field]} onChange={(value) => shared(field, value)} error={errors[field]} />
+                  <div className="quick-chip-row" role="group" aria-label={preset.groupLabel}>
+                    {preset.values.map((value) => (
+                      <button
+                        key={value}
+                        type="button"
+                        className={a[field] === value ? "chip-btn active" : "chip-btn"}
+                        aria-pressed={a[field] === value}
+                        onClick={() => shared(field, value)}
+                        title={value + '% ' + preset.description}
+                      >
+                        {value}%
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
           <NumberField label="Annual tax-threshold inflation" unit="%" max={10} value={a.taxInflation} onChange={(v) => shared("taxInflation", v)} />
         </div>

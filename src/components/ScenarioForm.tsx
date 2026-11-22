@@ -1,3 +1,4 @@
+import economicPresets from "../data/economicPresets.json";
 import { QuickRetirementPresets } from "./QuickRetirementPresets";
 import { Input } from "./ui/input";
 import { Button } from "./ui/button";
@@ -6,6 +7,7 @@ import { RetirementGuide } from "./RetirementGuide";
 import type { Categories, Category } from "../lib/model";
 import type { ScenarioV2 as Scenario, AssumptionsV2 } from "../lib/planner";
 import {
+  immediateEmployerMatch,
   plannerScenarioErrors,
   plannerSharedErrors,
 } from "../lib/planner";
@@ -196,6 +198,7 @@ export function ScenarioForm({
             value={s.signOnY1 ?? "0"}
             onChange={(signOnY1) => set("signOnY1", signOnY1)}
             error={errors.signOnY1}
+            hint="Paid in the first projection month at the starting employer."
           />
           <Field
             label="Year 2 sign-on bonus"
@@ -203,6 +206,7 @@ export function ScenarioForm({
             value={s.signOnY2 ?? "0"}
             onChange={(signOnY2) => set("signOnY2", signOnY2)}
             error={errors.signOnY2}
+            hint="Paid monthly in year 2 while you stay with the starting employer."
           />
         </div>
       ) : (
@@ -391,74 +395,25 @@ export function ScenarioForm({
               role="group"
               aria-label="401(k) employer match presets"
             >
-              <button
-                type="button"
-                className={`pill-btn ${s.employerMatch.type === "none" || (s.employerMatch.type === "simple" && Number(s.employerMatch.rate) === 0) ? "active" : ""}`}
-                onClick={() =>
-                  set("employerMatch", {
-                    type: "none",
-                    rate: "0",
-                    payPercent: "0",
-                    cap: "0",
-                    tiers: [],
-                    vestingType: "immediate",
-                    vestingSchedule: ["100"],
-                  })
-                }
-              >
-                None (0%)
-              </button>
-              <button
-                type="button"
-                className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "50" && s.employerMatch.payPercent === "6" && (!s.employerMatch.cap || s.employerMatch.cap === "0") ? "active" : ""}`}
-                onClick={() =>
-                  set("employerMatch", {
-                    type: "simple",
-                    rate: "50",
-                    payPercent: "6",
-                    cap: "0",
-                    tiers: [],
-                    vestingType: "immediate",
-                    vestingSchedule: ["100"],
-                  })
-                }
-              >
-                50% up to 6%
-              </button>
-              <button
-                type="button"
-                className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "100" && s.employerMatch.payPercent === "4" ? "active" : ""}`}
-                onClick={() =>
-                  set("employerMatch", {
-                    type: "simple",
-                    rate: "100",
-                    payPercent: "4",
-                    cap: "0",
-                    tiers: [],
-                    vestingType: "immediate",
-                    vestingSchedule: ["100"],
-                  })
-                }
-              >
-                100% up to 4%
-              </button>
-              <button
-                type="button"
-                className={`pill-btn ${s.employerMatch.type === "simple" && s.employerMatch.rate === "100" && s.employerMatch.payPercent === "6" ? "active" : ""}`}
-                onClick={() =>
-                  set("employerMatch", {
-                    type: "simple",
-                    rate: "100",
-                    payPercent: "6",
-                    cap: "0",
-                    tiers: [],
-                    vestingType: "immediate",
-                    vestingSchedule: ["100"],
-                  })
-                }
-              >
-                100% up to 6%
-              </button>
+              {economicPresets.employerMatches.map(({ rate, payPercent }) => {
+                const match = s.employerMatch;
+                const noMatch = rate === "0";
+                const selected = noMatch
+                  ? match.type === "none" || (match.type === "simple" && Number(match.rate) === 0)
+                  : match.type === "simple" && Number(match.rate) === Number(rate) &&
+                    Number(match.payPercent) === Number(payPercent) && Number(match.cap || 0) === 0;
+                return (
+                  <button
+                    key={rate + ":" + payPercent}
+                    type="button"
+                    className={selected ? "pill-btn active" : "pill-btn"}
+                    aria-pressed={selected}
+                    onClick={() => set("employerMatch", immediateEmployerMatch(rate, payPercent))}
+                  >
+                    {noMatch ? "None (0%)" : rate + "% up to " + payPercent + "%"}
+                  </button>
+                );
+              })}
             </div>
           </div>
 

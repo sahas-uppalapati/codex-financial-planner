@@ -10,7 +10,7 @@ describe("local MCP planner", () => {
     const result = projectPlan(backup);
     expect(result.scenarios[0].startingTotal).toBe(projectScenario(result.input.scenarios[0], result.input.shared).startingTotal);
     expect(result.scenarios[0].rows).toEqual(projectScenario(result.input.scenarios[0], result.input.shared).rows);
-    expect(result.provenance.taxRules).toBe("US-W2-2026.1");
+    expect(result.provenance.taxRules).toBe("US-W2-2026.2");
     expect(result.limitations.length).toBeGreaterThan(0);
   });
   it("optimizes retirement waterfall allocations via MCP", () => {

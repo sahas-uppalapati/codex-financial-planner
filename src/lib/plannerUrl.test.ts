@@ -36,6 +36,15 @@ describe("plannerUrl", () => {
     expect(parsePlannerUrlParams("?expenses=-0.001").valid).toBe(false);
   });
 
+  it("rejects overrides outside planner input limits", () => {
+    const base = defaultPlanner();
+    for (const query of ["salary=-1", "salary=1e3", "years=2.5", "returns=-100", "match_rate=101"]) {
+      const parsed = parsePlannerUrlParams('?' + query);
+      expect(parsed.valid).toBe(false);
+      expect(parsed.applyTo(base)).toBe(base);
+    }
+  });
+
   it("handles mode parameter", () => {
     const q1 = parsePlannerUrlParams("?mode=detailed");
     expect(q1.mode).toBe("detailed");

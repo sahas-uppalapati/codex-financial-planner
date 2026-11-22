@@ -25,8 +25,6 @@ export function RetirementStrategyAdvisor({
   onChange: (s: ScenarioV2) => void;
 }) {
   const presets = getStrategyPresets(s, a);
-  const optimalMaxTotal = presets.find((p) => p.id === "max-all")?.amount || presets.find((p) => p.id === "max-401k")?.amount || 36400;
-  const defaultTarget = optimalMaxTotal;
 
   const year = Number(a.startYear) || 2026;
   const inflation = Number(a.taxInflation) || 0;
@@ -37,6 +35,7 @@ export function RetirementStrategyAdvisor({
 
   const matchPreset = presets.find((p) => p.id === "match-only");
   const maxAllPreset = presets.find((p) => p.id === "max-all");
+  const defaultTarget = maxAllPreset?.amount ?? max401kOnly;
 
   const simplifiedPresets = [
     ...(matchPreset && matchPreset.amount > 0

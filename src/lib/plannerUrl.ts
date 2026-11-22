@@ -1,18 +1,8 @@
 import { parseStartupSession, type StartupSession } from "./startupComparison";
-import type { PlannerV2, TaxLocation } from "./planner";
-import { defaultPlanner } from "./planner";
+import type { PlannerV2 } from "./planner";
+import { defaultPlanner, numberError, taxLocations, totalBudget } from "./planner";
 import { fieldError } from "./model";
 import { loadPlanner, PLANNER_KEY } from "./plannerStorage";
-
-export const VALID_LOCATIONS = new Set<TaxLocation>([
-  "columbus",
-  "seattle",
-  "san-francisco",
-  "los-angeles",
-  "new-york",
-  "austin",
-  "boston",
-]);
 
 interface FullPlanFormat1 {
   format: 1;
@@ -112,27 +102,44 @@ export function parsePlannerUrlParams(search: string): {
       matchPayPercent !== null,
   );
 
+  const taxLocation = taxLocations.find(({ id }) => id === location)?.id;
+  const valid = (salary === null || !fieldError(salary, "base")) &&
+    (bonus === null || !fieldError(bonus, "bonus")) &&
+    (stock === null || !fieldError(stock, "stock")) &&
+    (expenses === null || !fieldError(expenses, "monthlyExpenses")) &&
+    (growth === null || !fieldError(growth, "growth")) &&
+    (spouseSalary === null || !numberError(spouseSalary)) &&
+    (savings === null || !fieldError(savings, "starting")) &&
+    (years === null || !fieldError(years, "years")) &&
+    (returns === null || !fieldError(returns, "returns")) &&
+    (inflation === null || !fieldError(inflation, "inflation")) &&
+    (matchRate === null || !numberError(matchRate, 0, 100)) &&
+    (matchPayPercent === null || !numberError(matchPayPercent, 0, 100)) &&
+    (location === null || taxLocation !== undefined) &&
+    (filing === null || filing === "single" || filing === "joint") &&
+    (params.get("mode") === null || mode !== undefined);
+
   const applyTo = (planner: PlannerV2): PlannerV2 => {
-    if (!hasParams) return planner;
+    if (!hasParams || !valid) return planner;
 
     const s0 = { ...planner.scenarios[0] };
     const shared = { ...planner.shared };
 
-    if (salary !== null && Number.isFinite(Number(salary))) {
+    if (salary !== null) {
       s0.base = salary;
     }
-    if (bonus !== null && Number.isFinite(Number(bonus))) {
+    if (bonus !== null) {
       s0.bonus = bonus;
     }
-    if (stock !== null && Number.isFinite(Number(stock))) {
+    if (stock !== null) {
       s0.stock = stock;
       s0.includeStock = Number(stock) > 0;
       s0.stockMode = "legacy";
     }
-    if (growth !== null && Number.isFinite(Number(growth))) {
+    if (growth !== null) {
       s0.growth = growth;
     }
-    if (expenses !== null && Number.isFinite(Number(expenses))) {
+    if (expenses !== null) {
       const cents = Math.round(Number(expenses) * 100);
       const housing = Math.floor(cents * 65 / 100);
       const food = Math.floor(cents * 15 / 100);
@@ -146,40 +153,40 @@ export function parsePlannerUrlParams(search: string): {
         other: String((cents - housing - food - transportation - healthcare) / 100),
       };
     }
-    if (location && VALID_LOCATIONS.has(location as TaxLocation)) {
-      s0.taxProfile = { ...s0.taxProfile, location: location as TaxLocation };
-      s0.location = location;
+    if (taxLocation !== undefined) {
+      s0.taxProfile = { ...s0.taxProfile, location: taxLocation };
+      s0.location = taxLocation;
     }
     if (filing === "single" || filing === "joint") {
       s0.taxProfile = { ...s0.taxProfile, filing };
     }
-    if (spouseSalary !== null && Number.isFinite(Number(spouseSalary))) {
+    if (spouseSalary !== null) {
       s0.taxProfile = { ...s0.taxProfile, spouseWages: spouseSalary };
     }
-    if (matchRate !== null && Number.isFinite(Number(matchRate))) {
+    if (matchRate !== null) {
       s0.employerMatch = {
         ...s0.employerMatch,
         type: Number(matchRate) > 0 ? "simple" : "none",
         rate: matchRate,
       };
     }
-    if (matchPayPercent !== null && Number.isFinite(Number(matchPayPercent))) {
+    if (matchPayPercent !== null) {
       s0.employerMatch = {
         ...s0.employerMatch,
         payPercent: matchPayPercent,
       };
     }
 
-    if (savings !== null && Number.isFinite(Number(savings))) {
+    if (savings !== null) {
       shared.starting = savings;
     }
-    if (years !== null && Number.isFinite(Number(years))) {
+    if (years !== null) {
       shared.years = years;
     }
-    if (returns !== null && Number.isFinite(Number(returns))) {
+    if (returns !== null) {
       shared.returns = returns;
     }
-    if (inflation !== null && Number.isFinite(Number(inflation))) {
+    if (inflation !== null) {
       shared.inflation = inflation;
     }
 
@@ -190,30 +197,6 @@ export function parsePlannerUrlParams(search: string): {
     };
   };
 
-  const numbers = [
-    salary,
-    bonus,
-    stock,
-    expenses,
-    growth,
-    spouseSalary,
-    savings,
-    years,
-    returns,
-    inflation,
-    matchRate,
-    matchPayPercent,
-  ];
-  const valid =
-    numbers.every(
-      (value) =>
-        value === null ||
-        (value.trim() !== "" && Number.isFinite(Number(value))),
-    ) &&
-    (expenses === null || !fieldError(expenses, "monthlyExpenses")) &&
-    (location === null || VALID_LOCATIONS.has(location as TaxLocation)) &&
-    (filing === null || filing === "single" || filing === "joint") &&
-    (params.get("mode") === null || mode !== undefined);
   return { mode, hasCustomParams: hasParams, valid, applyTo };
 }
 
@@ -233,20 +216,8 @@ export function buildPlannerSearchString(
   params.set("share", "1");
   params.set("mode", quickMode ? "quick" : "detailed");
 
-  // Monthly expenses total
-  const monthlyExpenses =
-    Number(s0.expenses.housing) +
-    Number(s0.expenses.food) +
-    Number(s0.expenses.transportation) +
-    Number(s0.expenses.healthcare) +
-    Number(s0.expenses.other);
-
-  const defaultMonthlyExpenses =
-    Number(defaultS0.expenses.housing) +
-    Number(defaultS0.expenses.food) +
-    Number(defaultS0.expenses.transportation) +
-    Number(defaultS0.expenses.healthcare) +
-    Number(defaultS0.expenses.other);
+  const monthlyExpenses = totalBudget(s0);
+  const defaultMonthlyExpenses = totalBudget(defaultS0);
 
   if (s0.base !== defaultS0.base) params.set("salary", s0.base);
   if (monthlyExpenses !== defaultMonthlyExpenses) {

@@ -1,12 +1,10 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { PlannerV2 } from "../lib/planner";
 import type { Projection } from "../lib/projection";
 import type { StartupInputs } from "../lib/startupComparison";
 import { money } from "../lib/format";
 import {
   decisionSummary,
-  previewPlan,
-  projectDecision,
   solveSalary,
 } from "../lib/decisionTools";
 
@@ -23,19 +21,7 @@ export function DecisionTools({
   startup: number | null;
   startupInput: StartupInputs;
 }) {
-  const [offer, setOffer] = useState(0),
-    [salaryOffer, setSalaryOffer] = useState<number | null>(null);
-  const [appreciation, setAppreciation] = useState(""),
-    [housing, setHousing] = useState(""),
-    [returns, setReturns] = useState(""),
-    [exclude, setExclude] = useState(false);
-  const [previewResult, setPreview] = useState<{
-      state: PlannerV2;
-      year: number;
-      offer: number;
-      values: ReturnType<typeof projectDecision>;
-    } | null>(null),
-    [error, setError] = useState("");
+  const [salaryOffer, setSalaryOffer] = useState<number | null>(null);
   const [salaryResult, setSolution] = useState<{
     state: PlannerV2;
     year: number;
@@ -48,32 +34,9 @@ export function DecisionTools({
     startup,
     startupInput,
   );
-  useEffect(() => {
-    if (!state.comparison && offer !== 0) {
-      setOffer(0);
-      return;
-    }
-    const scenario = state.scenarios[offer];
-    setAppreciation(
-      scenario.issuers.find((i) => i.id === scenario.employerId)
-        ?.appreciation ?? "0",
-    );
-    setHousing(scenario.expenses.housing);
-    setReturns(state.shared.returns);
-    setExclude(false);
-    setPreview(null);
-    setSolution(null);
-    setError("");
-  }, [state, offer, year]);
   const selected =
     salaryOffer ??
     (baseline.length === 2 && baseline[0].cash > baseline[1].cash ? 1 : 0);
-  const preview =
-    previewResult?.state === state &&
-    previewResult.year === year &&
-    previewResult.offer === offer
-      ? previewResult.values
-      : null;
   const solution =
     salaryResult?.state === state &&
     salaryResult.year === year &&
@@ -179,123 +142,6 @@ export function DecisionTools({
           </details>
         </section>
       )}
-      <details className="cash-panel prose decision-tools">
-        <summary>Explore what-ifs</summary>
-        <label>
-          Offer{" "}
-          <select
-            value={offer}
-            onChange={(e) => setOffer(Number(e.target.value))}
-          >
-            {state.scenarios.slice(0, state.comparison ? 2 : 1).map((s, i) => (
-              <option key={i} value={i}>
-                {s.name}
-              </option>
-            ))}
-          </select>
-        </label>{" "}
-        <label>
-          Employer stock appreciation (%){" "}
-          <input
-            type="number"
-            value={appreciation}
-            onChange={(e) => {
-              setAppreciation(e.target.value);
-              setPreview(null);
-            }}
-          />
-        </label>{" "}
-        <label>
-          Monthly housing cost{" "}
-          <input
-            type="number"
-            value={housing}
-            onChange={(e) => {
-              setHousing(e.target.value);
-              setPreview(null);
-            }}
-          />
-        </label>{" "}
-        <label>
-          Investment return (%){" "}
-          <input
-            type="number"
-            value={returns}
-            onChange={(e) => {
-              setReturns(e.target.value);
-              setPreview(null);
-            }}
-          />
-        </label>{" "}
-        <label>
-          <input
-            type="checkbox"
-            checked={exclude}
-            onChange={(e) => {
-              setExclude(e.target.checked);
-              setPreview(null);
-            }}
-          />{" "}
-          Exclude promotions
-        </label>{" "}
-        <button
-          type="button"
-          onClick={() => {
-            try {
-              setPreview({
-                state,
-                year,
-                offer,
-                values: projectDecision(
-                  previewPlan(
-                    state,
-                    offer,
-                    appreciation,
-                    housing,
-                    returns,
-                    exclude,
-                  ),
-                  year,
-                ),
-              });
-              setError("");
-            } catch {
-              setPreview(null);
-              setError("Check the preview inputs.");
-            }
-          }}
-        >
-          Run preview
-        </button>{" "}
-        <button
-          type="button"
-          onClick={() => {
-            setAppreciation(
-              state.scenarios[offer].issuers.find(
-                (i) => i.id === state.scenarios[offer].employerId,
-              )?.appreciation ?? "0",
-            );
-            setHousing(state.scenarios[offer].expenses.housing);
-            setReturns(state.shared.returns);
-            setExclude(false);
-            setPreview(null);
-            setError("");
-          }}
-        >
-          Reset preview
-        </button>
-        {error && <p role="alert">{error}</p>}
-        {preview?.map((r, i) => (
-          <p key={i}>
-            {state.scenarios[i].name}: monthly cash{" "}
-            {money(baseline[i].cash / 12)} → {money(r.cash / 12)}; ending
-            balance {money(baseline[i].ending)} → {money(r.ending)}.
-          </p>
-        ))}
-        <p>
-          Preview only. Startup options are separate from portfolio balances.
-        </p>
-      </details>
     </>
   );
 }
